@@ -1,15 +1,13 @@
 # -----------------------------------------------------------------------------
 # STAGE 1: Build - Extract Layers
 # -----------------------------------------------------------------------------
-# FIX: Capitalized 'AS' to silence linter warning
 FROM eclipse-temurin:21-jre-alpine AS builder
 WORKDIR /builder
 
-# CLEVER CHANGE: Path is relative to the PROJECT ROOT now
-# We specifically target the module's target folder
-COPY server/target/*-exec.jar application.jar
+# Copy the repackaged Spring Boot jar (excludes .original)
+COPY server/target/server*.jar application.jar
 
-# Extract layers
+# Extract layers for optimized Docker caching
 RUN java -Djarmode=layertools -jar application.jar extract
 
 # -----------------------------------------------------------------------------

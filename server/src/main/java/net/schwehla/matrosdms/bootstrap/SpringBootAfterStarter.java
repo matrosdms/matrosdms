@@ -7,11 +7,14 @@
  */
 package net.schwehla.matrosdms.bootstrap;
 
+import java.awt.Desktop;
+import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
@@ -39,6 +42,8 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 	@Autowired
 	private ApplicationContext applicationContext;
+	@Value("${server.port:8080}")
+	private int serverPort;
 	@Autowired
 	AttributeLookupService attributeLookupService;
 	@Autowired
@@ -80,6 +85,9 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 		// 3. Data Warm-up
 		CompletableFuture.runAsync(this::warmUpSystem);
 
+		// 4. Auto-open Browser (development convenience)
+		CompletableFuture.runAsync(this::openBrowser);
+
 		log.info("✅ Background tasks scheduled.");
 	}
 
@@ -96,6 +104,22 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 			log.info("System Warmed Up in {}ms", (System.currentTimeMillis() - start));
 		} catch (Exception e) {
 			log.debug("Warm-up optimization skipped: {}", e.getMessage());
+		}
+	}
+
+	private void openBrowser() {
+		try {
+			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+				// Give server a moment to fully start before opening browser
+				Thread.sleep(1000);
+				URI uri = new URI("http://localhost:" + serverPort);
+				Desktop.getDesktop().browse(uri);
+				log.info("🌐 Browser opened: {}", uri);
+			} else {
+				log.debug("Desktop browsing not supported on this platform");
+			}
+		} catch (Exception e) {
+			log.debug("Failed to auto-open browser: {}", e.getMessage());
 		}
 	}
 }

@@ -24,7 +24,7 @@ app:
   base-path: ${MATROS_DATA_DIR:./data}
 
   security:
-    jwt-secret: ${MATROS_JWT_SECRET:CHANGE-THIS-SECRET-IN-PRODUCTION} 
+    jwt-secret: ${MATROS_JWT_SECRET:bXl0cm9zZG1zU2VjcmV0S2V5Rm9yRGV2ZWxvcG1lbnRPbmx5Q2hhbmdlSW5Qcm9kdWN0aW9u} 
     jwt-expiration-ms: 86400000 
 
   templates:
