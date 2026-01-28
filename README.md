@@ -9,6 +9,13 @@
 
 ---
 
+## 📸 Overview
+
+![MatrosDMS Dashboard](doc/img/dashboard.png)
+*MatrosDMS interface showing hierarchical context navigation and document timeline*
+
+---
+
 ## 🤔 Why MatrosDMS?
 
 MatrosDMS organizes documents the way you think — using **Who**, **What**, and **Where**. Pick a context once, drop files in, and everything is automatically tagged and searchable. No per-file labeling. Just a clean timeline for every combination.

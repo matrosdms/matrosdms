@@ -109,6 +109,9 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 	private void openBrowser() {
 		try {
+			log.info("Start Browser");
+			System.setProperty("java.awt.headless","false");
+
 			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
 				// Give server a moment to fully start before opening browser
 				Thread.sleep(1000);
