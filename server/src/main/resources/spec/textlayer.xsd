@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <!-- 
+      MATROS DMS TEXT LAYER SCHEMA 
+      Version: 1.0
+      Description: Standardized structure for extracted text content.
+    -->
+
+    <xs:element name="root">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="meta" minOccurs="0">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <!-- Dynamic key-value metadata -->
+                            <xs:any minOccurs="0" maxOccurs="unbounded" processContents="skip"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+
+                <!-- Main Content (e.g. Email Body or PDF Page Text) -->
+                <xs:element name="content" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:simpleContent>
+                            <xs:extension base="xs:string">
+                                <xs:attribute name="type" type="xs:string" use="required"/>
+                            </xs:extension>
+                        </xs:simpleContent>
+                    </xs:complexType>
+                </xs:element>
+
+                <!-- Attachments (e.g. Email Attachments or Embedded Files) -->
+                <xs:element name="attachment" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:simpleContent>
+                            <xs:extension base="xs:string">
+                                <xs:attribute name="filename" type="xs:string" use="required"/>
+                                <xs:attribute name="mime" type="xs:string"/>
+                            </xs:extension>
+                        </xs:simpleContent>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+            <xs:attribute name="source" type="xs:string" use="required"/>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

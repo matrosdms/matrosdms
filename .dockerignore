@@ -1,0 +1,7 @@
+# 1. IGNORE EVERYTHING
+*
+# 2. ALLOW PATH TO THE JAR
+# (You must un-ignore the parent directories to reach the file)
+!server/
+!server/target/
+!server/target/*-exec.jar

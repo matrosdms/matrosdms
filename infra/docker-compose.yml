@@ -1,0 +1,21 @@
+services:
+  matros-server:
+    build:
+      context: ..              # The context is the PROJECT ROOT (one level up)
+      dockerfile: infra/Dockerfile
+    image: matrosdms/server:latest
+    container_name: matros-server
+    ports:
+      - "9090:9090"
+    environment:
+      # Tell Spring Boot where to write data inside the container
+      - MATROS_DATA_DIR=/data
+      # Override these in a .env file or export them before running
+      - MATROS_STORE_PASSWORD=${MATROS_STORE_PASSWORD:-changeme}
+      - DB_USER=${DB_USER:-matros}
+      - DB_PASS=${DB_PASS:-changeme}
+    volumes:
+      # Map host directory to container. 
+      # " ../data " creates a folder 'data' in your project root automatically.
+      - ../data:/data
+    restart: unless-stopped

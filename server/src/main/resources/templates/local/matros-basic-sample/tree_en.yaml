@@ -1,0 +1,27 @@
+ROOT_WHO:
+  - Partner:
+      - Customers
+      - Suppliers
+  - Employees:
+      - Internal
+
+ROOT_WHAT:
+  - Finance:
+      - Invoices:
+          - Incoming
+          - Outgoing
+      - Taxes
+  - Contracts:
+      - Service Agreements
+      - NDAs
+
+ROOT_WHERE:
+  - Headquarters:
+      - Room 101
+      - Archive Basement
+
+ROOT_KIND:
+  - Paper
+  - PDF
+  - Email
+  - Image

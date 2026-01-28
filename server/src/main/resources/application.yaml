@@ -1,0 +1,152 @@
+server:
+  port: 9090
+  shutdown: graceful
+  compression:
+    enabled: true
+    min-response-size: 1024
+    
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"    
+logging:
+  level:
+    root: INFO
+    net.schwehla.matrosdms: INFO 
+    org.apache.james: INFO
+
+app:
+  base-path: ${MATROS_DATA_DIR:./data}
+
+  security:
+    jwt-secret: ${MATROS_JWT_SECRET:CHANGE-THIS-SECRET-IN-PRODUCTION} 
+    jwt-expiration-ms: 86400000 
+
+  templates:
+    location: "classpath*:templates/local/"
+
+  mail:
+    smtp:
+      port: 2525
+    imap:
+      port: 1143
+
+  ai:
+    classification:
+      ollama:
+        enabled: false
+        preference: 10
+        url: ${MATROS_AI_OLLAMA_URL:http://localhost:11434}
+        model: ${MATROS_AI_MODEL:llama3}
+      heuristic:
+        enabled: true
+        preference: 20
+        
+  processing:
+    convert-text-to-pdf: true
+    concurrency: 2 
+    
+  server:
+    inbox:
+        path: "${app.base-path}/workspace/inbox"
+    # REMOVED: staging_upload
+    temp:
+        path: "${app.base-path}/workspace/temp"
+    cache: 
+        path: "${app.base-path}/workspace/cache"
+    ignored:        
+        path: "${app.base-path}/workspace/ignored"           
+    processed:
+        path: "${app.base-path}/workspace/archive"
+    plugins:
+        path: "${app.base-path}/workspace/plugins"
+    store:
+      - id: local
+        type: LOCAL 
+        path: "${app.base-path}/repository/documents"
+        cryptor: ${MATROS_STORE_CRYPTOR:AES_CTR}
+        password: ${MATROS_STORE_PASSWORD:CHANGE-THIS-PASSWORD}
+        salt: ${MATROS_STORE_SALT:MATROS_DMS_SALT}
+             
+spring:
+  main:
+    lazy-initialization: true
+
+  devtools:
+    restart:
+      enabled: false
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB  
+  
+  threads:
+    virtual:
+      enabled: true
+  data:
+    rest:
+      base-path: /api
+  jackson:
+    serialization:
+      indent-output: true
+      write-dates-as-timestamps: false
+    default-property-inclusion: "non-null"
+  lifecycle:
+    timeout-per-shutdown-phase: 5s
+  flyway:
+    enabled: true  
+  mvc:
+    async:
+      request-timeout: 5000
+  
+  datasource:
+    url: ${MATROS_DB_URL:jdbc:h2:${app.base-path}/workspace/db/matros;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE}
+    username: ${MATROS_DB_USER:admin}
+    password: ${MATROS_DB_PASS:admin}
+    # NEW: Connection Pool Tuning
+    hikari:
+      minimum-idle: 2
+      maximum-pool-size: 10
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+    show-sql: false
+    generate-ddl: false
+    properties:
+      "[hibernate.default_batch_fetch_size]": 50
+      
+      # NEW: JDBC Batching (Massive Insert Performance)
+      "[hibernate.jdbc.batch_size]": 30
+      "[hibernate.order_inserts]": true
+      "[hibernate.order_updates]": true
+      "[hibernate.jdbc.batch_versioned_data]": true
+      
+      # Search Config
+      "[hibernate.search.backend.directory.root]": "${app.base-path}/workspace/index"
+      "[hibernate.search.backend.type]": "lucene"
+      "[hibernate.search.mapping.indexing.plan.synchronization.strategy]": "async"
+      "[hibernate.search.backend.lucene_version]": "LATEST"
+      "[hibernate.search.schema_management.strategy]": "create-or-validate"
+
+      "[jakarta.persistence.schema-generation.scripts.action]": none # create 
+      "[jakarta.persistence.schema-generation.scripts.create-target]": ../spec/matros.ddl
+      "[hibernate.boot.allow_jdbc_metadata_access]": false
+      "[hibernate.archive.autodetection]": "class"
+      
+    hibernate:      
+      ddl-auto: none

@@ -1,0 +1,13 @@
+server:
+  port: 0 
+
+spring:
+
+  main:
+    web-application-type: none
+    
+  jackson:
+    serialization:
+      indent-output: true
+      write-dates-as-timestamps: false
+    default-property-inclusion: "non-null"

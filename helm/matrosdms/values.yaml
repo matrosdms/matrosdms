@@ -1,0 +1,63 @@
+# Default values for matrosdms.
+replicaCount: 1
+
+image:
+  repository: matrosdms/server
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 9090
+
+persistence:
+  enabled: true
+  size: 5Gi
+  accessMode: ReadWriteOnce
+
+ingress:
+  enabled: true
+  className: "" 
+  annotations: 
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+  hosts:
+    - host: matros.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: localhost
+      paths:
+        - path: /
+          pathType: Prefix
+
+env:
+  MATROS_DATA_DIR: "/data"
+  # IMPORTANT: Override MATROS_STORE_PASSWORD via --set or values override file
+  MATROS_STORE_PASSWORD: "CHANGE-THIS-PASSWORD"
+  SPRING_PROFILES_ACTIVE: "prod"
+
+resources:
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+
+# FIX: Increased timeouts for Java Startup
+#livenessProbe:
+#  httpGet:
+#    path: /actuator/health/liveness
+#    port: 9090
+#  initialDelaySeconds: 45    # Was 15. Give it time to boot H2 and Liquibase.
+#  periodSeconds: 20
+#  failureThreshold: 3        # Allow 3 failures before restarting
+
+#readinessProbe:
+#  httpGet:
+#    path: /actuator/health/readiness
+#    port: 9090
+#  initialDelaySeconds: 30    # Was 10.
+#  periodSeconds: 10
+#  failureThreshold: 3

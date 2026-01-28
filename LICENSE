@@ -1,0 +1,72 @@
+MatrosDMS – Technology Study License
+===================================
+
+Copyright (c) YEAR MatrosDMS
+
+This project is primarily developed as a technology study and reference
+implementation. Its goal is to explore and demonstrate modern approaches
+to document management systems, including architecture, data processing,
+search, and automation.
+
+The software is made available under a dual-licensing model
+
+-----------------------------------------------------------------------
+
+1. Open Source License – GNU Affero General Public License v3.0
+   (AGPL-3.0-only)
+
+This project is licensed under the GNU Affero General Public License
+version 3.0 (AGPL-3.0-only).
+
+You may use, study, modify, and self-host this software free of charge,
+including for private, educational, and experimental purposes, provided
+that you comply with the terms of the AGPL.
+
+In particular
+- If you modify the software and make it available to users over a network,
+  you must also make the complete corresponding source code available
+  under the same license.
+- All derivative works must remain licensed under the AGPL.
+
+The full license text can be found in the file
+  LICENSE-AGPL.txt
+
+-----------------------------------------------------------------------
+
+2. Commercial License
+
+A separate commercial license is required if you intend to use this
+software in a way that is not compatible with the AGPL, including but not
+limited to
+
+- Offering the software or a modified version as a hosted or managed
+  service (SaaS) without fulfilling AGPL source code disclosure
+  obligations
+- Integrating the software into proprietary or closed-source products
+- Using the software as part of a commercial offering where source code
+  disclosure is not desired
+
+Commercial licensing allows proprietary use without AGPL obligations.
+
+For commercial licensing inquiries, please contact the project owner.
+
+-----------------------------------------------------------------------
+
+Intent and Philosophy
+---------------------
+
+MatrosDMS is published openly to encourage learning, experimentation,
+discussion, and collaboration. The AGPL is used to ensure that improvements
+to the software—especially in networked environments—remain accessible
+to the community.
+
+The commercial license exists to enable sustainable development and to
+support use cases where open-source reciprocity is not feasible.
+
+This project is not positioned as a drop-in enterprise product, but as a
+transparent and opinionated technology study.
+
+-----------------------------------------------------------------------
+
+This notice is for informational purposes only and does not replace the
+full license texts referenced above.

@@ -1,0 +1,101 @@
+/*
+ * Copyright (c) 2026 Matrosdms
+ * This program is dual-licensed under:
+ * GNU Affero General Public License (AGPL v3) - Open Source, Copyleft.
+ * Commercial License - Proprietary, Closed Source.
+ * See the LICENSE file for full details.
+ */
+package net.schwehla.matrosdms.bootstrap;
+
+import java.util.concurrent.CompletableFuture;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationListener;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Component;
+
+import net.schwehla.matrosdms.domain.core.EArchivedState;
+import net.schwehla.matrosdms.search.SearchCriteria;
+import net.schwehla.matrosdms.service.InboxWatchService;
+import net.schwehla.matrosdms.service.SearchService;
+import net.schwehla.matrosdms.service.domain.ActionService;
+import net.schwehla.matrosdms.service.domain.AttributeLookupService;
+import net.schwehla.matrosdms.service.domain.AttributeService;
+import net.schwehla.matrosdms.service.domain.ContextService;
+import net.schwehla.matrosdms.service.domain.StoreService;
+import net.schwehla.matrosdms.service.domain.UserService;
+import net.schwehla.matrosdms.service.mail.imap.ImapServer;
+import net.schwehla.matrosdms.service.mail.smtp.SmtpServer;
+
+@Component
+public class SpringBootAfterStarter implements ApplicationListener<ApplicationReadyEvent> {
+
+	private static final Logger log = LoggerFactory.getLogger(SpringBootAfterStarter.class);
+
+	@Autowired
+	private ApplicationContext applicationContext;
+	@Autowired
+	AttributeLookupService attributeLookupService;
+	@Autowired
+	SearchService searchService;
+	@Autowired
+	ContextService contextService;
+	@Autowired
+	StoreService storeService;
+	@Autowired
+	UserService userService;
+	@Autowired
+	AttributeService attributeService;
+	@Autowired
+	ActionService actionService;
+
+	// FIX: Autowiring these forces Spring to instantiate them despite
+	// 'lazy-initialization: true'
+	// This triggers their @PostConstruct start() methods.
+	@Autowired
+	SmtpServer smtpServer;
+	@Autowired
+	ImapServer imapServer;
+
+	@Override
+	public void onApplicationEvent(final ApplicationReadyEvent event) {
+		log.info("🚀 HTTP Server is READY. Starting Background Services...");
+
+		// 1. Start File Watcher
+		attributeLookupService.refresh();
+		InboxWatchService watchService = applicationContext.getBean(InboxWatchService.class);
+		Thread.ofVirtual().name("inbox-watcher").start(watchService);
+
+		// 2. Confirm Mail Servers
+		log.info(
+				"📧 Mail Services Active: SMTP (Port {}) & IMAP (Port {})",
+				2525,
+				1143); // Ports are hardcoded in logs here, but loaded from config in actual beans
+
+		// 3. Data Warm-up
+		CompletableFuture.runAsync(this::warmUpSystem);
+
+		log.info("✅ Background tasks scheduled.");
+	}
+
+	private void warmUpSystem() {
+		long start = System.currentTimeMillis();
+		try {
+			searchService.search(SearchCriteria.forText("invoice"), 0, 1);
+			contextService.loadContextList(EArchivedState.ONLYACTIVE, 100, "name");
+			storeService.loadStoreList();
+			userService.loadUserList();
+			attributeService.loadAttributeTypes();
+			actionService.searchActions(null, null, null, PageRequest.of(0, 20, Sort.by("dueDate")));
+
+			log.info("System Warmed Up in {}ms", (System.currentTimeMillis() - start));
+		} catch (Exception e) {
+			log.debug("Warm-up optimization skipped: {}", e.getMessage());
+		}
+	}
+}

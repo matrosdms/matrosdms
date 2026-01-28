@@ -1,0 +1,100 @@
+/*
+ * Copyright (c) 2026 Matrosdms
+ * This program is dual-licensed under:
+ * GNU Affero General Public License (AGPL v3) - Open Source, Copyleft.
+ * Commercial License - Proprietary, Closed Source.
+ * See the LICENSE file for full details.
+ */
+package net.schwehla.matrosdms.service;
+
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.tika.Tika;
+import org.apache.tika.metadata.Metadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Service;
+
+@Service
+@Lazy
+public class TikaService {
+
+	private static final Logger log = LoggerFactory.getLogger(TikaService.class);
+	private Tika tika;
+
+	private Tika getTika() {
+		if (this.tika == null) {
+			this.tika = new Tika();
+			this.tika.setMaxStringLength(10 * 1024 * 1024); // 10MB text limit
+		}
+		return this.tika;
+	}
+
+	public String detectMimeType(Path file) {
+		try {
+			return getTika().detect(file);
+		} catch (IOException e) {
+			log.warn("Mime detection failed: {}", e.getMessage());
+			return "application/octet-stream";
+		}
+	}
+
+	public String extractText(Path file) {
+		try (InputStream stream = new BufferedInputStream(Files.newInputStream(file))) {
+			// PDF Fallback check - PDFBox is often better for layout preservation
+			if (file.toString().toLowerCase().endsWith(".pdf")) {
+				String text = extractPdfBox(file);
+				if (text != null && !text.isBlank())
+					return text;
+			}
+			return extractText(stream);
+		} catch (Exception e) {
+			log.warn("Extraction failed for {}: {}", file.getFileName(), e.getMessage());
+			return "";
+		}
+	}
+
+	public String detectMimeType(byte[] data) {
+		try {
+			return getTika().detect(data);
+		} catch (Exception e) {
+			log.warn("Mime detection failed: {}", e.getMessage());
+			return "application/octet-stream";
+		}
+	}
+
+	/**
+	 * EXTRACT TEXT FROM STREAM Required for Email Attachments which are in memory
+	 * (InputStream), not
+	 * files.
+	 */
+	public String extractText(InputStream stream) {
+		try {
+			// Metadata object is required to prevent NPE in some Tika parsers
+			return getTika().parseToString(stream, new Metadata()).trim();
+		} catch (Exception e) {
+			log.warn("In-memory extraction failed: {}", e.getMessage());
+			return "";
+		}
+	}
+
+	private String extractPdfBox(Path file) {
+		try (PDDocument document = Loader.loadPDF(file.toFile())) {
+			if (document.isEncrypted())
+				return "";
+			PDFTextStripper stripper = new PDFTextStripper();
+			stripper.setSortByPosition(true);
+			return stripper.getText(document);
+		} catch (IOException e) {
+			return "";
+		}
+	}
+}

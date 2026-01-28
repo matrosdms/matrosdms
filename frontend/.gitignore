@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+/pnpm-lock.yaml
+/pnpm-workspace.yaml
+.npmrc
+
+# Build output
+/dist
+/dist-ssr
+/build
+
+# Environment files
+.env.local
+.env.*.local
+.vercel
+.netlify
+netlify.toml
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# System Files
+.DS_Store
+.hg
+.lock-wscript
+.svn/
+CVS/
+.cache
+.temp
+.project
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

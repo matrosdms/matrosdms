@@ -1,0 +1,27 @@
+ROOT_WHO:
+  - Partner:
+      - Kunden
+      - Lieferanten
+  - Mitarbeiter:
+      - Intern
+
+ROOT_WHAT:
+  - Finanzen:
+      - Rechnungen:
+          - Eingang
+          - Ausgang
+      - Steuern
+  - Verträge:
+      - Dienstleistung
+      - Geheimhaltung
+
+ROOT_WHERE:
+  - Hauptsitz:
+      - Raum 101
+      - Archiv Keller
+
+ROOT_KIND:
+  - Papier
+  - PDF
+  - Email
+  - Bild
