@@ -1,17 +1,5 @@
 # -----------------------------------------------------------------------------
-# STAGE 1: Build - Extract Layers
-# -----------------------------------------------------------------------------
-FROM eclipse-temurin:21-jre-alpine AS builder
-WORKDIR /builder
-
-# Copy the repackaged Spring Boot jar (excludes .original)
-COPY server/target/server*.jar application.jar
-
-# Extract layers for optimized Docker caching
-RUN java -Djarmode=layertools -jar application.jar extract
-
-# -----------------------------------------------------------------------------
-# STAGE 2: Run
+# Single Stage Build - Simplified
 # -----------------------------------------------------------------------------
 FROM eclipse-temurin:21-jre-alpine
 
@@ -20,13 +8,10 @@ USER matros:matros
 
 WORKDIR /app
 
-# Copy layers from builder (no changes needed here)
-COPY --from=builder /builder/dependencies/ ./
-COPY --from=builder /builder/spring-boot-loader/ ./
-COPY --from=builder /builder/snapshot-dependencies/ ./
-COPY --from=builder /builder/application/ ./
+# Copy the Spring Boot JAR directly
+COPY --chown=matros:matros server*.jar application.jar
 
 VOLUME /data
 VOLUME /tmp
 
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-jar", "application.jar"]
