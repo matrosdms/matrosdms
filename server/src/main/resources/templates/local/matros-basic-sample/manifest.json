@@ -1,7 +1,7 @@
 {
   "id": "matros-basic-sample",
-  "name": "Small Office (Basic)",
-  "description": "A balanced structure for freelancers and small businesses.",
+  "name": "Basic Family (Basic)",
+  "description": "A balanced structure personal matters.",
   "author": "Matros Team",
   "url": "https://github.com/mschwehl/matrosdms-templates",
   "supportedLanguages": ["en", "de"]

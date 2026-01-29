@@ -1,27 +1,67 @@
 ROOT_WHO:
-  - Partner:
-      - Kunden
-      - Lieferanten
-  - Mitarbeiter:
-      - Intern
+  - Familie:
+      - Stefan
+      - Aische
+      - Kinder:
+          - Paulina
+
 
 ROOT_WHAT:
+  - Besitz:
+      - Immobilien:
+          - Schlossstraße
+          - Elternhaus
+      - Fahrzeuge:
+          - Golf 7
+          - Fahrräder
+  - Job:
+      - Anstellung
+      - Fortbildung
   - Finanzen:
-      - Rechnungen:
-          - Eingang
-          - Ausgang
-      - Steuern
-  - Verträge:
-      - Dienstleistung
-      - Geheimhaltung
+      - Rente
+      - Versicherung
+      - Depot
+  - Themen:
+      - Steuer
+      - Gesundheit
+      - Urlaub
+
 
 ROOT_WHERE:
-  - Hauptsitz:
-      - Raum 101
-      - Archiv Keller
+  - Arbeit & Amt:
+      - BAMF
+      - ITSAS
+      - Finanzamt
+      - DRV
+  - Bank & Vers.:
+      - Sparkasse
+      - Allianz
+      - HUK
+      - AudiBKK
+  - Service:
+      - Werkstatt
+      - Telekom
+      - SW Nürnberg
+      - Vermieter
+  - Ärzte:
+      - Hausarzt
+      - Zahnarzt
+
 
 ROOT_KIND:
-  - Papier
-  - PDF
-  - Email
-  - Bild
+  - Beleg:
+      - Rechnung
+      - Lohnzettel
+      - Steuerbescheid
+      - Kontoauszug
+  - Vertrag:
+      - Arbeitsvertrag
+      - Mietvertrag
+      - Police
+  - Amtlich:
+      - Bescheid
+      - Urkunde
+      - Ausweis
+  - Info:
+      - Schreiben
+      - Notiz

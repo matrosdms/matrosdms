@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 1. Inherit Spring Boot's default console formatting -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- 2. Import the 'app.base-path' property from application.yaml -->
+    <!-- We set a defaultValue of ./data just in case the property is missing -->
+    <springProperty scope="context" name="APP_BASE_PATH" source="app.base-path" defaultValue="./data"/>
+
+    <!-- 3. Define the Log Directory: workspace/log -->
+    <property name="LOG_HOME" value="${APP_BASE_PATH}/workspace/log"/>
+
+    <!-- 4. Configure the Rolling File Appender -->
+    <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- Current active log file -->
+        <file>${LOG_HOME}/matrosdms.log</file>
+
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- 
+               Rotation Pattern:
+               - %d{yyyy-MM-dd}: Rotates daily
+               - .gz: Automatically compresses (zips) the rotated file 
+            -->
+            <fileNamePattern>${LOG_HOME}/matrosdms-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+
+            <!-- Keep logs for 7 days -->
+            <maxHistory>7</maxHistory>
+            
+            <!-- Optional: Cap total size of all archives to 1GB to prevent disk fill-up -->
+            <totalSizeCap>1GB</totalSizeCap>
+            
+            <!-- Clean up old logs on startup -->
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+    <!-- 5. Async Wrapper (Optional but recommended for performance) -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="ROLLING_FILE" />
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+    </appender>
+
+    <!-- 6. Log Levels -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="ASYNC_FILE" />
+    </root>
+
+    <!-- Specific package tuning -->
+    <logger name="net.schwehla.matrosdms" level="INFO"/>
+    <logger name="org.apache.james" level="INFO"/>
+
+</configuration>

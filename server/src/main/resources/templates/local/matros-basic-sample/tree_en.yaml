@@ -1,27 +1,65 @@
 ROOT_WHO:
-  - Partner:
-      - Customers
-      - Suppliers
-  - Employees:
-      - Internal
+  - Family:
+      - Bruce
+      - Caren
+      - Kids:
+          - Camila
+
 
 ROOT_WHAT:
+  - Assets:
+      - Real Estate:
+          - Drowning Road
+          - Parents House
+      - Vehicles:
+          - Golf 7
+          - Bicycles
+  - Job:
+      - Employment
+      - Training
   - Finance:
-      - Invoices:
-          - Incoming
-          - Outgoing
-      - Taxes
-  - Contracts:
-      - Service Agreements
-      - NDAs
+      - Pension
+      - Insurance
+      - Portfolio
+  - Topics:
+      - Tax
+      - Health
+      - Vacation
 
 ROOT_WHERE:
-  - Headquarters:
-      - Room 101
-      - Archive Basement
+  - Work & Gov:
+      - BAMF
+      - ITSAS
+      - Tax Office
+      - Pension Fund
+  - Bank & Ins.:
+      - Sparkasse
+      - Allianz
+      - HUK
+      - AudiBKK
+  - Services:
+      - Garage
+      - Telekom
+      - Utilities
+      - Landlord
+  - Doctors:
+      - GP
+      - Dentist
 
 ROOT_KIND:
-  - Paper
-  - PDF
-  - Email
-  - Image
+  - Receipt:
+      - Invoice
+      - Payslip
+      - Tax Assessment
+      - Bank Statement
+  - Contract:
+      - Employment Contract
+      - Lease
+      - Policy
+  - Official:
+      - Notice
+      - Certificate
+      - ID Card
+  - Info:
+      - Letter
+      - Note

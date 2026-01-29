@@ -109,6 +109,15 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 	private void openBrowser() {
 		try {
+			
+			log.info("app is running in: http://localhost:" + serverPort);
+			
+			// Skip browser opening in containerized/headless environments
+			if (isContainerEnvironment()) {
+				log.debug("Container environment detected - skipping browser auto-open");
+				return;
+			}
+
 			log.info("Start Browser");
 			System.setProperty("java.awt.headless","false");
 
@@ -124,5 +133,13 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 		} catch (Exception e) {
 			log.debug("Failed to auto-open browser: {}", e.getMessage());
 		}
+	}
+
+	private boolean isContainerEnvironment() {
+		// Check for Docker container indicators
+		return java.nio.file.Files.exists(java.nio.file.Paths.get("/.dockerenv"))
+			|| System.getenv("CONTAINER") != null
+			|| System.getenv("KUBERNETES_SERVICE_HOST") != null
+			|| "true".equals(System.getProperty("java.awt.headless"));
 	}
 }
