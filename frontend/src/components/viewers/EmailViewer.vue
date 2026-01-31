@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import PostalMime from 'postal-mime'
 import { Paperclip, User, Calendar, Download, Mail } from 'lucide-vue-next'
 import { push } from 'notivue'
@@ -11,6 +11,15 @@ const props = defineProps<{
 const emailData = ref<any>(null)
 const isParsing = ref(false)
 const iframeContent = ref('')
+
+// Filter out embedded inline images (prefixed with _embed_)
+const visibleAttachments = computed(() => {
+    const attachments = emailData.value?.attachments
+    if (!attachments || !Array.isArray(attachments)) return []
+    return attachments.filter((att: any) => 
+        att?.filename && !att.filename.startsWith('_embed_')
+    )
+})
 
 const parseEmail = async () => {
     if (!props.blob) return
@@ -112,14 +121,14 @@ watch(() => props.blob, parseEmail, { immediate: true })
                   </div>
               </div>
 
-              <!-- Attachments Chip List -->
-              <div v-if="emailData.attachments && emailData.attachments.length > 0" class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <!-- Attachments Chip List (filter out embedded inline images) -->
+              <div v-if="visibleAttachments.length > 0" class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div class="text-xs font-bold uppercase text-gray-500 mb-2 flex items-center gap-1">
-                      <Paperclip :size="12" /> {{ emailData.attachments.length }} Attachments
+                      <Paperclip :size="12" /> {{ visibleAttachments.length }} Attachments
                   </div>
                   <div class="flex flex-wrap gap-2">
                       <button 
-                        v-for="(att, i) in emailData.attachments" 
+                        v-for="(att, i) in visibleAttachments" 
                         :key="i"
                         @click="downloadAttachment(att)"
                         class="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 px-3 py-1.5 rounded-md text-xs transition-colors group shadow-sm"

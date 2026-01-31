@@ -77,9 +77,13 @@ public class CategoryController {
 			@PathVariable ERootCategory type, @RequestBody CategoryImportMessage message) {
 
 		try {
-			// Now using .getYaml() to reflect the format change
+			if (message.isSimulate()) {
+				// Dry-run: just validate YAML syntax
+				importService.parseYaml(message.getYaml());
+				return ResponseEntity.ok("Valid.");
+			}
 			importService.importFromText(type.getUuid(), message.getYaml(), message.isReplace());
-			return ResponseEntity.ok("Imported successfully.");
+			return ResponseEntity.ok("Imported.");
 		} catch (IllegalStateException e) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
 		} catch (Exception e) {

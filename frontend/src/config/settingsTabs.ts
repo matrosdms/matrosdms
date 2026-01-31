@@ -118,7 +118,7 @@ export const SETTINGS_TABS: Record<string, TabConfig> = {
         // DIRECT SERVICE CALL (Uses JobService)
         queryResolver: (statusFilter) => ({ 
             queryKey: queryKeys.admin.jobs(statusFilter), 
-            queryFn: () => JobService.getUnifiedJobs()
+            queryFn: () => JobService.getUnifiedJobs(statusFilter)
         }),
         service: {}, 
         components: { 

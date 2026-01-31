@@ -43,7 +43,8 @@ const COLUMN_SIZES = {
 } as const
 
 const STAGE_ROW_CLASSES: Record<string, string> = {
-  [EStage.ACTIVE]: 'bg-white dark:bg-gray-900'
+  [EStage.ACTIVE]: 'bg-white dark:bg-gray-900',
+  [EStage.ARCHIVED]: 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-l-4 border-red-300 dark:border-red-600'
 }
 
 // ============================================================================

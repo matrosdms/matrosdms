@@ -239,6 +239,7 @@ export function useSearch() {
 
     const buildQueryPayload = (): SearchCriteria => {
         const root: SearchCriteria = {
+            type: 'GROUP',
             logic: 'AND',
             children: []
         }

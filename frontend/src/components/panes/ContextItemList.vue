@@ -154,15 +154,18 @@ const displayItems = computed(() => {
 // AUTO-SELECT LOGIC
 // ============================================================================
 
-watch(displayItems, (list) => {
-  const shouldAutoSelect = 
-    isSplitMode.value && 
-    dms.selectedContext && 
-    list.length > 0 && 
-    !dms.selectedItem && 
-    viewMode.value === 'table'
-
-  if (shouldAutoSelect) {
+// Auto-select first item when context changes, view changes, or items load
+watch([displayItems, selectedContextId, viewMode], ([list, ctxId, mode], [oldList, oldCtxId, oldMode]) => {
+  // Skip if no items or no context
+  if (!list || list.length === 0 || !ctxId) return
+  
+  // Determine if we should auto-select
+  const contextChanged = ctxId !== oldCtxId
+  const viewModeChanged = mode !== oldMode
+  const itemsJustLoaded = (!oldList || oldList.length === 0) && list.length > 0
+  
+  // Auto-select first item on context switch or when items first load
+  if (contextChanged || itemsJustLoaded || viewModeChanged) {
     dms.setSelectedItem(list[0])
   }
 }, { immediate: true })
@@ -500,7 +503,7 @@ const detailPaneSize = computed(() => {
 
     <!-- Toolbar -->
     <div
-      class="p-2 flex justify-between items-center border-b border-border 
+      class="px-3 py-2 flex justify-between items-center border-b border-border 
              bg-muted/30 h-[40px] select-none shrink-0 transition-colors"
     >
       <div class="flex items-center gap-2 overflow-hidden">
@@ -599,7 +602,7 @@ const detailPaneSize = computed(() => {
     </div>
 
     <!-- Search Bar -->
-    <div v-if="selectedContextId" class="p-1.5 border-b border-border bg-background">
+    <div v-if="selectedContextId" class="p-2 border-b border-border bg-background">
       <SearchInput v-model="searchQuery" placeholder="Filter items..." />
     </div>
 

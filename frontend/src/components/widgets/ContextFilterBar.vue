@@ -95,6 +95,7 @@ interface DroppedItem {
   id: string
   label: string
   rootType?: string
+  transitiveIds?: string[]
 }
 
 const validateDrop = (item: DroppedItem, targetKey: ERootCategoryType): boolean => {
@@ -120,7 +121,16 @@ const handleDrop = (event: DragEvent, targetKey: ERootCategoryType) => {
     
     if (!validateDrop(item, targetKey)) return
     
-    dms.addFilter(targetKey, { id: item.id, label: item.label })
+    // Build Set for O(1) descendant matching
+    const transitiveChildrenAndSelf = item.transitiveIds 
+      ? new Set(item.transitiveIds) 
+      : new Set([item.id])
+    
+    dms.addFilter(targetKey, { 
+      id: item.id, 
+      label: item.label,
+      transitiveChildrenAndSelf
+    })
     dms.setActiveContext(targetKey)
   } catch (error) {
     console.error('Failed to parse dropped data:', error)

@@ -23,6 +23,7 @@ interface InboxItemEmits {
   (e: 'preview'): void
   (e: 'ignore'): void
   (e: 'analyze'): void
+  (e: 'assignContext', contextId: string): void
 }
 
 interface DroppedContextData {
@@ -205,16 +206,8 @@ const handleDrop = (event: DragEvent) => {
     if (data.type === 'dms-context') {
       lastDropTime.value = Date.now()
       
-      // Update prediction with dropped context
-      if (!props.file.prediction) {
-        props.file.prediction = {
-          context: data.id,
-          manuallyAssigned: true
-        }
-      } else {
-        props.file.prediction.context = data.id
-        props.file.prediction.manuallyAssigned = true
-      }
+      // Emit event to parent to update prediction via workflow store
+      emit('assignContext', data.id)
     }
   } catch (error) {
     console.error('Failed to parse dropped data:', error)

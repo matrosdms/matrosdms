@@ -95,7 +95,13 @@ const downloadFile = () => {
           <EmailViewer v-if="isEmail" :blob="data.blob" />
 
           <!-- 2. PDF Viewer -->
-          <iframe v-else-if="isPdf && blobUrl" :src="blobUrl" class="w-full h-full border-0 block" type="application/pdf"></iframe>
+          <iframe 
+            v-else-if="isPdf && blobUrl" 
+            :src="blobUrl" 
+            class="w-full h-full border-0 block bg-white" 
+            type="application/pdf"
+            style="color-scheme: light;"
+          ></iframe>
           
           <!-- 3. Image Viewer -->
           <div v-else-if="isImage && blobUrl" class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-black overflow-auto p-4">

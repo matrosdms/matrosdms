@@ -29,7 +29,7 @@ const {
     isLoading: isLoadingProposals,
     refetch: refetchProposals
 } = useQuery({
-    queryKey: ['template-proposals', selectedRepoId],
+    queryKey: computed(() => ['template-proposals', selectedRepoId.value]),
     queryFn: () => selectedRepoId.value ? TemplateService.getProposals(selectedRepoId.value) : [],
     enabled: computed(() => !!selectedRepoId.value)
 })

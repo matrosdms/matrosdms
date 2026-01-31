@@ -85,25 +85,38 @@ const splitYamlByRootKeys = (yaml: string): Partial<Record<ERootCategoryType, st
     return result
 }
 
+// Process pending YAML import
+const processPendingImport = () => {
+    const yaml = pendingImportYaml.value
+    if (!yaml) return
+    
+    // Parse and cache all dimensions
+    const chunks = splitYamlByRootKeys(yaml)
+    templateCache.value = chunks
+    consumeImportYaml()
+    
+    const foundKeys = Object.keys(chunks).join(', ')
+    push.success(`Loaded. Dimensions found: ${foundKeys || 'None'}`)
+    
+    // Populate editor if a dimension is selected
+    if (selectedRootKey.value) {
+        const cachedYaml = chunks[selectedRootKey.value]
+        editorContent.value = cachedYaml || ''
+        logs.value = [`✅ Loaded template`, `   Mapped keys: ${foundKeys}`]
+    }
+}
+
 // WATCH: External Template Loaded via Menu
 watch(pendingImportYaml, (newYaml) => {
-    if (newYaml && selectedRootKey.value) {
-        // Parse and Cache
-        const chunks = splitYamlByRootKeys(newYaml)
-        templateCache.value = chunks
-        populateEditorFromCache()
-        
-        const foundKeys = Object.keys(chunks).join(', ')
-        push.success(`Loaded. Dimensions found: ${foundKeys || 'None'}`)
-        logs.value.push(`✅ Loaded template from menu`)
-        logs.value.push(`   Mapped keys: ${foundKeys}`)
-        
-        consumeImportYaml() // clear flag
-    }
+    if (newYaml) processPendingImport()
 })
 
 const populateEditorFromCache = () => {
+    // Reset all transient state when switching dimensions
     logs.value = []
+    replaceExisting.value = false
+    isProcessing.value = false
+    
     if (!selectedRootKey.value) {
         editorContent.value = ''
         return
@@ -112,8 +125,10 @@ const populateEditorFromCache = () => {
     editorContent.value = cachedYaml || ''
 }
 
-watch(() => props.item?.key, () => {
-    populateEditorFromCache()
+watch(() => props.item?.key, (newKey, oldKey) => {
+    if (newKey !== oldKey) {
+        populateEditorFromCache()
+    }
 }, { immediate: true })
 
 const clearEditor = () => {
