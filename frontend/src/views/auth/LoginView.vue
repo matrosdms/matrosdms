@@ -68,11 +68,14 @@ const handleLogin = async () => {
     }
     
     const safeData = data as any
-    if (safeData && safeData.token && safeData.user) {
-      auth.login(safeData.user, safeData.token)
+    // Expected format: { accessToken, refreshToken, user }
+    if (safeData?.accessToken && safeData?.user) {
+      auth.login(safeData.user, safeData.accessToken, safeData.refreshToken)
       push.success(`Welcome back, ${safeData.user.firstname || safeData.user.name}!`)
       performSuccessRedirect()
-    } else throw new Error("Invalid response from server")
+    } else {
+      throw new Error("Invalid response from server")
+    }
   } catch (e: any) { 
       if (!isBackendDisconnected.value) {
           push.error(e.message) 
@@ -98,8 +101,8 @@ const handleSetup = async () => {
         const { data } = await client.POST("/api/auth/login", { body: loginPayload })
         
         const safeData = data as any
-        if (safeData && safeData.token && safeData.user) {
-            auth.login(safeData.user, safeData.token)
+        if (safeData?.accessToken && safeData?.user) {
+            auth.login(safeData.user, safeData.accessToken, safeData.refreshToken)
             push.success("System Initialized! Redirecting...")
             performSuccessRedirect()
         } else {

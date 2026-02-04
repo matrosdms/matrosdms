@@ -19,7 +19,7 @@ public record JobMessage(
     @Schema(
             description = "Unique identifier for this specific execution",
             example = "ingest-12345-abc")
-        String instanceId,
+        String uuid,
     @Schema(description = "When the job is scheduled to run (or started running)", nullable = true)
         Instant executionTime,
     @Schema(description = "Current lifecycle state") EJobStatus status) {}

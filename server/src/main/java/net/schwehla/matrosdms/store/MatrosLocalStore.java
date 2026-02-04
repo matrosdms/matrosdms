@@ -7,23 +7,15 @@
  */
 package net.schwehla.matrosdms.store;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.util.stream.Stream;
 
-import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
-import javax.crypto.CipherOutputStream;
-import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.*;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import jakarta.annotation.PostConstruct;
@@ -49,7 +41,11 @@ import net.schwehla.matrosdms.exception.MatrosServiceException;
 public class MatrosLocalStore implements IMatrosStore {
 
 	private static final Logger log = LoggerFactory.getLogger(MatrosLocalStore.class);
-	private static final String ALGO_AES = "AES/CTR/NoPadding";
+
+	// UPGRADE: GCM Mode for Integrity
+	private static final String ALGO_AES = "AES/GCM/NoPadding";
+	private static final int IV_LENGTH = 12; // GCM Standard
+	private static final int TAG_LENGTH_BIT = 128;
 
 	@Autowired
 	AppServerSpringConfig appServerSpringConfig;
@@ -64,7 +60,6 @@ public class MatrosLocalStore implements IMatrosStore {
 
 	@PostConstruct
 	public void init() {
-		// Register Bouncy Castle for Argon2
 		if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
 			Security.addProvider(new BouncyCastleProvider());
 		}
@@ -75,35 +70,22 @@ public class MatrosLocalStore implements IMatrosStore {
 				.orElseThrow(() -> new RuntimeException("No LOCAL store configured"));
 
 		this.rootFolder = Path.of(store.getPath());
-		this.useEncryption = "AES_CTR".equalsIgnoreCase(store.getCryptor());
+		this.useEncryption = store.getCryptor() != null && store.getCryptor().contains("AES");
 
 		if (useEncryption) {
-			log.info("🔐 Store Encryption ENABLED (AES-CTR). Deriving key with Argon2id...");
-
-			String pass = store.getPassword();
-			String saltStr = store.getSalt();
-
-			if (pass == null || pass.length() < 8)
-				throw new RuntimeException("Store password weak");
-			if (saltStr == null || saltStr.isEmpty())
-				throw new RuntimeException("Salt missing");
-
-			byte[] salt = saltStr.getBytes(StandardCharsets.UTF_8);
-
+			log.info("🔐 Store Encryption ACTIVE (AES-GCM).");
+			byte[] salt = store.getSalt().getBytes(StandardCharsets.UTF_8);
 			Argon2Parameters.Builder builder = new Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
 					.withVersion(Argon2Parameters.ARGON2_VERSION_13)
 					.withIterations(3)
 					.withMemoryAsKB(65536)
 					.withParallelism(1)
 					.withSalt(salt);
-
 			Argon2BytesGenerator gen = new Argon2BytesGenerator();
 			gen.init(builder.build());
-
 			this.keyBytes = new byte[32];
-			gen.generateBytes(pass.toCharArray(), this.keyBytes);
+			gen.generateBytes(store.getPassword().toCharArray(), this.keyBytes);
 		}
-
 		StoreContext.init(rootFolder, keyBytes, useEncryption);
 	}
 
@@ -112,14 +94,15 @@ public class MatrosLocalStore implements IMatrosStore {
 		StoreResult result = new StoreResult();
 		try {
 			String extension = getExtension(sourceFile);
-			Path targetFile = pathStrategy.getPhysicalPath(rootFolder, uuid, extension + (useEncryption ? ".enc" : ""));
-			Path sidecarText = pathStrategy.getPhysicalPath(rootFolder, uuid, ".txt" + (useEncryption ? ".enc" : ""));
+			String encSuffix = useEncryption ? ".enc" : "";
+			Path targetFile = pathStrategy.getPhysicalPath(rootFolder, uuid, extension + encSuffix);
+			Path sidecarText = pathStrategy.getPhysicalPath(rootFolder, uuid, ".txt" + encSuffix);
 
 			Files.createDirectories(targetFile.getParent());
 
 			if (useEncryption) {
 				encryptPath(sourceFile, targetFile);
-				result.setCryptSettings("AES-CTR-256");
+				result.setCryptSettings("AES-GCM-256");
 			} else {
 				Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
 				result.setCryptSettings("NONE");
@@ -142,68 +125,147 @@ public class MatrosLocalStore implements IMatrosStore {
 	public MDocumentStream loadStream(String uuid) {
 		InputStream is = null;
 		try {
-			Path folder = pathStrategy.getPhysicalPath(rootFolder, uuid, "").getParent();
+			Path file = findFile(uuid);
+			long size = Files.size(file);
+			is = new BufferedInputStream(Files.newInputStream(file));
 
-			Path foundFile;
-			try (Stream<Path> pathStream = Files.list(folder)) {
-				foundFile = pathStream
-						.filter(p -> p.getFileName().toString().startsWith(uuid))
-						.filter(p -> !p.toString().contains(".txt"))
-						.findFirst()
-						.orElseThrow(() -> new EntityNotFoundException("File not found: " + uuid));
-			}
-
-			long size = Files.size(foundFile);
-			is = new BufferedInputStream(Files.newInputStream(foundFile));
-
-			if (useEncryption && foundFile.toString().endsWith(".enc")) {
-				byte[] iv = new byte[16];
-				int bytesRead = is.read(iv);
-				if (bytesRead != 16)
-					throw new MatrosServiceException("Corrupt IV in encrypted file");
+			if (useEncryption && file.toString().endsWith(".enc")) {
+				byte[] iv = new byte[IV_LENGTH];
+				if (is.read(iv) != IV_LENGTH)
+					throw new MatrosServiceException("Corrupt IV");
 
 				Cipher cipher = Cipher.getInstance(ALGO_AES);
-				cipher.init(
-						Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes, "AES"), new IvParameterSpec(iv));
+				GCMParameterSpec spec = new GCMParameterSpec(TAG_LENGTH_BIT, iv);
+				cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes, "AES"), spec);
 
 				is = new CipherInputStream(is, cipher);
-				size -= 16;
+				
+                // FIX: Calculate precise content length for GCM (File - IV - Tag)
+                // Tag is 16 bytes (128 bits). IV is 12 bytes.
+                long overhead = IV_LENGTH + (TAG_LENGTH_BIT / 8);
+                if (size >= overhead) {
+                    size = size - overhead;
+                } else {
+                    size = -1; // Should not happen unless file is corrupt
+                }
 			}
 
 			MDocumentStream ms = new MDocumentStream(is, size);
-			String fileName = foundFile.getFileName().toString().replace(".enc", "");
+			String fileName = file.getFileName().toString().replace(".enc", "");
 			ms.setFilename(fileName);
-
-			// FIX: Do NOT force MIME type here.
-			// It will be set by the Service based on DB metadata.
-			ms.setContentType(null);
-
 			return ms;
-
 		} catch (Exception e) {
 			if (is != null)
 				try {
 					is.close();
-				} catch (IOException ignored) {
+				} catch (IOException ex) {
 				}
-			if (e instanceof EntityNotFoundException)
-				throw (EntityNotFoundException) e;
 			throw new MatrosServiceException("Load failed: " + e.getMessage(), e);
 		}
 	}
 
-	private void encryptPath(Path source, Path target) throws Exception {
-		byte[] iv = new byte[16];
-		new SecureRandom().nextBytes(iv);
+	// --- TRASH IMPLEMENTATION ---
+	@Override
+	public void moveToTrash(String uuid) {
+		try {
+			Path trashRoot = Path.of(appServerSpringConfig.getServer().getTrash().getPath());
+			if (!Files.exists(trashRoot))
+				Files.createDirectories(trashRoot);
+			Path folder = pathStrategy.getPhysicalPath(rootFolder, uuid, "").getParent();
+			if (Files.exists(folder)) {
+				try (Stream<Path> s = Files.list(folder)) {
+					s.filter(p -> p.getFileName().toString().startsWith(uuid))
+							.forEach(p -> {
+								try {
+									Files.move(p, trashRoot.resolve(System.currentTimeMillis() + "_" + p.getFileName()),
+											StandardCopyOption.REPLACE_EXISTING);
+								} catch (IOException e) {
+									log.error("Trash error", e);
+								}
+							});
+				}
+			}
+		} catch (Exception e) {
+			log.error("Trash failed for " + uuid, e);
+		}
+	}
 
+	// --- THUMBNAIL IMPLEMENTATION ---
+	@Override
+	public boolean hasThumbnail(String uuid) {
+		String suffix = ".thumb.jpg" + (useEncryption ? ".enc" : "");
+		Path p = pathStrategy.getPhysicalPath(rootFolder, uuid, suffix);
+		return Files.exists(p);
+	}
+
+	@Override
+	public void storeThumbnail(String uuid, byte[] data) {
+		try {
+			String suffix = ".thumb.jpg" + (useEncryption ? ".enc" : "");
+			Path target = pathStrategy.getPhysicalPath(rootFolder, uuid, suffix);
+
+			if (useEncryption) {
+				Path temp = Files.createTempFile("thumb", ".tmp");
+				Files.write(temp, data);
+				encryptPath(temp, target);
+				Files.delete(temp);
+			} else {
+				Files.write(target, data);
+			}
+		} catch (Exception e) {
+			log.error("Failed to store thumbnail", e);
+		}
+	}
+
+	@Override
+	public byte[] loadThumbnail(String uuid) {
+		try {
+			String suffix = ".thumb.jpg" + (useEncryption ? ".enc" : "");
+			Path target = pathStrategy.getPhysicalPath(rootFolder, uuid, suffix);
+			if (!Files.exists(target))
+				return null;
+
+			if (useEncryption) {
+				try (InputStream is = new BufferedInputStream(Files.newInputStream(target))) {
+					byte[] iv = new byte[IV_LENGTH];
+					is.read(iv);
+					Cipher cipher = Cipher.getInstance(ALGO_AES);
+					cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes, "AES"),
+							new GCMParameterSpec(TAG_LENGTH_BIT, iv));
+					try (CipherInputStream cis = new CipherInputStream(is, cipher)) {
+						return cis.readAllBytes();
+					}
+				}
+			} else {
+				return Files.readAllBytes(target);
+			}
+		} catch (Exception e) {
+			log.error("Failed to load thumbnail", e);
+			return null;
+		}
+	}
+
+	private void encryptPath(Path source, Path target) throws Exception {
+		byte[] iv = new byte[IV_LENGTH];
+		new SecureRandom().nextBytes(iv);
 		Cipher cipher = Cipher.getInstance(ALGO_AES);
-		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, "AES"), new IvParameterSpec(iv));
+		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, "AES"), new GCMParameterSpec(TAG_LENGTH_BIT, iv));
 
 		try (OutputStream fos = new BufferedOutputStream(Files.newOutputStream(target))) {
 			fos.write(iv);
 			try (OutputStream cos = new CipherOutputStream(fos, cipher)) {
 				Files.copy(source, cos);
 			}
+		}
+	}
+
+	private Path findFile(String uuid) throws IOException {
+		Path folder = pathStrategy.getPhysicalPath(rootFolder, uuid, "").getParent();
+		try (Stream<Path> s = Files.list(folder)) {
+			return s.filter(p -> p.getFileName().toString().startsWith(uuid))
+					.filter(p -> !p.toString().contains(".txt") && !p.toString().contains(".thumb"))
+					.findFirst()
+					.orElseThrow(() -> new EntityNotFoundException("File not found"));
 		}
 	}
 

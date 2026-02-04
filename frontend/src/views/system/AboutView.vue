@@ -159,60 +159,60 @@ const goBack = () => {
             </div>
 
             <!-- TAB: CONSOLE -->
-            <div v-if="activeTab === 'console'" class="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full flex flex-col bg-[#1e1e1e] rounded-xl overflow-hidden border border-gray-800">
-                <div class="flex items-center gap-2 px-3 py-2 border-b border-[#333] bg-[#252526] select-none shrink-0">
-                    <button @click="filters.error = !filters.error" class="log-filter-btn text-red-400 border-red-900/30" :class="filters.error ? 'bg-red-400/10 border-red-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+            <div v-if="activeTab === 'console'" class="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full flex flex-col bg-gray-50 dark:bg-[#1e1e1e] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 transition-colors">
+                <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-[#333] bg-white dark:bg-[#252526] select-none shrink-0 transition-colors">
+                    <button @click="filters.error = !filters.error" class="log-filter-btn text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/30" :class="filters.error ? 'bg-red-50 dark:bg-red-400/10' : 'opacity-50 grayscale hover:opacity-80'">
                         <AlertCircle :size="12" /> Errors
                     </button>
-                    <button @click="filters.warning = !filters.warning" class="log-filter-btn text-yellow-400 border-yellow-900/30" :class="filters.warning ? 'bg-yellow-400/10 border-yellow-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+                    <button @click="filters.warning = !filters.warning" class="log-filter-btn text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-900/30" :class="filters.warning ? 'bg-yellow-50 dark:bg-yellow-400/10' : 'opacity-50 grayscale hover:opacity-80'">
                         <AlertTriangle :size="12" /> Warnings
                     </button>
-                    <button @click="filters.success = !filters.success" class="log-filter-btn text-green-400 border-green-900/30" :class="filters.success ? 'bg-green-400/10 border-green-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+                    <button @click="filters.success = !filters.success" class="log-filter-btn text-green-600 dark:text-green-400 border-green-200 dark:border-green-900/30" :class="filters.success ? 'bg-green-50 dark:bg-green-400/10' : 'opacity-50 grayscale hover:opacity-80'">
                         <CheckCircle :size="12" /> Success
                     </button>
-                    <button @click="filters.info = !filters.info" class="log-filter-btn text-blue-400 border-blue-900/30" :class="filters.info ? 'bg-blue-400/10 border-blue-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+                    <button @click="filters.info = !filters.info" class="log-filter-btn text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/30" :class="filters.info ? 'bg-blue-50 dark:bg-blue-400/10' : 'opacity-50 grayscale hover:opacity-80'">
                         <Info :size="12" /> Info
                     </button>
-                    <button @click="filters.debug = !filters.debug" class="log-filter-btn text-gray-400 border-gray-700" :class="filters.debug ? 'bg-gray-400/10 border-gray-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+                    <button @click="filters.debug = !filters.debug" class="log-filter-btn text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700" :class="filters.debug ? 'bg-gray-100 dark:bg-gray-400/10' : 'opacity-50 grayscale hover:opacity-80'">
                         <Bug :size="12" /> Debug
                     </button>
                     
                     <div class="flex-1"></div>
-                    <button @click="clearLogs" class="flex items-center gap-1.5 px-3 py-1 rounded border border-red-900 text-red-400 hover:text-white hover:bg-red-900/50 transition-colors font-bold text-xs" title="Clear Console">
+                    <button @click="clearLogs" class="flex items-center gap-1.5 px-3 py-1 rounded border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors font-bold text-xs" title="Clear Console">
                         <Trash2 :size="12" /> Clear
                     </button>
                 </div>
 
-                <div class="flex-1 overflow-auto p-4 font-mono text-xs text-gray-300">
-                    <div v-for="log in filteredLogs" :key="log.id" class="flex gap-2 mb-1 hover:bg-white/5 px-2 py-1 rounded leading-snug group border-l-2 border-transparent"
+                <div class="flex-1 overflow-auto p-4 font-mono text-xs text-gray-700 dark:text-gray-300">
+                    <div v-for="log in filteredLogs" :key="log.id" class="flex gap-2 mb-1 hover:bg-gray-200 dark:hover:bg-white/5 px-2 py-1 rounded leading-snug group border-l-2 border-transparent"
                         :class="{
                             'border-red-500': log.type === 'error',
                             'border-yellow-500': log.type === 'warning',
                             'border-green-500': log.type === 'success'
                         }"
                     >
-                        <span class="text-gray-500 shrink-0 select-none w-[65px] opacity-70 group-hover:opacity-100">{{ log.time }}</span>
+                        <span class="text-gray-400 dark:text-gray-500 shrink-0 select-none w-[65px] opacity-70 group-hover:opacity-100">{{ log.time }}</span>
                         <span class="font-bold shrink-0 w-[60px] uppercase tracking-wider select-none" 
                               :class="{
-                                'text-red-500': log.type === 'error',
-                                'text-yellow-500': log.type === 'warning',
-                                'text-green-500': log.type === 'success',
-                                'text-blue-500': log.type === 'info',
-                                'text-gray-600': log.type === 'debug'
+                                'text-red-600 dark:text-red-500': log.type === 'error',
+                                'text-yellow-600 dark:text-yellow-500': log.type === 'warning',
+                                'text-green-600 dark:text-green-500': log.type === 'success',
+                                'text-blue-600 dark:text-blue-500': log.type === 'info',
+                                'text-gray-600 dark:text-gray-500': log.type === 'debug'
                               }">
                             {{ log.type }}
                         </span>
                         <span class="break-all whitespace-pre-wrap flex-1"
                               :class="{
-                                'text-red-300': log.type === 'error',
-                                'text-yellow-300': log.type === 'warning',
-                                'text-green-300': log.type === 'success',
-                                'text-gray-300': log.type === 'info',
-                                'text-gray-500': log.type === 'debug'
+                                'text-red-700 dark:text-red-300': log.type === 'error',
+                                'text-yellow-700 dark:text-yellow-300': log.type === 'warning',
+                                'text-green-700 dark:text-green-300': log.type === 'success',
+                                'text-gray-700 dark:text-gray-300': log.type === 'info',
+                                'text-gray-500 dark:text-gray-500': log.type === 'debug'
                               }">{{ log.message }}</span>
                     </div>
                     
-                    <div v-if="filteredLogs.length === 0" class="h-full flex flex-col items-center justify-center text-gray-600 italic">
+                    <div v-if="filteredLogs.length === 0" class="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 italic">
                         <span v-if="ui.logs.length > 0">No logs match current filters</span>
                         <span v-else>Console is empty</span>
                     </div>

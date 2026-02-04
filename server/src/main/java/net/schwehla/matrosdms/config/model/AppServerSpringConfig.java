@@ -190,6 +190,10 @@ public class AppServerSpringConfig {
 
 	public static class Processing {
 		private boolean convertTextToPdf = true;
+
+		// NEW: Prefer existing text layer (Smart OCR for ScanSnap)
+		private boolean preferScannerText = true;
+
 		private int concurrency = 2;
 
 		public boolean isConvertTextToPdf() {
@@ -198,6 +202,14 @@ public class AppServerSpringConfig {
 
 		public void setConvertTextToPdf(boolean convertTextToPdf) {
 			this.convertTextToPdf = convertTextToPdf;
+		}
+
+		public boolean isPreferScannerText() {
+			return preferScannerText;
+		}
+
+		public void setPreferScannerText(boolean preferScannerText) {
+			this.preferScannerText = preferScannerText;
 		}
 
 		public int getConcurrency() {
@@ -216,6 +228,7 @@ public class AppServerSpringConfig {
 		Processed processed = new Processed();
 		Inbox ignored = new Inbox();
 		Inbox temp = new Inbox();
+		Inbox trash = new Inbox();
 		Plugins plugins = new Plugins();
 		List<StoreElement> store = new ArrayList<>();
 
@@ -273,6 +286,14 @@ public class AppServerSpringConfig {
 
 		public void setPlugins(Plugins plugins) {
 			this.plugins = plugins;
+		}
+
+		public Inbox getTrash() {
+			return trash;
+		}
+
+		public void setTrash(Inbox trash) {
+			this.trash = trash;
 		}
 	}
 

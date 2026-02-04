@@ -20,6 +20,7 @@ import org.hibernate.search.mapper.pojo.bridge.runtime.TypeBridgeWriteContext;
 import net.schwehla.matrosdms.entity.DBCategory;
 import net.schwehla.matrosdms.entity.DBItem;
 import net.schwehla.matrosdms.store.StoreContext;
+import net.schwehla.matrosdms.util.TextLayerUtils;
 
 public class ItemTextBridge implements TypeBridge<DBItem> {
 	private final IndexFieldReference<String> contentField;
@@ -46,13 +47,15 @@ public class ItemTextBridge implements TypeBridge<DBItem> {
 		if (item.getSource() != null)
 			target.addValue("source", item.getSource().name());
 
-		// NEW: Write boolean as string for Index
 		target.addValue("textParsed", String.valueOf(item.isTextParsed()));
 
 		if (item.getUuid() != null) {
-			String content = StoreContext.readTextFile(item.getUuid());
-			if (content != null && !content.isEmpty())
-				target.addValue(contentField, content);
+			String rawXmlContent = StoreContext.readTextFile(item.getUuid());
+            // FIX: Clean the XML/Binary artifacts before indexing
+			if (rawXmlContent != null && !rawXmlContent.isEmpty()) {
+                String cleanText = TextLayerUtils.extractCleanText(rawXmlContent);
+				target.addValue(contentField, cleanText);
+            }
 		}
 		if (item.getInfoContext() != null) {
 			var ctx = target.addObject("infoContext");

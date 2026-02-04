@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import net.schwehla.matrosdms.domain.core.EArchivedState;
+import net.schwehla.matrosdms.domain.core.EArchiveFilter; // Updated
 import net.schwehla.matrosdms.domain.core.MContext;
 import net.schwehla.matrosdms.entity.DBContext;
 import net.schwehla.matrosdms.entity.view.VW_CONTEXT;
@@ -36,16 +36,11 @@ import net.schwehla.matrosdms.util.UUIDProvider;
 @Transactional
 public class ContextService {
 
-	@Autowired
-	ContextRepository contextRepository;
-	@Autowired
-	ContextViewRepository contextViewRepository;
-	@Autowired
-	ItemRepository itemRepository; // Added for Count
-	@Autowired
-	MContextMapper contextMapper;
-	@Autowired
-	UUIDProvider uuidProvider;
+	@Autowired ContextRepository contextRepository;
+	@Autowired ContextViewRepository contextViewRepository;
+	@Autowired ItemRepository itemRepository; 
+	@Autowired MContextMapper contextMapper;
+	@Autowired UUIDProvider uuidProvider;
 
 	@CacheEvict(value = "contextList", allEntries = true)
 	public MContext createContext(CreateContextMessage message) {
@@ -60,27 +55,24 @@ public class ContextService {
 			@CacheEvict(value = "contexts", key = "#uuid")
 	})
 	public MContext updateContext(String uuid, UpdateContextMessage message) {
-		DBContext dbContext = contextRepository
-				.findByUuid(uuid)
-				.orElseThrow(
-						() -> new ResponseStatusException(
-								HttpStatus.NOT_FOUND, "Context not found: " + uuid));
+		DBContext dbContext = contextRepository.findByUuid(uuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Context not found: " + uuid));
 
 		contextMapper.updateEntity(message, dbContext);
 		DBContext saved = contextRepository.save(dbContext);
-		// Note: We don't fetch count on update to save perf, user can refresh if needed
 		return contextMapper.entityToModel(saved);
 	}
 
 	@Transactional(readOnly = true)
 	@Cacheable(value = "contextList", key = "#archiveState.name() + '-' + #limit + '-' + #sortStr")
-	public List<MContext> loadContextList(EArchivedState archiveState, int limit, String sortStr) {
+	public List<MContext> loadContextList(EArchiveFilter archiveState, int limit, String sortStr) {
 
 		Sort.Direction dir = "name".equalsIgnoreCase(sortStr) ? Sort.Direction.ASC : Sort.Direction.DESC;
-
 		Sort sort = Sort.by(dir, sortStr);
 
-		// List View: Uses SQL View (VW_CONTEXT) which has pre-calculated 'sum'
+        // NOTE: Currently VW_CONTEXT only supports ACTIVE items. 
+        // If ARCHIVED_ONLY is requested for Contexts, you might need a different view/query.
+        // For now, this just passes through the standard view.
 		PageRequest pageRequest = PageRequest.of(0, limit, sort);
 		List<VW_CONTEXT> views = contextViewRepository.findAll(pageRequest).getContent();
 		return contextMapper.mapViews(views);
@@ -89,15 +81,10 @@ public class ContextService {
 	@Transactional(readOnly = true)
 	@Cacheable(value = "contexts", key = "#tsid")
 	public MContext loadContext(String tsid) {
-		var context = contextRepository
-				.findByUuid(tsid)
-				.orElseThrow(
-						() -> new ResponseStatusException(
-								HttpStatus.NOT_FOUND, "Context not found: " + tsid));
+		var context = contextRepository.findByUuid(tsid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Context not found: " + tsid));
 
 		MContext result = contextMapper.entityToModel(context);
-
-		// FIX: Manually fetch count for Detail View (DBContext doesn't have it)
 		long count = itemRepository.countByInfoContext_UuidAndDateArchivedIsNull(tsid);
 		result.setItemCount(count);
 
@@ -109,10 +96,8 @@ public class ContextService {
 			@CacheEvict(value = "contexts", key = "#uuid")
 	})
 	public void deleteContext(String uuid) {
-		DBContext context = contextRepository
-				.findByUuid(uuid)
-				.orElseThrow(
-						() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Context not found"));
+		DBContext context = contextRepository.findByUuid(uuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Context not found"));
 		contextRepository.delete(context);
 	}
 }

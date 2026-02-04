@@ -120,6 +120,7 @@ We use **CI-Friendly Versioning**.
 - **`develop`** - Integration branch for features
 
 **Workflow:**
+
 ```bash
 # Feature development
 git checkout develop
@@ -137,6 +138,7 @@ git push origin main    # 🚀 Triggers automatic release
 ### Creating a Release
 
 **Option A: Push to Main (Recommended)**
+
 ```bash
 # Merge develop to main triggers release
 git checkout main
@@ -145,6 +147,7 @@ git push origin main    # Automatic release with timestamp version
 ```
 
 **Option B: Manual Tags**
+
 ```bash
 # Manual semantic versioning
 git tag v1.2.3

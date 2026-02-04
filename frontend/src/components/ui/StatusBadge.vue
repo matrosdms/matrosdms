@@ -24,9 +24,9 @@ const variant = computed(() => {
   if (s === EActionStatus.IN_PROGRESS) return 'default'
   if (s === EActionStatus.ON_HOLD) return 'warning'
 
-  // Stage
-  if (s === EStage.DELETED) return 'destructive'
-  if (s === EStage.ARCHIVED) return 'warning'
+  // Stage (Lifecycle II: Informational)
+  if (s === EStage.ACTIVE) return 'success' // or default
+  if (s === EStage.CLOSED) return 'secondary' // Grey/Dimmed
 
   // Priority
   if (s === EActionPriority.HIGH) return 'destructive'

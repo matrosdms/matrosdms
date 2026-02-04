@@ -9,7 +9,7 @@ import { useUIStore } from '@/stores/ui'
 import { useWorkflowStore } from '@/stores/workflow'
 import { useContextQueries } from '@/composables/queries/useContextQueries'
 import { getTagClassByKey } from '@/utils/tagStyles'
-import { Pencil, Archive, Plus, CheckSquare, Folder, Hash, Tags, Activity, Lock, Unlock } from 'lucide-vue-next'
+import { Pencil, XCircle, Plus, CheckSquare, Folder, Hash, Tags, Activity, Lock, Unlock } from 'lucide-vue-next'
 import { push } from 'notivue'
 import { EStage, EStageLabels, type EStageType, ERootCategoryList } from '@/enums'
 import { useDragDrop } from '@/composables/useDragDrop'
@@ -42,9 +42,10 @@ const COLUMN_SIZES = {
   STAGE: { size: 90, minSize: 80, maxSize: 120 },
 } as const
 
+// Define styles for different stages
 const STAGE_ROW_CLASSES: Record<string, string> = {
-  [EStage.ACTIVE]: 'bg-white dark:bg-gray-900',
-  [EStage.ARCHIVED]: 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-l-4 border-red-300 dark:border-red-600'
+  [EStage.ACTIVE]: 'table-row-active',
+  [EStage.CLOSED]: 'table-row-closed opacity-70 italic'
 }
 
 // ============================================================================
@@ -60,7 +61,7 @@ const actions = {
     if (!dms.selectedContext) return showContextRequiredWarning()
     dms.startContextEditing()
   },
-  archive: () => {
+  close: () => {
     if (!dms.selectedContext) return showContextRequiredWarning()
     dms.startContextArchiving()
   },
@@ -152,9 +153,11 @@ const filteredContexts = computed(() => {
 // ============================================================================
 
 const getRowClass = (row: any): string => {
+  // 1. Selection override
   if (dms.selectedContext?.uuid === row.uuid) {
     return '!border-l-blue-600 bg-blue-100 dark:bg-blue-900/40 dark:text-white'
   }
+  // 2. Stage-based styling via Global CSS Classes
   return STAGE_ROW_CLASSES[row.stage] || STAGE_ROW_CLASSES[EStage.ACTIVE]
 }
 
@@ -298,10 +301,10 @@ const columns: ColumnDef<any>[] = [
         size="iconSm"
         :disabled="!dms.selectedContext"
         class="hover:text-destructive hover:bg-destructive/10"
-        title="Archive Context"
-        @click="actions.archive"
+        title="Close Context"
+        @click="actions.close"
       >
-        <Archive :size="14" />
+        <XCircle :size="14" />
       </BaseButton>
 
       <div class="w-px h-3 bg-gray-300 dark:bg-gray-600 mx-1" />
@@ -309,7 +312,7 @@ const columns: ColumnDef<any>[] = [
       <BaseButton
         variant="ghost"
         size="iconSm"
-        class="text-primary hover:bg-primary/10"
+        class="text-primary hover:text-primary-hover hover:bg-primary/10"
         title="Create Context"
         @click="actions.create"
       >

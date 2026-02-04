@@ -2,20 +2,17 @@
 
 export enum EStage {
   ACTIVE = 'ACTIVE',
-  ARCHIVED = 'ARCHIVED',
-  DELETED = 'DELETED',
+  CLOSED = 'CLOSED',
 }
 
 export const EStageList = [
   EStage.ACTIVE,
-  EStage.ARCHIVED,
-  EStage.DELETED,
+  EStage.CLOSED,
 ] as const;
 
 export type EStageType = typeof EStageList[number];
 
 export const EStageLabels: Record<EStageType, string> = {
   [EStage.ACTIVE]: 'Active',
-  [EStage.ARCHIVED]: 'Archived',
-  [EStage.DELETED]: 'Deleted',
+  [EStage.CLOSED]: 'Closed',
 };

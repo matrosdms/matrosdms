@@ -19,7 +19,7 @@ import jakarta.persistence.Table;
 import net.schwehla.matrosdms.entity.DBBaseEntity;
 
 @Entity
-@Table(name = "CONFIG", indexes = @jakarta.persistence.Index(name = "index_config_key", columnList = "config_key"))
+@Table(name = "CONFIG", indexes = @jakarta.persistence.Index(name = "idx_config_key", columnList = "config_key"))
 @NamedQueries({
 		@NamedQuery(name = "DBConfig.findAll", query = "SELECT c FROM DBConfig c"),
 		@NamedQuery(name = "DBConfig.findByKey", query = "SELECT c FROM DBConfig c where c.config_key = :key ")

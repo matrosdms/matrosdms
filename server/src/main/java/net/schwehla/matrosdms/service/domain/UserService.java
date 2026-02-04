@@ -7,9 +7,12 @@
  */
 package net.schwehla.matrosdms.service.domain;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -21,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import net.schwehla.matrosdms.domain.core.MUser;
+import net.schwehla.matrosdms.entity.management.DBRefreshToken;
 import net.schwehla.matrosdms.entity.management.DBUser;
+import net.schwehla.matrosdms.repository.RefreshTokenRepository;
 import net.schwehla.matrosdms.repository.UserRepository;
 import net.schwehla.matrosdms.service.mapper.MUserMapper;
 import net.schwehla.matrosdms.service.message.CreateUserMessage;
@@ -33,29 +38,90 @@ import net.schwehla.matrosdms.util.UUIDProvider;
 @Transactional
 public class UserService {
 
-	@Autowired
-	UserRepository userRepository;
-	@Autowired
-	MUserMapper userMapper;
-	@Autowired
-	UUIDProvider uuidProvider;
-	@Autowired
-	PasswordEncoder passwordEncoder;
+	@Autowired UserRepository userRepository;
+    @Autowired RefreshTokenRepository refreshTokenRepository;
+	@Autowired MUserMapper userMapper;
+	@Autowired UUIDProvider uuidProvider;
+	@Autowired PasswordEncoder passwordEncoder;
 
-	@Transactional(readOnly = true)
-	public long getUserCount() {
-		return userRepository.count();
-	}
+    @Value("${app.security.jwt-refresh-expiration-ms:2592000000}")
+    private Long refreshTokenDurationMs;
+
+	// --- AUTHENTICATION & SESSION LOGIC ---
 
 	@Transactional(readOnly = true)
 	public MUser login(String username, String rawPassword) {
 		DBUser user = userRepository
 				.findByName(username)
 				.orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
+
 		if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
 			throw new BadCredentialsException("Invalid username or password");
 		}
 		return userMapper.entityToModel(user);
+	}
+
+	public String createRefreshToken(String userUuid) {
+		DBUser user = userRepository.findByUuid(userUuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+		DBRefreshToken token = new DBRefreshToken();
+        token.setUser(user);
+        token.setExpiryDate(Instant.now().plusMillis(refreshTokenDurationMs));
+        token.setToken(UUID.randomUUID().toString());
+
+		refreshTokenRepository.save(token);
+		return token.getToken();
+	}
+
+    @Transactional(readOnly = true)
+    public MUser verifyRefreshTokenUser(String tokenStr) {
+        return refreshTokenRepository.findByToken(tokenStr)
+            .map(token -> {
+                if (token.getExpiryDate().compareTo(Instant.now()) < 0) {
+                    refreshTokenRepository.delete(token);
+                    throw new BadCredentialsException("Refresh token was expired.");
+                }
+                return userMapper.entityToModel(token.getUser());
+            })
+            .orElseThrow(() -> new BadCredentialsException("Refresh token is not in database!"));
+    }
+
+    public String rotateRefreshToken(String oldTokenStr) {
+        return refreshTokenRepository.findByToken(oldTokenStr)
+            .map(token -> {
+                DBUser user = token.getUser();
+                refreshTokenRepository.delete(token);
+                return createRefreshToken(user.getUuid());
+            })
+            .orElseThrow(() -> new BadCredentialsException("Invalid Refresh Token for rotation"));
+    }
+
+    // NEW: Explicit Logout
+    public void logout(String refreshToken) {
+        if (refreshToken == null) return;
+        refreshTokenRepository.findByToken(refreshToken)
+            .ifPresent(refreshTokenRepository::delete);
+    }
+
+	public void changePassword(String userUuid, String oldPassword, String newPassword) {
+		DBUser user = userRepository.findByUuid(userUuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+		if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+			throw new BadCredentialsException("Old password incorrect");
+		}
+
+		user.setPassword(passwordEncoder.encode(newPassword));
+		userRepository.save(user);
+		refreshTokenRepository.deleteByUser(user);
+	}
+
+	// --- USER CRUD ---
+
+	@Transactional(readOnly = true)
+	public long getUserCount() {
+		return userRepository.count();
 	}
 
 	@Caching(evict = { @CacheEvict(value = "userList", allEntries = true) })
@@ -75,10 +141,14 @@ public class UserService {
 		DBUser dbUser = userRepository
 				.findByUuid(uuid)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
 		userMapper.updateEntity(msg, dbUser);
+
 		if (msg.getPassword() != null && !msg.getPassword().isBlank()) {
 			dbUser.setPassword(passwordEncoder.encode(msg.getPassword()));
+			refreshTokenRepository.deleteByUser(dbUser);
 		}
+
 		return userMapper.entityToModel(userRepository.save(dbUser));
 	}
 
@@ -101,11 +171,11 @@ public class UserService {
 			@CacheEvict(value = "users", key = "#uuid")
 	})
 	public void deleteUser(String uuid) {
-		userRepository.delete(
-				userRepository
-						.findByUuid(uuid)
-						.orElseThrow(
-								() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + uuid)));
+        DBUser user = userRepository.findByUuid(uuid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + uuid));
+        
+        refreshTokenRepository.deleteByUser(user); 
+		userRepository.delete(user);
 	}
 
 	@Caching(evict = {
@@ -113,18 +183,15 @@ public class UserService {
 			@CacheEvict(value = "users", allEntries = true)
 	})
 	public void deleteAllUsers() {
+        refreshTokenRepository.deleteAll();
 		userRepository.deleteAll();
 	}
-
-	// --- SAVED SEARCH LOGIC ---
 
 	@Transactional(readOnly = true)
 	public List<SavedSearchMessage> getSavedSearches(String userUuid) {
 		DBUser user = userRepository
 				.findByUuid(userUuid)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-		// Return a copy to avoid Hibernate modification issues if read-only
 		return List.copyOf(user.getSavedSearches());
 	}
 
@@ -133,12 +200,8 @@ public class UserService {
 		DBUser user = userRepository
 				.findByUuid(userUuid)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-		// removeIf handles duplicates (Update by Name)
 		user.getSavedSearches().removeIf(s -> s.getName().equalsIgnoreCase(search.getName()));
 		user.getSavedSearches().add(search);
-
-		// Explicit save ensures the Converter is triggered and JSON is written
 		userRepository.save(user);
 	}
 
@@ -147,7 +210,6 @@ public class UserService {
 		DBUser user = userRepository
 				.findByUuid(userUuid)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
 		boolean removed = user.getSavedSearches().removeIf(s -> s.getName().equalsIgnoreCase(name));
 		if (removed) {
 			userRepository.save(user);

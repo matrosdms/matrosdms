@@ -35,4 +35,11 @@ public interface ActionRepository extends JpaRepository<DBAction, Long> {
 			Pageable pageable);
 
 	List<DBAction> findByItemUuid(String itemUuid);
+	
+    @Query("SELECT a FROM DBAction a " +
+           "JOIN FETCH a.item " + 
+           "JOIN FETCH a.assignee " + 
+           "WHERE a.status NOT IN ('DONE', 'REJECTED') order by a.uuid")
+    List<DBAction> findAllOpenActions();
+    
 }

@@ -18,7 +18,7 @@ import jakarta.persistence.NamedQuery;
 import jakarta.persistence.Table;
 
 @Entity()
-@Table(name = "Store", indexes = @Index(name = "store_uuid_index", columnList = "uuid"))
+@Table(name = "Store", indexes = @Index(name = "idx_store_uuid", columnList = "uuid"))
 @NamedQueries({
 		@NamedQuery(name = "DBStore.findAll", query = "SELECT c FROM DBStore c"),
 		@NamedQuery(name = "DBStore.findByUUID", query = "SELECT c FROM DBStore c where c.uuid = :uuid"),

@@ -20,6 +20,7 @@ import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
@@ -33,7 +34,11 @@ import jakarta.persistence.TemporalType;
 import net.schwehla.matrosdms.domain.core.EStage;
 
 @Entity
-@Table(name = "Context", indexes = { @jakarta.persistence.Index(name = "context_uuid_index", columnList = "uuid") })
+@Table(name = "Context", indexes = {
+		@jakarta.persistence.Index(name = "idx_context_uuid", columnList = "uuid"), 
+		@Index(columnList = "dateArchived", name = "idx_context_dateArchived"), 
+
+})
 @NamedQueries({
 		@NamedQuery(name = "DBContext.findAll", query = "SELECT c FROM DBContext c"),
 		@NamedQuery(name = "DBContext.findByUUID", query = "SELECT c FROM DBContext c where c.uuid = :uuid")

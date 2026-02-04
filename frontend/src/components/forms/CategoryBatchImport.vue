@@ -228,7 +228,7 @@ const executeProcess = async (simulate: boolean) => {
           
           <div class="flex gap-2 items-center" v-if="selectedRootKey">
              
-             <!-- Editor Actions Only (Template Loader moved to Pane Header via SettingsTabs) -->
+             <!-- Editor Actions Only -->
              
              <BaseButton variant="ghost" size="iconSm" @click="performFormat" :disabled="isLocked || isProcessing" title="Pretty Print (Format)"><AlignLeft :size="14"/></BaseButton>
              <BaseButton variant="ghost" size="iconSm" @click="clearEditor" :disabled="isLocked || isProcessing" title="Clear Editor"><RotateCcw :size="14"/></BaseButton>
@@ -267,9 +267,15 @@ const executeProcess = async (simulate: boolean) => {
           />
       </div>
 
-      <div class="h-1/3 border-t bg-[#1e1e1e] p-3 overflow-y-auto font-mono text-[11px] text-gray-300 shrink-0">
+      <!-- Theme-aware console log area -->
+      <div class="h-1/3 border-t bg-gray-50 dark:bg-[#1e1e1e] p-3 overflow-y-auto font-mono text-[11px] text-gray-700 dark:text-gray-300 shrink-0 transition-colors border-gray-200 dark:border-gray-800">
           <div v-if="!logs.length" class="opacity-40 italic">{{ selectedRootKey ? 'Ready. Load a template or paste YAML.' : 'Waiting for selection...' }}</div>
-          <div v-for="(log, i) in logs" :key="i" class="whitespace-pre-wrap mb-0.5" :class="{'text-green-400 font-bold': log.includes('Done') || log.includes('Success') || log.includes('Completed') || log.includes('valid'), 'text-red-400 font-bold': log.includes('Error') || log.includes('Failed'), 'text-yellow-400': log.includes('Tip')}">{{ log }}</div>
+          <div v-for="(log, i) in logs" :key="i" class="whitespace-pre-wrap mb-0.5" 
+            :class="{
+                'text-green-600 dark:text-green-400 font-bold': log.includes('Done') || log.includes('Success') || log.includes('Completed') || log.includes('valid'), 
+                'text-red-600 dark:text-red-400 font-bold': log.includes('Error') || log.includes('Failed'), 
+                'text-yellow-600 dark:text-yellow-400': log.includes('Tip')
+            }">{{ log }}</div>
       </div>
   </div>
 </template>

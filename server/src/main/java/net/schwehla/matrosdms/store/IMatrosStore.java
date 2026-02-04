@@ -15,4 +15,13 @@ public interface IMatrosStore {
 	MDocumentStream loadStream(String uuid);
 
 	StoreResult persist(Path pdfFile, Path textFile, String uuid, String originalFilename);
+
+	void moveToTrash(String uuid);
+
+	// NEW: Thumbnail Support
+	boolean hasThumbnail(String uuid);
+
+	void storeThumbnail(String uuid, byte[] data);
+
+	byte[] loadThumbnail(String uuid);
 }

@@ -16,7 +16,7 @@ export * from './EConfigKey';
 export * from './ERootCategory';
 export * from './EJobType';
 export * from './EJobStatus';
-export * from './EArchivedState';
+export * from './EArchiveFilter';
 export * from './ECategoryScope';
 export * from './EBroadcastSource';
 export * from './EBroadcastType';

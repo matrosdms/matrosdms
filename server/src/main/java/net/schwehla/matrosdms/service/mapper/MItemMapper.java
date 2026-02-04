@@ -38,16 +38,11 @@ import net.schwehla.matrosdms.service.message.UpdateItemMessage;
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public abstract class MItemMapper implements BasicMapper {
 
-	@Autowired
-	protected CategoryLookupService categoryCache;
-	@Autowired
-	protected AttributeLookupService attributeLookup;
-	@Autowired
-	protected CategoryRepository categoryRepository;
-	@Autowired
-	protected StoreRepository storeRepository;
-	@Autowired
-	protected MCategoryMapper categoryMapper;
+	@Autowired protected CategoryLookupService categoryCache;
+	@Autowired protected AttributeLookupService attributeLookup;
+	@Autowired protected CategoryRepository categoryRepository;
+	@Autowired protected StoreRepository storeRepository;
+	@Autowired protected MCategoryMapper categoryMapper;
 
 	public abstract List<MItem> map(List<DBItem> items);
 
@@ -58,11 +53,11 @@ public abstract class MItemMapper implements BasicMapper {
 	@Mapping(target = "attributeList", ignore = true)
 	@Mapping(target = "storeIdentifier", source = "store.uuid")
 	@Mapping(target = "storeItemNumber", source = "storageItemIdentifier")
+    // Mapped automatically because name matches: dateArchived -> dateArchived
 	public abstract MItem entityToModel(DBItem dbItem);
 
 	@AfterMapping
 	protected void afterEntityToModel(DBItem source, @MappingTarget MItem target) {
-		// 1. Map Categories (KindList)
 		if (source.getKindList() != null) {
 			MCategoryList list = new MCategoryList();
 			for (DBCategory dbCat : source.getKindList()) {
@@ -71,31 +66,23 @@ public abstract class MItemMapper implements BasicMapper {
 			target.setKindList(list);
 		}
 
-		// 2. Map Attributes (FlexFields)
 		if (source.getAttributes() != null) {
 			List<MAttribute> attrList = new ArrayList<>();
-
 			for (Map.Entry<String, Object> entry : source.getAttributes().entrySet()) {
 				String typeUuid = entry.getKey();
 				String name = attributeLookup.getName(typeUuid);
-
-				// Only map attributes that are currently known/defined
 				if (name != null) {
 					MAttribute attr = new MAttribute();
 					attr.setUuid(typeUuid);
 					attr.setName(name);
 					attr.setType(attributeLookup.getType(typeUuid));
-
 					Object val = entry.getValue();
-
-					// FIX: Unwrap nested JSON object if present: { "value": "2024" } -> "2024"
 					if (val instanceof Map) {
 						Map<?, ?> mapVal = (Map<?, ?>) val;
 						if (mapVal.containsKey("value")) {
 							val = mapVal.get("value");
 						}
 					}
-
 					attr.setValue(val);
 					attrList.add(attr);
 				}
@@ -113,7 +100,7 @@ public abstract class MItemMapper implements BasicMapper {
 	@Mapping(target = "version", ignore = true)
 	@Mapping(target = "dateCreated", ignore = true)
 	@Mapping(target = "dateUpdated", ignore = true)
-	@Mapping(target = "dateArchived", ignore = true)
+	@Mapping(target = "dateArchived", ignore = true) // Ignored on create
 	@Mapping(target = "attributes", ignore = true)
 	@Mapping(target = "kindList", ignore = true)
 	@Mapping(target = "store", ignore = true)
@@ -132,7 +119,7 @@ public abstract class MItemMapper implements BasicMapper {
 	@Mapping(target = "uuid", ignore = true)
 	@Mapping(target = "dateCreated", ignore = true)
 	@Mapping(target = "dateUpdated", ignore = true)
-	@Mapping(target = "dateArchived", ignore = true)
+	@Mapping(target = "dateArchived", ignore = true) // Prevent archiving via Update PUT
 	@Mapping(target = "infoContext", ignore = true)
 	@Mapping(target = "user", ignore = true)
 	@Mapping(target = "file", ignore = true)
@@ -152,9 +139,6 @@ public abstract class MItemMapper implements BasicMapper {
 			Map<String, Object> cleanMap = new HashMap<>();
 			for (Map.Entry<String, Object> entry : msg.getAttributes().entrySet()) {
 				if (attributeLookup.getName(entry.getKey()) != null) {
-					// Store as is. If frontend sends raw value, store raw.
-					// If frontend sends {value:..}, store that.
-					// Note: Consistency depends on frontend.
 					cleanMap.put(entry.getKey(), entry.getValue());
 				} else {
 					throw new IllegalArgumentException("Unknown Attribute Type UUID: " + entry.getKey());
@@ -162,17 +146,14 @@ public abstract class MItemMapper implements BasicMapper {
 			}
 			entity.setAttributes(cleanMap);
 		}
-
 		if (msg.getKindList() != null) {
 			entity.getKindList().clear();
 			for (String catUuid : msg.getKindList()) {
 				categoryRepository.findByUuid(catUuid).ifPresent(c -> entity.getKindList().add(c));
 			}
 		}
-
 		if (msg.getStoreIdentifier() != null && !msg.getStoreIdentifier().isBlank()) {
-			if (entity.getStore() == null
-					|| !entity.getStore().getUuid().equals(msg.getStoreIdentifier())) {
+			if (entity.getStore() == null || !entity.getStore().getUuid().equals(msg.getStoreIdentifier())) {
 				DBStore store = storeRepository.findByUuid(msg.getStoreIdentifier()).orElse(null);
 				entity.setStore(store);
 			}

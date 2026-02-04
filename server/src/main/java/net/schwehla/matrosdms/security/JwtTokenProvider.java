@@ -8,6 +8,7 @@
 package net.schwehla.matrosdms.security;
 
 import java.util.Date;
+import java.util.UUID;
 
 import javax.crypto.SecretKey;
 
@@ -18,10 +19,7 @@ import org.springframework.stereotype.Component;
 
 import net.schwehla.matrosdms.domain.core.MUser;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
@@ -36,6 +34,9 @@ public class JwtTokenProvider {
 	@Value("${app.security.jwt-expiration-ms}")
 	private int jwtExpirationMs;
 
+	// Refresh Token Validity: 30 Days
+	private final long jwtRefreshExpirationMs = 2592000000L;
+
 	private SecretKey getSigningKey() {
 		byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
 		return Keys.hmacShaKeyFor(keyBytes);
@@ -45,8 +46,19 @@ public class JwtTokenProvider {
 		Date now = new Date();
 		Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
-		return Jwts.builder().subject(user.getName()).claim("uuid", user.getUuid()).claim("role", user.getRole())
-				.issuedAt(now).expiration(expiryDate).signWith(getSigningKey(), Jwts.SIG.HS256).compact();
+		return Jwts.builder()
+				.subject(user.getName())
+				.claim("uuid", user.getUuid())
+				.claim("role", user.getRole())
+				.issuedAt(now)
+				.expiration(expiryDate)
+				.signWith(getSigningKey(), Jwts.SIG.HS256)
+				.compact();
+	}
+
+	public String generateRefreshToken() {
+		// Simple opaque token
+		return UUID.randomUUID().toString();
 	}
 
 	public String getUsernameFromJWT(String token) {
@@ -57,14 +69,6 @@ public class JwtTokenProvider {
 		try {
 			Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(authToken);
 			return true;
-		} catch (MalformedJwtException ex) {
-			logger.error("Invalid JWT token");
-		} catch (ExpiredJwtException ex) {
-			logger.error("Expired JWT token");
-		} catch (UnsupportedJwtException ex) {
-			logger.error("Unsupported JWT token");
-		} catch (IllegalArgumentException ex) {
-			logger.error("JWT claims string is empty.");
 		} catch (Exception ex) {
 			logger.error("JWT validation error: " + ex.getMessage());
 		}

@@ -1,7 +1,6 @@
 import { ref } from 'vue'
 import { client } from '@/api/client'
 import { useUIStore } from '@/stores/ui'
-import { EArchivedState } from '@/enums'
 
 // Singleton State
 const isBackendDisconnected = ref(false)

@@ -3,7 +3,6 @@ import type { paths } from "@/types/schema";
 import { useUIStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { setBackendDisconnected } from "@/composables/useNetworkStatus"; 
-import { pinia } from "@/main"
 import { push } from "notivue";
 
 export const client = createClient<paths>({ 
@@ -17,9 +16,46 @@ export const client = createClient<paths>({
 let _uiStore: any = null;
 let _authStore: any = null;
 const getStores = () => {
-    if (!_uiStore) _uiStore = useUIStore(pinia);
-    if (!_authStore) _authStore = useAuthStore(pinia);
+    // Removed explicit 'pinia' argument to break circular dependency with main.ts
+    // Pinia stores automatically use the active instance created in main.ts
+    if (!_uiStore) _uiStore = useUIStore();
+    if (!_authStore) _authStore = useAuthStore();
     return { ui: _uiStore, auth: _authStore };
+}
+
+// Queue for requests waiting for token refresh
+let refreshPromise: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+    const { auth } = getStores();
+    
+    if (!auth.refreshToken) {
+        return false;
+    }
+    
+    try {
+        const response = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ refreshToken: auth.refreshToken }),
+        });
+        
+        if (!response.ok) {
+            return false;
+        }
+        
+        const data = await response.json();
+        if (data.accessToken && data.refreshToken) {
+            auth.updateTokens(data.accessToken, data.refreshToken);
+            return true;
+        }
+        return false;
+    } catch (e) {
+        console.error('[API] Token refresh failed:', e);
+        return false;
+    }
 }
 
 client.use({
@@ -32,7 +68,7 @@ client.use({
     return request;
   },
   
-  async onResponse({ response, request }) {
+  async onResponse({ response, request, options }) {
     const { ui, auth } = getStores();
     const url = request.url.replace(window.location.origin, '');
     const status = response.status;
@@ -46,11 +82,44 @@ client.use({
         return response; 
     }
 
-    // 2. AUTH ERRORS
+    // 2. AUTH ERRORS - Handle 401 with token refresh
     if (status === 401) {
-        if (auth.isAuthenticated && !url.includes("/auth/login") && !url.includes("/users")) {
-             ui.addLog(`!! [AUTH] Session Expired (${status}) - Logging out`, 'error');
-             auth.logout();
+        // Don't try to refresh for auth endpoints themselves
+        if (url.includes("/auth/login") || url.includes("/auth/refresh") || url.includes("/auth/register")) {
+            return response;
+        }
+        
+        // If we have a refresh token, try to refresh
+        if (auth.refreshToken && auth.isAuthenticated) {
+            // Use a single refresh promise to avoid concurrent refresh calls
+            if (!refreshPromise) {
+                auth.isRefreshing = true;
+                refreshPromise = refreshAccessToken().finally(() => {
+                    auth.isRefreshing = false;
+                    refreshPromise = null;
+                });
+            }
+            
+            const refreshed = await refreshPromise;
+            
+            if (refreshed) {
+                // Retry the original request with new token
+                const newRequest = new Request(request, {
+                    headers: new Headers(request.headers),
+                });
+                newRequest.headers.set("Authorization", `Bearer ${auth.token}`);
+                
+                // Make the retry request
+                const retryResponse = await fetch(newRequest);
+                return retryResponse;
+            } else {
+                // Refresh failed, logout
+                ui.addLog(`!! [AUTH] Session Expired - Token refresh failed`, 'error');
+                auth.logout();
+            }
+        } else if (auth.isAuthenticated) {
+            ui.addLog(`!! [AUTH] Session Expired (${status}) - Logging out`, 'error');
+            auth.logout();
         }
     }
     else if (status === 403) {
@@ -63,14 +132,9 @@ client.use({
     }
     // 3. CONFLICT (409) - e.g. Concurrent Edits or Duplicate Uploads
     else if (status === 409) {
-        push.error({
-            title: "Conflict Detected",
-            message: "Data modified by another user or duplicate file. Refreshing...",
-            duration: 5000
-        });
-        ui.addLog(`!! [CONFLICT] 409 Data mismatch`, 'error');
-        
-        // Auto-refresh logic could go here, for now we let the user react
+        // Let the caller handle 409 for specific use cases (e.g., context deletion)
+        // We'll still log it but not show a generic toast
+        ui.addLog(`!! [CONFLICT] 409 for ${url}`, 'error');
     }
     // 4. VALIDATION ERROR (422) - Business Logic Failure
     else if (status === 422) {

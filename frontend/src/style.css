@@ -73,4 +73,12 @@
 .matros-tag-where { @apply bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 hover:border-orange-400; }
 .matros-tag-kind { @apply bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100 hover:border-purple-400; }
 .matros-tag-default { @apply bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200; }
+
+/* Table Rows - Global States */
+.table-row-active {
+  @apply bg-white dark:bg-gray-900;
+}
+.table-row-closed {
+  @apply bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 italic;
+}
 }

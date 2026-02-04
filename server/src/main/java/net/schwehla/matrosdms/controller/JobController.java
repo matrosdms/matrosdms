@@ -44,33 +44,25 @@ public class JobController {
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
 			@PageableDefault(size = 20, sort = "startTime", direction = Sort.Direction.DESC) Pageable pageable) {
 
-		// FIX: Map DTO sort properties to Entity properties to prevent
-		// "UnknownPathException".
-		// The frontend sends 'executionTime', 'taskName', etc. but the DB Entity has
-		// 'startTime', 'type'.
 		Sort sort = pageable.getSort();
 		Sort mappedSort = Sort.unsorted();
 
 		for (Sort.Order order : sort) {
 			String prop = order.getProperty();
 
-			// Mapping Logic
 			if ("executionTime".equals(prop)) {
 				prop = "startTime";
 			} else if ("taskName".equals(prop)) {
 				prop = "type";
-			} else if ("instanceId".equals(prop)) {
+				// FIX: Map frontend 'uuid' (or legacy 'instanceId') to database 'id'
+			} else if ("uuid".equals(prop) || "instanceId".equals(prop)) {
 				prop = "id";
 			}
-			// 'status' maps 1:1, so we don't need an else-if for it,
-			// but we fallback to the original prop if no match found.
 
 			mappedSort = mappedSort.and(Sort.by(order.getDirection(), prop));
 		}
 
-		// Create a new Pageable with the translated Sort
 		Pageable safePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), mappedSort);
-
 		Page<DBAdminJob> page = adminJobRepository.findHistory(from, to, safePageable);
 
 		Page<JobMessage> dtoPage = page.map(this::mapDbEntity);
@@ -87,10 +79,8 @@ public class JobController {
 
 		return new JobMessage(
 				e.getType().name(),
-				String.valueOf(e.getId()),
-				e.getStartTime() != null
-						? e.getStartTime().atZone(ZoneId.systemDefault()).toInstant()
-						: null,
+				String.valueOf(e.getId()), // Maps DB ID -> DTO UUID
+				e.getStartTime() != null ? e.getStartTime().atZone(ZoneId.systemDefault()).toInstant() : null,
 				mappedStatus);
 	}
 }

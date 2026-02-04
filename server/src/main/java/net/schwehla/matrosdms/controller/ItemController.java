@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -33,10 +34,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import net.schwehla.matrosdms.domain.content.MDocumentStream;
-import net.schwehla.matrosdms.domain.core.EArchivedState;
+import net.schwehla.matrosdms.domain.core.EArchiveFilter; // NEW
 import net.schwehla.matrosdms.domain.core.MItem;
 import net.schwehla.matrosdms.entity.management.DBUser;
 import net.schwehla.matrosdms.service.domain.ItemService;
+import net.schwehla.matrosdms.service.domain.ThumbnailService;
 import net.schwehla.matrosdms.service.facade.ItemIngestionFacade;
 import net.schwehla.matrosdms.service.message.CreateItemMessage;
 import net.schwehla.matrosdms.service.message.UpdateItemMessage;
@@ -45,23 +47,33 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 
 @RestController
-@RequestMapping("/items") // PLURALIZED
+@RequestMapping("/items")
 public class ItemController {
 
-	@Autowired
-	private ItemService itemService;
-	@Autowired
-	private ItemIngestionFacade ingestionFacade;
+	@Autowired private ItemService itemService;
+	@Autowired private ItemIngestionFacade ingestionFacade;
+	@Autowired private ThumbnailService thumbnailService;
+
+	@GetMapping(value = "/{uuid}/thumbnail", produces = MediaType.IMAGE_JPEG_VALUE)
+	@Operation(summary = "Get preview thumbnail")
+	public ResponseEntity<byte[]> getThumbnail(@PathVariable("uuid") String uuid) {
+		byte[] data = thumbnailService.getThumbnail(uuid);
+		if (data == null)
+			return ResponseEntity.notFound().build();
+
+		return ResponseEntity.ok()
+				.cacheControl(CacheControl.maxAge(30, java.util.concurrent.TimeUnit.DAYS))
+				.body(data);
+	}
 
 	@GetMapping
 	@Operation(summary = "Get items in context (Paged)")
 	public ResponseEntity<Page<MItem>> loadInfoItemList(
 			@RequestParam(name = "context", required = false) String contextIdentifier,
 			@RequestParam(name = "q", required = false) String query,
-			@RequestParam(name = "archiveState", defaultValue = "ONLYACTIVE") EArchivedState archiveState,
+			@RequestParam(name = "archiveState", defaultValue = "ACTIVE_ONLY") EArchiveFilter archiveState,
 			@PageableDefault(size = 20, sort = "issueDate", direction = Sort.Direction.DESC) Pageable pageable) {
 
-		// FIX: Map DTO sort properties to Entity properties
 		Sort mappedSort = Sort.unsorted();
 		for (Sort.Order order : pageable.getSort()) {
 			String prop = order.getProperty();
@@ -126,10 +138,27 @@ public class ItemController {
 		return new ResponseEntity<>(item, HttpStatus.OK);
 	}
 
+    // 1. SOFT DELETE (Archive)
 	@DeleteMapping("/{uuid}")
-	@Operation(summary = "Delete item by id")
-	public ResponseEntity<HttpStatus> deleteItem(@PathVariable("uuid") String uuid) {
-		itemService.deleteItem(uuid);
+	@Operation(summary = "Archive item (Soft Delete)")
+	public ResponseEntity<HttpStatus> archiveItem(@PathVariable("uuid") String uuid) {
+		itemService.archiveItem(uuid);
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
+
+    // 2. RESTORE
+    @PostMapping("/{uuid}/restore")
+    @Operation(summary = "Restore archived item")
+    public ResponseEntity<Void> restoreItem(@PathVariable("uuid") String uuid) {
+        itemService.restoreItem(uuid);
+        return ResponseEntity.ok().build();
+    }
+
+    // 3. HARD DELETE (Destroy)
+    @DeleteMapping("/{uuid}/permanent")
+    @Operation(summary = "Permanently destroy item")
+    public ResponseEntity<Void> destroyItem(@PathVariable("uuid") String uuid) {
+        itemService.hardDeleteItem(uuid);
+        return ResponseEntity.noContent().build();
+    }
 }

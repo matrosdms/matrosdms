@@ -23,11 +23,11 @@ MatrosDMS is a professional Document Management System designed for organizing, 
 
 ### Panels
 
-| Panel | Description |
-|-------|-------------|
-| **Sidebar** | Category tree, Inbox, or Action list depending on mode |
-| **Context List** | Folders/contexts matching current category selection |
-| **Detail Pane** | Document list, preview, forms, or timeline view |
+|      Panel       |                      Description                       |
+|------------------|--------------------------------------------------------|
+| **Sidebar**      | Category tree, Inbox, or Action list depending on mode |
+| **Context List** | Folders/contexts matching current category selection   |
+| **Detail Pane**  | Document list, preview, forms, or timeline view        |
 
 ---
 
@@ -35,42 +35,42 @@ MatrosDMS is a professional Document Management System designed for organizing, 
 
 ### Global
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl + K` | Open global search |
-| `Escape` | Close dialogs, cancel operations |
+|  Shortcut  |              Action              |
+|------------|----------------------------------|
+| `Ctrl + K` | Open global search               |
+| `Escape`   | Close dialogs, cancel operations |
 
 ### Forms (Create/Edit)
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl + S` | Save / Submit form |
-| `Escape` | Cancel and close form |
+|  Shortcut  |        Action         |
+|------------|-----------------------|
+| `Ctrl + S` | Save / Submit form    |
+| `Escape`   | Cancel and close form |
 
 ### Category Tree Navigation
 
 The category tree follows Windows Explorer keyboard conventions:
 
-| Shortcut | Action |
-|----------|--------|
-| `↑` / `↓` | Navigate up/down through nodes |
-| `→` | Expand node, or move to first child if expanded |
-| `←` | Collapse node, or jump to parent if collapsed |
-| `Home` | Jump to first node |
-| `End` | Jump to last node |
-| `Enter` / `Space` | Select the focused node |
-| `F` | Add focused node to filter bar |
-| `*` | Expand all children of current node |
-| `A-Z`, `0-9` | Type-ahead: jump to next node starting with letter |
+|     Shortcut      |                       Action                       |
+|-------------------|----------------------------------------------------|
+| `↑` / `↓`         | Navigate up/down through nodes                     |
+| `→`               | Expand node, or move to first child if expanded    |
+| `←`               | Collapse node, or jump to parent if collapsed      |
+| `Home`            | Jump to first node                                 |
+| `End`             | Jump to last node                                  |
+| `Enter` / `Space` | Select the focused node                            |
+| `F`               | Add focused node to filter bar                     |
+| `*`               | Expand all children of current node                |
+| `A-Z`, `0-9`      | Type-ahead: jump to next node starting with letter |
 
 ### Data Tables / Lists
 
-| Shortcut | Action |
-|----------|--------|
-| `↑` / `↓` | Navigate rows |
-| `Enter` | Select / Open item |
-| `Home` | Jump to first row |
-| `End` | Jump to last row |
+| Shortcut  |       Action       |
+|-----------|--------------------|
+| `↑` / `↓` | Navigate rows      |
+| `Enter`   | Select / Open item |
+| `Home`    | Jump to first row  |
+| `End`     | Jump to last row   |
 
 ---
 
@@ -80,10 +80,10 @@ The filter bar at the top allows multi-dimensional filtering:
 
 ### Dimensions
 
-| Dimension | Color | Description |
-|-----------|-------|-------------|
-| **WHO** | Blue | People, organizations, contacts |
-| **WHAT** | Green | Topics, subjects, document types |
+| Dimension | Color  |           Description            |
+|-----------|--------|----------------------------------|
+| **WHO**   | Blue   | People, organizations, contacts  |
+| **WHAT**  | Green  | Topics, subjects, document types |
 | **WHERE** | Orange | Locations, departments, projects |
 
 ### Adding Filters
@@ -110,28 +110,28 @@ Type to search across all documents. Supports:
 
 ### Search Operators
 
-| Syntax | Example | Description |
-|--------|---------|-------------|
-| `text` | `invoice` | Fulltext search |
-| `folder:Name` | `folder:Medical` | Filter by context/folder |
-| `store:Code` | `store:ARCH` | Filter by storage location |
-| `date:>2024` | `date:>2024-01-01` | Date after |
-| `date:<2024` | `date:<2024-12-31` | Date before |
-| `source:TYPE` | `source:EMAIL` | Filter by source type |
-| `who:Name` | `who:Martin` | Filter by person |
-| `what:Topic` | `what:Insurance` | Filter by topic |
-| `where:Location` | `where:Munich` | Filter by location |
+|      Syntax      |      Example       |        Description         |
+|------------------|--------------------|----------------------------|
+| `text`           | `invoice`          | Fulltext search            |
+| `folder:Name`    | `folder:Medical`   | Filter by context/folder   |
+| `store:Code`     | `store:ARCH`       | Filter by storage location |
+| `date:>2024`     | `date:>2024-01-01` | Date after                 |
+| `date:<2024`     | `date:<2024-12-31` | Date before                |
+| `source:TYPE`    | `source:EMAIL`     | Filter by source type      |
+| `who:Name`       | `who:Martin`       | Filter by person           |
+| `what:Topic`     | `what:Insurance`   | Filter by topic            |
+| `where:Location` | `where:Munich`     | Filter by location         |
 
 ### Command Mode
 
 Type `>` to enter command mode:
 
-| Command | Description |
-|---------|-------------|
-| `> new context` | Create a new context/folder |
-| `> new category` | Create a new category |
-| `> settings` | Open settings |
-| `> theme` | Toggle dark/light mode |
+|     Command      |         Description         |
+|------------------|-----------------------------|
+| `> new context`  | Create a new context/folder |
+| `> new category` | Create a new category       |
+| `> settings`     | Open settings               |
+| `> theme`        | Toggle dark/light mode      |
 
 ---
 
@@ -190,12 +190,12 @@ Toggle between:
 
 ## Drag & Drop
 
-| Source | Target | Action |
-|--------|--------|--------|
-| Inbox file | Context | Create new document in context |
-| Document | Context | Move document to context |
-| Category | Filter bar | Add filter |
-| Document | Item Stack | Collect for batch operations |
+|   Source   |   Target   |             Action             |
+|------------|------------|--------------------------------|
+| Inbox file | Context    | Create new document in context |
+| Document   | Context    | Move document to context       |
+| Category   | Filter bar | Add filter                     |
+| Document   | Item Stack | Collect for batch operations   |
 
 ---
 
@@ -205,21 +205,21 @@ Access via sidebar → Settings icon
 
 ### Master Data
 
-| Section | Description |
-|---------|-------------|
-| **Stores** | Physical storage locations |
-| **Users** | System user accounts |
-| **Attributes** | Custom field definitions |
+|        Section        |        Description         |
+|-----------------------|----------------------------|
+| **Stores**            | Physical storage locations |
+| **Users**             | System user accounts       |
+| **Attributes**        | Custom field definitions   |
 | **Import Categories** | Bulk import category trees |
-| **System Jobs** | Background task management |
+| **System Jobs**       | Background task management |
 
 ### System Jobs
 
-| Job | Description |
-|-----|-------------|
+|         Job         |                 Description                 |
+|---------------------|---------------------------------------------|
 | **Integrity Check** | Verify file hashes and database consistency |
-| **Reindex Search** | Rebuild full-text search index |
-| **Export Archive** | Create backup ZIP of all documents |
+| **Reindex Search**  | Rebuild full-text search index              |
+| **Export Archive**  | Create backup ZIP of all documents          |
 
 ---
 

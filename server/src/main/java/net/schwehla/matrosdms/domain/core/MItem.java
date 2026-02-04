@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import net.schwehla.matrosdms.domain.attribute.MAttribute;
 
 public class MItem extends MBaseElement {
@@ -23,11 +24,20 @@ public class MItem extends MBaseElement {
 	private MContext context;
 	private String storeIdentifier;
 	private String storeItemNumber;
-	private LocalDateTime issueDate;
+	
+    // Lifecycle Dates
+    private LocalDateTime issueDate;
 	private LocalDateTime dateExpire;
-	private EStage stage = EStage.ACTIVE;
+    private LocalDateTime dateArchived;
 
-	// NEW: Flag only. Content is fetched via separate API call if needed.
+	private EStage stage = EStage.ACTIVE;
+	
+	@Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "True if the item is archived")
+	public boolean isArchived() {
+	    return dateArchived != null;
+	}
+
+	// Flag only
 	private boolean textParsed;
 
 	public MFileMetadata getMetadata() {
@@ -85,6 +95,14 @@ public class MItem extends MBaseElement {
 	public void setDateExpire(LocalDateTime dateExpire) {
 		this.dateExpire = dateExpire;
 	}
+
+    public LocalDateTime getDateArchived() {
+        return dateArchived;
+    }
+
+    public void setDateArchived(LocalDateTime dateArchived) {
+        this.dateArchived = dateArchived;
+    }
 
 	public int getCount() {
 		return kindList.size();

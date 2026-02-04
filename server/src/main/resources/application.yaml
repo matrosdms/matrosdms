@@ -63,6 +63,8 @@ app:
         path: "${app.base-path}/workspace/ignored"           
     processed:
         path: "${app.base-path}/workspace/archive"
+    trash:
+        path: "${app.base-path}/workspace/trash"
     plugins:
         path: "${app.base-path}/workspace/plugins"
     store:

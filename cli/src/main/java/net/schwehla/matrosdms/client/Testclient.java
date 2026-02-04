@@ -26,7 +26,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
-import net.schwehla.matrosdms.domain.core.EArchivedState;
+import net.schwehla.matrosdms.domain.core.EArchiveFilter;
 import net.schwehla.matrosdms.domain.core.MCategory;
 import net.schwehla.matrosdms.domain.core.MContext;
 import net.schwehla.matrosdms.domain.core.MItem;
@@ -152,7 +152,7 @@ public class Testclient implements CommandLineRunner {
 				.uri(uriBuilder -> uriBuilder
 						.path("/items")
 						.queryParam("context", cRestult.getUuid())
-						.queryParam("archiveState", EArchivedState.Names.ONLYACTIVE)
+						.queryParam("archiveState", EArchiveFilter .Names.ACTIVE_ONLY)
 						.build())
 				.retrieve()
 				.body(List.class);
