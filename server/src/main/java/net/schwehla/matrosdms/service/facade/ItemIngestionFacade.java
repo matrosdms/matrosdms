@@ -88,11 +88,13 @@ public class ItemIngestionFacade {
 		DBContext dbContext = contextRepository
 				.findByUuid(itemMessage.getContextIdentifier())
 				.orElseThrow(
-						() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Context not found"));
+						() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+								"Context not found: " + itemMessage.getContextIdentifier()));
 
 		DBUser dbUser = userRepository
 				.findByUuid(itemMessage.getUserIdentifier())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"User not found: " + itemMessage.getUserIdentifier()));
 
 		DBItem dbItem = itemMapper.modelToEntity(itemMessage);
 		dbItem.setUser(dbUser);

@@ -46,6 +46,21 @@ public class CategoryImportService {
 	@Qualifier("yamlMapper")
 	ObjectMapper yamlMapper;
 
+	/**
+	 * Shared YAML validation.
+	 * 
+	 * @param yamlContent
+	 * @return Parsed Object
+	 */
+	public Object parseYaml(String yamlContent) {
+		try {
+			return yamlMapper.readValue(yamlContent, Object.class);
+		} catch (Exception e) {
+			throw new IllegalArgumentException(
+					"Invalid YAML syntax. Use 'Name:' for parents and '- Name' for lists.", e);
+		}
+	}
+
 	@Transactional
 	@Caching(evict = {
 			@CacheEvict(value = "categories", allEntries = true),
@@ -59,13 +74,7 @@ public class CategoryImportService {
 			return;
 		}
 
-		Object structure;
-		try {
-			structure = yamlMapper.readValue(yamlContent, Object.class);
-		} catch (Exception e) {
-			throw new IllegalArgumentException(
-					"Invalid YAML syntax. Use 'Name:' for parents and '- Name' for lists.", e);
-		}
+		Object structure = parseYaml(yamlContent);
 
 		if (structure instanceof Map<?, ?> map && map.containsKey(rootUuid)) {
 			log.info("Detected wrapped structure. Extracting content for: {}", rootUuid);

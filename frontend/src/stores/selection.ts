@@ -16,9 +16,15 @@ export const useSelectionStore = defineStore('selection', () => {
     selectedCategoryId.value = id
     selectedCategoryLabel.value = label
     selectedItem.value = null
-    selectedContext.value = null
+    // Don't clear selected context when selecting a category - user might want to keep context selection
     // Reset view to avoid showing stale forms
     ui.setRightPanelView(ViewMode.DETAILS)
+  }
+
+  function clearSelectedCategory() {
+    selectedCategoryId.value = null
+    selectedCategoryLabel.value = ''
+    // Don't clear item or context when just clearing category selection
   }
 
   function setSelectedContext(contextObj: Context | null) {
@@ -43,6 +49,6 @@ export const useSelectionStore = defineStore('selection', () => {
 
   return { 
     selectedCategoryId, selectedCategoryLabel, selectedContext, selectedItem,
-    setSelectedCategory, setSelectedContext, setSelectedItem
+    setSelectedCategory, clearSelectedCategory, setSelectedContext, setSelectedItem
   }
 })

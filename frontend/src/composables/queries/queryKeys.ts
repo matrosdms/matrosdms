@@ -2,7 +2,7 @@
  * Single source of truth for TanStack Query Keys.
  * Ensures cache invalidation works predictably across the app.
  */
-import type { ERootCategoryType, EJobStatusType, EArchivedState } from '@/enums';
+import type { ERootCategoryType, EJobStatusType, EArchiveFilterType } from '@/enums';
 
 export const queryKeys = {
   // Core Domain

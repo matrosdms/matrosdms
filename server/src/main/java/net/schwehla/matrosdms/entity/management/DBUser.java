@@ -12,7 +12,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
 
 import net.schwehla.matrosdms.domain.core.EUserRole;
 import net.schwehla.matrosdms.entity.AbstractDBInfoBaseEntity;
@@ -21,7 +32,7 @@ import net.schwehla.matrosdms.entity.converter.SavedSearchListConverter;
 import net.schwehla.matrosdms.service.message.SavedSearchMessage;
 
 @Entity(name = "Users")
-@Table(name = "DBUser", indexes = { @Index(name = "user_uuid_index", columnList = "uuid") })
+@Table(name = "DBUser", indexes = { @Index(name = "idx_user_uuid", columnList = "uuid") })
 @NamedQueries({
 		@NamedQuery(name = "DBUser.findAll", query = "SELECT c FROM Users c"),
 		@NamedQuery(name = "DBUser.findByUUID", query = "SELECT c FROM Users c where c.uuid = :uuid"),
@@ -42,15 +53,15 @@ public class DBUser extends AbstractDBInfoBaseEntity {
 	@Column(name = "user_role", nullable = false)
 	public EUserRole role = EUserRole.USER;
 
-	// General Preferences
 	@Column(columnDefinition = "TEXT")
 	@Convert(converter = JpaJsonConverter.class)
 	private Map<String, Object> preferences = new HashMap<>();
 
-	// --- NEW: Dedicated Column for Searches ---
 	@Column(name = "saved_searches", columnDefinition = "TEXT")
 	@Convert(converter = SavedSearchListConverter.class)
 	private List<SavedSearchMessage> savedSearches = new ArrayList<>();
+
+	// REMOVED: private String refreshToken; (Now handled by DBRefreshToken table)
 
 	public Long getPK() {
 		return id;

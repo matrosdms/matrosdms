@@ -18,7 +18,7 @@ import net.schwehla.matrosdms.domain.attribute.EAttributeType;
 
 @Entity
 @Table(name = "Attributetype", indexes = {
-		@jakarta.persistence.Index(columnList = "uuid", name = "attributetype_uuid_index") })
+		@jakarta.persistence.Index(columnList = "uuid", name = "idx_attributetype_uuid") })
 public class DBAttributeType extends AbstractDBInfoBaseEntityWithOrdinal {
 
 	@Id

@@ -22,10 +22,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
-import net.schwehla.matrosdms.domain.core.EArchivedState;
+import net.schwehla.matrosdms.domain.core.EArchiveFilter;
 import net.schwehla.matrosdms.search.SearchCriteria;
 import net.schwehla.matrosdms.service.InboxWatchService;
 import net.schwehla.matrosdms.service.SearchService;
+import net.schwehla.matrosdms.service.auth.RefreshTokenCleanupJob;
 import net.schwehla.matrosdms.service.domain.ActionService;
 import net.schwehla.matrosdms.service.domain.AttributeLookupService;
 import net.schwehla.matrosdms.service.domain.AttributeService;
@@ -59,6 +60,10 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 	@Autowired
 	ActionService actionService;
 
+	// NEW: Inject Cleanup Job
+	@Autowired
+	RefreshTokenCleanupJob tokenCleanupJob;
+
 	// FIX: Autowiring these forces Spring to instantiate them despite
 	// 'lazy-initialization: true'
 	// This triggers their @PostConstruct start() methods.
@@ -80,10 +85,19 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 		log.info(
 				"📧 Mail Services Active: SMTP (Port {}) & IMAP (Port {})",
 				2525,
-				1143); // Ports are hardcoded in logs here, but loaded from config in actual beans
+				1143);
 
-		// 3. Data Warm-up
+		// 3. Data Warm-up & Housekeeping
 		CompletableFuture.runAsync(this::warmUpSystem);
+
+		// NEW: Cleanup tokens immediately (for desktop/dev usage patterns)
+		CompletableFuture.runAsync(() -> {
+			try {
+				tokenCleanupJob.cleanupExpiredTokens();
+			} catch (Exception e) {
+				log.warn("Startup token cleanup skipped: {}", e.getMessage());
+			}
+		});
 
 		// 4. Auto-open Browser (development convenience)
 		CompletableFuture.runAsync(this::openBrowser);
@@ -95,7 +109,7 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 		long start = System.currentTimeMillis();
 		try {
 			searchService.search(SearchCriteria.forText("invoice"), 0, 1);
-			contextService.loadContextList(EArchivedState.ONLYACTIVE, 100, "name");
+			contextService.loadContextList(EArchiveFilter.ACTIVE_ONLY, 100, "name");
 			storeService.loadStoreList();
 			userService.loadUserList();
 			attributeService.loadAttributeTypes();
@@ -109,9 +123,9 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 	private void openBrowser() {
 		try {
-			
+
 			log.info("app is running in: http://localhost:" + serverPort);
-			
+
 			// Skip browser opening in containerized/headless environments
 			if (isContainerEnvironment()) {
 				log.debug("Container environment detected - skipping browser auto-open");
@@ -119,7 +133,7 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 			}
 
 			log.info("Start Browser");
-			System.setProperty("java.awt.headless","false");
+			System.setProperty("java.awt.headless", "false");
 
 			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
 				// Give server a moment to fully start before opening browser
@@ -138,8 +152,8 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 	private boolean isContainerEnvironment() {
 		// Check for Docker container indicators
 		return java.nio.file.Files.exists(java.nio.file.Paths.get("/.dockerenv"))
-			|| System.getenv("CONTAINER") != null
-			|| System.getenv("KUBERNETES_SERVICE_HOST") != null
-			|| "true".equals(System.getProperty("java.awt.headless"));
+				|| System.getenv("CONTAINER") != null
+				|| System.getenv("KUBERNETES_SERVICE_HOST") != null
+				|| "true".equals(System.getProperty("java.awt.headless"));
 	}
 }

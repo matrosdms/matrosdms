@@ -27,7 +27,7 @@ const { mutate: deleteItem, isPending: isDeleting } = useMutation({
     onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['items'] })
         queryClient.invalidateQueries({ queryKey: ['contexts'] })
-        push.success('Document deleted')
+        push.success('Document moved to trash')
         showDeleteModal.value = false
         dms.setSelectedItem(null)
         dms.cancelCreation()

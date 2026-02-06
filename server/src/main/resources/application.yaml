@@ -63,6 +63,8 @@ app:
         path: "${app.base-path}/workspace/ignored"           
     processed:
         path: "${app.base-path}/workspace/archive"
+    trash:
+        path: "${app.base-path}/workspace/trash"
     plugins:
         path: "${app.base-path}/workspace/plugins"
     store:
@@ -106,7 +108,7 @@ spring:
       request-timeout: 5000
   
   datasource:
-    url: ${MATROS_DB_URL:jdbc:h2:${app.base-path}/workspace/db/matros;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE}
+    url: ${MATROS_DB_URL:jdbc:h2:${app.base-path}/workspace/db/matros;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=FALSE;DB_CLOSE_ON_EXIT=FALSE}
     username: ${MATROS_DB_USER:admin}
     password: ${MATROS_DB_PASS:admin}
     # NEW: Connection Pool Tuning

@@ -24,8 +24,8 @@ const onResize = (key: 'sidebar' | 'workspace', panes: { size: number }[]) => {
     <splitpanes class="default-theme" @resized="onResize('sidebar', $event)">
       
       <!-- LEFT PANE: SIDEBAR -->
-      <pane :size="layout[0]" min-size="0" class="!bg-background relative border-r border-border shadow-sm z-10 transition-colors">
-        <div class="h-full w-full relative flex flex-col overflow-hidden">
+      <pane :size="layout[0]" min-size="0" class="!bg-background relative border-r border-border shadow-sm transition-colors">
+        <div class="h-full w-full relative flex flex-col overflow-hidden isolate">
             <slot name="sidebar"></slot>
         </div>
       </pane>
@@ -36,12 +36,12 @@ const onResize = (key: 'sidebar' | 'workspace', panes: { size: number }[]) => {
             <!-- Nested Split for List/Detail -->
             <splitpanes :horizontal="isMobile" @resized="onResize('workspace', $event)">
               <pane :size="layout[2]" min-size="0" class="!bg-background transition-colors">
-                <div class="h-full w-full relative flex flex-col overflow-hidden">
+                <div class="h-full w-full relative flex flex-col overflow-hidden isolate">
                     <slot name="list"></slot>
                 </div>
               </pane>
               <pane :size="layout[3]" min-size="20" class="!bg-background border-l border-border transition-colors">
-                <div class="h-full w-full relative flex flex-col overflow-hidden">
+                <div class="h-full w-full relative flex flex-col overflow-hidden isolate">
                     <slot name="detail"></slot>
                 </div>
               </pane>

@@ -30,4 +30,25 @@ public class MatrosRemoteStore implements IMatrosStore {
 	public StoreResult persist(Path pdfFile, Path textFile, String uuid, String originalFilename) {
 		throw new RuntimeException("Not implemented");
 	}
+
+	@Override
+	public void moveToTrash(String uuid) {
+		throw new RuntimeException("Not implemented");
+	}
+
+	@Override
+	public boolean hasThumbnail(String uuid) {
+		throw new RuntimeException("Not implemented");
+	}
+
+	@Override
+	public void storeThumbnail(String uuid, byte[] data) {
+		throw new RuntimeException("Not implemented");
+
+	}
+
+	@Override
+	public byte[] loadThumbnail(String uuid) {
+		throw new RuntimeException("Not implemented");
+	}
 }

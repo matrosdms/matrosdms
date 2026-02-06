@@ -53,10 +53,11 @@ import net.schwehla.matrosdms.search.ItemTextBinder;
 @Indexed
 @TypeBinding(binder = @TypeBinderRef(type = ItemTextBinder.class))
 @Table(name = "Item", indexes = {
-		@Index(columnList = "uuid", name = "item_uuid_index"),
-		@Index(columnList = "issueDate", name = "item_issueDate_index"),
-		@Index(columnList = "source", name = "item_source_index"),
-		@Index(columnList = "CONTEXT_ID", name = "item_context_index"),
+		@Index(columnList = "uuid", name = "idx_item_uuid"),
+		@Index(columnList = "issueDate", name = "idx_item_issueDate"),
+		@Index(columnList = "dateArchived", name = "idx_item_dateArchived"),
+		@Index(columnList = "source", name = "idx_item_source"),
+		@Index(columnList = "CONTEXT_ID", name = "idx_item_context"),
 }, uniqueConstraints = @UniqueConstraint(columnNames = { "ITEM_ID" }, name = "UNIQUE_ID"))
 @NamedEntityGraph(name = "Item.detail", attributeNodes = {
 		@NamedAttributeNode("infoContext"),

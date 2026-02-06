@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Calendar, FileText, ArrowDown, Tag } from 'lucide-vue-next'
+import { Calendar, FileText, ArrowDown, Tag, GripVertical } from 'lucide-vue-next'
 import { parseBackendDate } from '@/lib/utils'
 import { useDmsStore } from '@/stores/dms'
+import { useDragDrop } from '@/composables/useDragDrop'
 
 const props = defineProps<{
   items: any[]
@@ -10,6 +11,19 @@ const props = defineProps<{
 
 const emit = defineEmits(['select'])
 const dms = useDmsStore()
+const { startDrag, endDrag } = useDragDrop()
+
+// ============================================================================
+// DRAG & DROP
+// ============================================================================
+
+const handleDragStart = (event: DragEvent, item: any) => {
+  startDrag(event, 'dms-item', item)
+}
+
+const handleDragEnd = () => {
+  endDrag()
+}
 
 // Helper: Calculate gap between dates
 const getGapText = (current: Date, prev: Date) => {
@@ -55,8 +69,8 @@ const onItemClick = (item: any) => {
 <template>
   <div class="p-4 bg-gray-50 dark:bg-gray-900 min-h-full transition-colors duration-300">
     <div class="w-full relative">
-      <!-- Continuous Line -->
-      <div class="absolute left-[15px] top-4 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-800"></div>
+      <!-- Continuous Line - starts at first dot center -->
+      <div class="absolute left-[15px] top-[22px] bottom-0 w-0.5 bg-gray-200 dark:bg-gray-800"></div>
 
       <div v-for="(item, index) in timelineItems" :key="item.uuid" class="relative pl-10 pb-6 group">
         
@@ -77,14 +91,20 @@ const onItemClick = (item: any) => {
         <!-- Card -->
         <div 
             @click="onItemClick(item)"
+            draggable="true"
+            @dragstart="handleDragStart($event, item)"
+            @dragend="handleDragEnd"
             class="bg-white dark:bg-gray-800 border rounded-lg p-3 shadow-sm hover:shadow-md cursor-pointer transition-all relative top-0 hover:-top-0.5 group-hover:border-blue-300 dark:group-hover:border-blue-700"
             :class="dms.selectedItem?.uuid === item.uuid ? 'ring-1 ring-blue-500 border-blue-500 dark:border-blue-500' : 'border-gray-200 dark:border-gray-700'"
         >
             <div class="flex justify-between items-start mb-1.5">
-                <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                    <Calendar :size="10" />
-                    {{ item._dateObj ? item._dateObj.toLocaleDateString() : 'No Date' }}
-                </span>
+                <div class="flex items-center gap-1.5">
+                    <GripVertical :size="12" class="text-gray-300 dark:text-gray-600 cursor-grab active:cursor-grabbing" />
+                    <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                        <Calendar :size="10" />
+                        {{ item._dateObj ? item._dateObj.toLocaleDateString() : 'No Date' }}
+                    </span>
+                </div>
                 
                 <span v-if="item.kindList?.length" class="text-[9px] bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800 font-bold uppercase tracking-wide flex items-center gap-1 max-w-[100px] truncate">
                     <Tag :size="9" /> {{ item.kindList[0].name }}

@@ -32,4 +32,8 @@ public class MatrosObjectStoreService {
 	public String loadTextLayer(String uuid) {
 		return StoreContext.readTextFile(uuid);
 	}
+
+	public void moveToTrash(String uuid) {
+		store.moveToTrash(uuid);
+	}
 }

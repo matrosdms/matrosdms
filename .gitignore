@@ -33,3 +33,4 @@ replay_pid*
 /server/.flattened-pom.xml
 /frontend/.flattened-pom.xml
 /.flattened-pom.xml
+/server/data

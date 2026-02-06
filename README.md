@@ -187,26 +187,42 @@ helm install my-dms matrosdms/matrosdms
 git clone https://github.com/matrosdms/matrosdms.git
 cd matrosdms
 
-# Backend only (fast)
+# Complete build (all components + Windows installer)
 mvn install
-java -jar server/target/server-0-SNAPSHOT.jar
 
-# Full stack with UI
-mvn install -Pwith-frontend
+# Artifacts created:
+# - server/target/server-0-SNAPSHOT.jar       (Cross-platform JAR)
+# - server/target/portable/MatrosDMS.exe      (Windows portable executable)
 ```
 
-👉 **[Full Development Guide](doc/development.md)**
+For development (backend only, faster):
+```bash
+mvn install -DskipFrontend
+```
 
 ---
 
-## 📦 Build Profiles
+## 📦 Build
+
+One command builds everything:
+
+```bash
+# Complete build: Backend + Frontend + Windows installer
+mvn install
+```
+
+This compiles the backend (Java 21), bundles the Vue 3 UI, and creates:
+- `server/target/server-0-SNAPSHOT.jar` — Standalone JAR (cross-platform)
+- `server/target/portable/MatrosDMS.exe` — Windows portable executable (no Java required)
+
+### Custom Builds
 
 |             Command              |             What it does             |
 |----------------------------------|--------------------------------------|
-| `mvn install`                    | Backend only (fast, ~15s)            |
-| `mvn install -Pwith-frontend`    | Backend + Vue UI embedded            |
-| `mvn install -Prelease`          | Full release (server + CLI)          |
-| `mvn package -Pwindows-portable` | Standalone `.exe` (no Java required) |
+| `mvn install`                    | **Full build** (Backend + Frontend + Windows .exe) |
+| `mvn install -DskipFrontend`     | Backend only (fast, ~15s) — for development |
+| `mvn install -Prelease`          | Full release with CLI tools          |
+| `mvn clean`                      | Clean build artifacts                |
 
 ---
 

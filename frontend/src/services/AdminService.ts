@@ -4,13 +4,13 @@ import { getErrorMessage } from '@/lib/utils'
 
 export const AdminService = {
   async getHistory() {
-    // Fix: API requires pageable
     const pageable = { page: 0, size: 50, sort: ['executionTime,desc'] }
     const { data, error } = await client.GET("/api/jobs", { 
         params: { query: { pageable } as any } 
     })
     if (error) throw new Error(getErrorMessage(error))
-    return (data as any) || []
+    // API returns Page object with content array
+    return (data as any)?.content || []
   },
 
   async startJob(type: 'INTEGRITY_CHECK' | 'EXPORT_ARCHIVE' | 'REINDEX_SEARCH', config?: string) {

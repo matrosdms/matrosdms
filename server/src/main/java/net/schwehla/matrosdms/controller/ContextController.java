@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import net.schwehla.matrosdms.domain.core.EArchivedState;
+import net.schwehla.matrosdms.domain.core.EArchiveFilter;
 import net.schwehla.matrosdms.domain.core.MContext;
 import net.schwehla.matrosdms.service.domain.ContextService;
 import net.schwehla.matrosdms.service.message.CreateContextMessage;
@@ -33,7 +33,7 @@ import net.schwehla.matrosdms.service.message.UpdateContextMessage;
 import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
-@RequestMapping("/contexts") // PLURALIZED
+@RequestMapping("/contexts")
 public class ContextController {
 
 	@Autowired
@@ -42,10 +42,20 @@ public class ContextController {
 	@GetMapping
 	@Operation(summary = "Get all contexts (with sorting/limiting)")
 	public ResponseEntity<List<MContext>> getAllInfoContext(
-			@RequestParam(name = "archiveState", defaultValue = EArchivedState.Names.ONLYACTIVE) EArchivedState archiveState,
+			// Updated param type
+			@RequestParam(name = "archiveState", defaultValue = EArchiveFilter.Names.ACTIVE_ONLY) EArchiveFilter archiveState,
 			@RequestParam(name = "sort", defaultValue = "name") String sort,
 			@RequestParam(name = "limit", defaultValue = "100") int limit) {
 
+		// Need to update ContextService signature too, but for now we cast/adapt if
+		// ContextService hasn't changed its param type yet.
+		// Assuming we keep ContextService simple for now using EStateFilter logic
+		// internally or update it.
+		// For this patch I will assume ContextService accepts the new Enum or we map
+		// it.
+		// Actually, let's update ContextService in the patch below to be safe.
+
+		// Pass to Service (See next file in patch)
 		List<MContext> resultList = contextService.loadContextList(archiveState, limit, sort);
 		return new ResponseEntity<>(resultList, HttpStatus.OK);
 	}

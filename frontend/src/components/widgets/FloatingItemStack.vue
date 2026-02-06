@@ -115,7 +115,7 @@ watch(() => dms.itemStack?.length, () => {
             @dragleave.prevent="isDragOver = false"
             @drop.prevent="onDrop"
             class="p-3 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-95 animate-in fade-in border border-white/10 relative"
-            :class="isDragOver ? 'bg-green-600 scale-110' : 'bg-gray-800 dark:bg-gray-700 text-white'"
+            :class="isDragOver ? 'bg-green-600 text-white scale-110' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-white border-gray-300 dark:border-gray-600 shadow-md'"
             title="Item Stack / Clipboard"
         >
             <Layers :size="24" />

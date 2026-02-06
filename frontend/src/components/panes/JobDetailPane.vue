@@ -39,7 +39,7 @@ const startDate = computed(() => parseBackendDate(props.item?.executionTime)?.to
                     <span class="flex items-center gap-1"><Clock :size="12"/> Execution Time: {{ startDate }}</span>
                 </div>
             </div>
-            <div class="text-right text-xs text-gray-400 font-mono">ID: {{ item.instanceId }}</div>
+            <div class="text-right text-xs text-gray-400 font-mono">ID: {{ item.uuid }}</div>
         </div>
 
         <div class="mt-4 grid grid-cols-2 gap-4 bg-white dark:bg-gray-800 p-3 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -69,15 +69,15 @@ const startDate = computed(() => parseBackendDate(props.item?.executionTime)?.to
     </div>
 
     <!-- Logs Console -->
-    <div class="flex-1 p-4 bg-[#1e1e1e] overflow-auto font-mono text-xs">
-        <div v-if="logs.length === 0" class="text-gray-500 italic">No logs available.</div>
-        <div v-for="(log, i) in logs" :key="i" class="mb-1 border-b border-gray-800/50 pb-0.5 last:border-0 flex gap-3">
-            <span class="text-gray-500 shrink-0 select-none">[{{ parseBackendDate(log.timestamp)?.toLocaleTimeString() || '--:--:--' }}]</span>
+    <div class="flex-1 p-4 bg-gray-50 dark:bg-[#1e1e1e] overflow-auto font-mono text-xs transition-colors border-t border-gray-200 dark:border-gray-800">
+        <div v-if="logs.length === 0" class="text-gray-400 italic select-none">No logs available.</div>
+        <div v-for="(log, i) in logs" :key="i" class="mb-1 border-b border-gray-200 dark:border-gray-800/50 pb-0.5 last:border-0 flex gap-3">
+            <span class="text-gray-400 dark:text-gray-500 shrink-0 select-none">[{{ parseBackendDate(log.timestamp)?.toLocaleTimeString() || '--:--:--' }}]</span>
             <span :class="{
-                'text-red-400 font-bold': log.severity === 'ERROR',
-                'text-yellow-400': log.severity === 'WARN',
-                'text-green-400': log.severity === 'INFO',
-                'text-gray-400': log.severity === 'DEBUG'
+                'text-red-600 dark:text-red-400 font-bold': log.severity === 'ERROR',
+                'text-yellow-600 dark:text-yellow-400': log.severity === 'WARN',
+                'text-green-600 dark:text-green-400': log.severity === 'INFO',
+                'text-gray-600 dark:text-gray-400': log.severity === 'DEBUG'
             }">{{ log.message }}</span>
         </div>
     </div>

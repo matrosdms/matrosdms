@@ -4,6 +4,11 @@ import type { components } from '@/types/schema'
 
 type InboxFile = components['schemas']['InboxFile'];
 
+const throwWithCode = (error: any) => {
+    const msg = getErrorMessage(error)
+    throw new Error(msg)
+}
+
 export const InboxService = {
   
   async getAll() {
@@ -25,23 +30,20 @@ export const InboxService = {
       return data
   },
 
-  async _fetchBlob(url: string): Promise<{ blob: Blob, type: string }> {
-      const { useAuthStore } = await import('@/stores/auth')
-      const auth = useAuthStore()
-      if (!auth.token) throw new Error("Authentication required")
+  // FIX: Using client.GET with parseAs: 'blob' ensures Token Refresh logic works
+  async getFileBlob(hash: string): Promise<{ blob: Blob, type: string }> {
+      const { data, error, response } = await client.GET("/api/inbox/{hash}/content", {
+          params: { path: { hash } },
+          parseAs: "blob"
+      });
 
-      const response = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${auth.token}` }
-      })
-
-      if (!response.ok) throw new Error("Failed to load file content")
-
-      const blob = await response.blob()
-      return { blob, type: blob.type }
-  },
-
-  async getFileBlob(hash: string) {
-      return this._fetchBlob(`/api/inbox/${hash}/content`)
+      if (error) throwWithCode(error);
+      
+      const blob = data as Blob;
+      return { 
+          blob, 
+          type: response.headers.get('content-type') || blob.type || 'application/octet-stream' 
+      };
   },
 
   async openFileInNewTab(hash: string) {

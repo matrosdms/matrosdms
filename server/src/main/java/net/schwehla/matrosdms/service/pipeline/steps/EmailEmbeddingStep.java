@@ -220,7 +220,7 @@ public class EmailEmbeddingStep implements PipelineStep {
 
 				// Generate stable content ID from hash
 				String hash = hashBytes(data);
-				String contentId = "embed_" + hash.substring(0, 12);
+				String contentId = hash.substring(0, 12);
 				String extension = extensionForMime(mimeType);
 				String filename = "_embed_" + contentId + extension;
 

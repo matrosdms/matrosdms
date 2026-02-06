@@ -59,7 +59,7 @@ public class OpenApiConfig {
 				.info(
 						new Info()
 								.title("MatrosDMS API")
-								.version("2.0")
+								.version("1.0")
 								.description(
 										"# Document Management System API\n\n"
 												+ "Server-Sent Events (SSE) are available at `/api/stream/updates`.")

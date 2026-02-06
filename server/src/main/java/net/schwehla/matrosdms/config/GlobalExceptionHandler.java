@@ -25,6 +25,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import net.schwehla.matrosdms.domain.api.ApiErrorResponse;
@@ -139,6 +140,19 @@ public class GlobalExceptionHandler {
 			MatrosServiceException ex, HttpServletRequest request) {
 		return buildErrorResponse(
 				HttpStatus.UNPROCESSABLE_ENTITY, EErrorCode.PROCESSING_ERROR, ex.getMessage(), request);
+	}
+
+	// ResponseStatusException (propagate intended status code)
+	@ExceptionHandler(ResponseStatusException.class)
+	public ResponseEntity<ApiErrorResponse> handleResponseStatus(
+			ResponseStatusException ex, HttpServletRequest request) {
+		HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+		log.warn("ResponseStatus {}: {} [{}]", status.value(), ex.getReason(), request.getRequestURI());
+		return buildErrorResponse(
+				status,
+				EErrorCode.ENTITY_NOT_FOUND,
+				ex.getReason() != null ? ex.getReason() : status.getReasonPhrase(),
+				request);
 	}
 
 	// 500 General

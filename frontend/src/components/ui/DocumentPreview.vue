@@ -4,6 +4,7 @@ import { ItemService } from '@/services/ItemService'
 import { InboxService } from '@/services/InboxService'
 import { Loader2, FileX, Download, ExternalLink, Mail, FileText } from 'lucide-vue-next'
 import { useQuery } from '@tanstack/vue-query'
+import { usePreferencesStore } from '@/stores/preferences'
 import EmailViewer from '@/components/viewers/EmailViewer.vue'
 
 const props = defineProps<{
@@ -12,6 +13,7 @@ const props = defineProps<{
   fileName?: string; // NEW: Passed from parent to ensure correct download name
 }>()
 
+const prefs = usePreferencesStore()
 const blobUrl = ref<string | null>(null)
 
 // --- CACHED QUERY ---
@@ -94,8 +96,14 @@ const downloadFile = () => {
           <!-- 1. Email Viewer -->
           <EmailViewer v-if="isEmail" :blob="data.blob" />
 
-          <!-- 2. PDF Viewer -->
-          <iframe v-else-if="isPdf && blobUrl" :src="blobUrl" class="w-full h-full border-0 block" type="application/pdf"></iframe>
+          <!-- 2. PDF Viewer (iframe for sandboxed rendering - security) -->
+          <iframe 
+            v-else-if="isPdf && blobUrl" 
+            :src="blobUrl" 
+            class="w-full h-full border-0 block bg-white dark:bg-gray-900" 
+            type="application/pdf"
+            :style="{ colorScheme: prefs.isDarkMode ? 'dark' : 'light' }"
+          ></iframe>
           
           <!-- 3. Image Viewer -->
           <div v-else-if="isImage && blobUrl" class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-black overflow-auto p-4">
@@ -103,7 +111,12 @@ const downloadFile = () => {
           </div>
           
           <!-- 4. Text/Code Viewer -->
-          <iframe v-else-if="isText && blobUrl" :src="blobUrl" class="w-full h-full border-0 bg-white"></iframe>
+          <iframe 
+            v-else-if="isText && blobUrl" 
+            :src="blobUrl" 
+            class="w-full h-full border-0 bg-white"
+            :style="{ colorScheme: prefs.isDarkMode ? 'dark' : 'light' }"
+          ></iframe>
           
           <!-- 5. Fallback -->
           <div v-else class="flex-1 flex flex-col items-center justify-center p-6 text-center">

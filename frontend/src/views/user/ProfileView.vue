@@ -1,16 +1,75 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 import { usePreferencesStore } from '@/stores/preferences'
-import { ArrowLeft, User, Moon, Sun, Bell, Shield, LogOut } from 'lucide-vue-next'
-import BaseButton from '@/components/ui/BaseButton.vue' // Fixed Import
+import { client } from '@/api/client'
+import { sha256 } from '@/lib/utils'
+import { push } from 'notivue'
+import { ArrowLeft, User, Moon, Sun, Bell, Shield, LogOut, Key, Eye, EyeOff } from 'lucide-vue-next'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
 
 const auth = useAuthStore()
 const ui = useUIStore()
 const prefs = usePreferencesStore()
 
+// Change Password Form
+const passwordForm = ref({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+const showPasswords = ref(false)
+const isChangingPassword = ref(false)
+
 const goBack = () => {
     ui.setView('dms')
+}
+
+const handleChangePassword = async () => {
+  if (!passwordForm.value.oldPassword || !passwordForm.value.newPassword) {
+    return push.warning('Please fill in all password fields')
+  }
+  
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    return push.warning('New passwords do not match')
+  }
+  
+  if (passwordForm.value.newPassword.length < 6) {
+    return push.warning('New password must be at least 6 characters')
+  }
+  
+  isChangingPassword.value = true
+  const promise = push.promise('Changing password...')
+  
+  try {
+    const oldPasswordHash = await sha256(passwordForm.value.oldPassword)
+    const newPasswordHash = await sha256(passwordForm.value.newPassword)
+    
+    const { error, response } = await client.POST('/api/auth/change-password', {
+      body: {
+        oldPassword: oldPasswordHash,
+        newPassword: newPasswordHash
+      }
+    })
+    
+    if (response?.status === 401 || response?.status === 403) {
+      throw new Error('Current password is incorrect')
+    }
+    
+    if (error) {
+      throw new Error((error as any).message || 'Failed to change password')
+    }
+    
+    // Clear form
+    passwordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' }
+    promise.resolve('Password changed successfully!')
+  } catch (e: any) {
+    promise.reject(e.message || 'Failed to change password')
+  } finally {
+    isChangingPassword.value = false
+  }
 }
 </script>
 
@@ -114,6 +173,68 @@ const goBack = () => {
                         </button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Change Password Section -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-colors duration-300">
+                <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                    <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm uppercase tracking-wide flex items-center gap-2">
+                        <Key :size="16" /> Change Password
+                    </h3>
+                </div>
+                
+                <form @submit.prevent="handleChangePassword" class="p-6 space-y-4">
+                    <div class="relative">
+                        <BaseInput 
+                            v-model="passwordForm.oldPassword" 
+                            :type="showPasswords ? 'text' : 'password'" 
+                            label="Current Password" 
+                            placeholder="Enter your current password"
+                            autocomplete="current-password"
+                        />
+                    </div>
+                    
+                    <div class="relative">
+                        <BaseInput 
+                            v-model="passwordForm.newPassword" 
+                            :type="showPasswords ? 'text' : 'password'" 
+                            label="New Password" 
+                            placeholder="Enter new password (min. 6 characters)"
+                            autocomplete="new-password"
+                        />
+                    </div>
+                    
+                    <div class="relative">
+                        <BaseInput 
+                            v-model="passwordForm.confirmPassword" 
+                            :type="showPasswords ? 'text' : 'password'" 
+                            label="Confirm New Password" 
+                            placeholder="Confirm your new password"
+                            autocomplete="new-password"
+                        />
+                    </div>
+                    
+                    <div class="flex items-center justify-between pt-2">
+                        <button 
+                            type="button"
+                            @click="showPasswords = !showPasswords"
+                            class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 flex items-center gap-1 transition-colors"
+                        >
+                            <Eye v-if="!showPasswords" :size="14" />
+                            <EyeOff v-else :size="14" />
+                            {{ showPasswords ? 'Hide' : 'Show' }} passwords
+                        </button>
+                        
+                        <BaseButton 
+                            type="submit" 
+                            variant="default" 
+                            :disabled="isChangingPassword || !passwordForm.oldPassword || !passwordForm.newPassword"
+                            :loading="isChangingPassword"
+                        >
+                            <Key :size="14" class="mr-2" /> Update Password
+                        </BaseButton>
+                    </div>
+                </form>
             </div>
 
             <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-xs text-blue-800 dark:text-blue-300">

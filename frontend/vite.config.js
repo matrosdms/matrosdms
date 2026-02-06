@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        // FIX: Load API URL from env or fallback to localhost. Avoids hardcoding for Docker/Prod.
+        // Keeping default URL as requested
         target: process.env.VITE_API_URL || 'http://127.0.0.1:9090', 
         changeOrigin: true,
         // Increase timeout for long-running backend jobs

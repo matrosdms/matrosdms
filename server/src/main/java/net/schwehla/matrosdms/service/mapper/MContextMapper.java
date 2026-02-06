@@ -111,6 +111,21 @@ public abstract class MContextMapper implements BasicMapper {
 	@Mapping(target = "dateRunUntil", ignore = true)
 	public abstract void updateEntity(UpdateContextMessage message, @MappingTarget DBContext entity);
 
+	/**
+	 * FIX: Added this method to handle category updates.
+	 * 1. Clears existing categories.
+	 * 2. Adds the new list from the message.
+	 */
+	@AfterMapping
+	protected void mapCategoriesFromUpdateMessage(UpdateContextMessage msg, @MappingTarget DBContext entity) {
+		if (msg.getCategoryList() != null) {
+			entity.getCategoryList().clear();
+			for (String uuid : msg.getCategoryList()) {
+				categoryRepository.findByUuid(uuid).ifPresent(cat -> entity.getCategoryList().add(cat));
+			}
+		}
+	}
+
 	@AfterMapping
 	protected void afterEntityMapping(DBContext source, @MappingTarget MContext target) {
 		mapCategoriesToDictionary(source.getCategoryList(), target);

@@ -19,7 +19,7 @@ import { useAdminQueries } from '@/composables/queries/useAdminQueries'
 import { useDragDrop } from '@/composables/useDragDrop'
 import { ItemService } from '@/services/ItemService'
 import {
-  Folder, Loader2, PlusCircle, Pencil, Archive, Box, Calendar,
+  Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar,
   Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText,
   ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit
 } from 'lucide-vue-next'
@@ -83,6 +83,14 @@ const SPLIT_LAYOUT = {
   minSize: 20,
   maxSize: 100,
 } as const
+
+// Define styles for different stages
+// Active: Standard
+// Closed: Dimmed/Italic (Informational only)
+const STAGE_ROW_CLASSES: Record<string, string> = {
+  [EStage.ACTIVE]: 'table-row-active',
+  [EStage.CLOSED]: 'table-row-closed opacity-70 italic'
+}
 
 const REFETCH_DELAY = 500
 
@@ -154,15 +162,14 @@ const displayItems = computed(() => {
 // AUTO-SELECT LOGIC
 // ============================================================================
 
-watch(displayItems, (list) => {
-  const shouldAutoSelect = 
-    isSplitMode.value && 
-    dms.selectedContext && 
-    list.length > 0 && 
-    !dms.selectedItem && 
-    viewMode.value === 'table'
-
-  if (shouldAutoSelect) {
+watch([displayItems, selectedContextId, viewMode], ([list, ctxId, mode], [oldList, oldCtxId, oldMode]) => {
+  if (!list || list.length === 0 || !ctxId) return
+  
+  const contextChanged = ctxId !== oldCtxId
+  const viewModeChanged = mode !== oldMode
+  const itemsJustLoaded = (!oldList || oldList.length === 0) && list.length > 0
+  
+  if (contextChanged || itemsJustLoaded || viewModeChanged) {
     dms.setSelectedItem(list[0])
   }
 }, { immediate: true })
@@ -233,7 +240,7 @@ const editItem = () => {
   dms.startItemEditing()
 }
 
-const archiveItem = () => {
+const deleteItem = () => {
   if (!dms.selectedItem) {
     push.warning("Please select a document")
     return
@@ -254,19 +261,15 @@ const addItemAction = () => {
 // ============================================================================
 
 const handleDragEnter = (event: DragEvent) => {
-  // 1. External Files: Always allow
   if (event.dataTransfer?.types.includes('Files')) {
     isDragOver.value = true
     return
   }
 
-  // 2. Internal Drags: Check source type via Store
   if (dms.isDraggingGlobal) {
-      // Only show overlay if dragging from Inbox or Stack
       if (dms.currentDragType === 'inbox-file' || dms.currentDragType === 'dms-batch') {
           isDragOver.value = true
       }
-      // 'dms-item' (internal list drag) will NOT trigger the overlay
   }
 }
 
@@ -276,11 +279,7 @@ const handleDragLeave = () => {
 
 const handleDrop = (event: DragEvent) => {
   isDragOver.value = false
-  
-  // Process drop even if items are loading/processing
-  // This allows recovery from backend errors
   handleDropOnContext(event, dms.selectedContext)
-  
   setTimeout(() => {
     refetch()
   }, REFETCH_DELAY)
@@ -402,9 +401,10 @@ const createStoreCell = (info: any) => {
 const createStageCell = (value: any) => {
   const stageValue = (value || EStage.ACTIVE) as EStageType
   const label = EStageLabels[stageValue] || stageValue
+  const colorClass = stageValue === EStage.ACTIVE ? 'text-green-600' : 'text-gray-400';
   
   return h('div', {
-    class: 'flex items-center justify-end gap-1.5 text-xs text-muted-foreground'
+    class: `flex items-center justify-end gap-1.5 text-xs ${colorClass}`
   }, [h('span', label)])
 }
 
@@ -450,9 +450,13 @@ const columns: ColumnDef<any>[] = [
 // ============================================================================
 
 const getRowClass = (row: any): string => {
-  return dms.selectedItem?.uuid === row.uuid
-    ? '!border-l-primary bg-primary/10 dark:text-foreground'
-    : 'bg-background'
+  // 1. Selection overrides (Blue Highlight)
+  if (dms.selectedItem?.uuid === row.uuid) {
+    return '!border-l-primary bg-primary/10 dark:text-foreground font-medium'
+  }
+  
+  // 2. Stage-based styling via Global CSS Classes
+  return STAGE_ROW_CLASSES[row.stage] || STAGE_ROW_CLASSES[EStage.ACTIVE]
 }
 
 // ============================================================================
@@ -500,7 +504,7 @@ const detailPaneSize = computed(() => {
 
     <!-- Toolbar -->
     <div
-      class="p-2 flex justify-between items-center border-b border-border 
+      class="px-3 py-2 flex justify-between items-center border-b border-border 
              bg-muted/30 h-[40px] select-none shrink-0 transition-colors"
     >
       <div class="flex items-center gap-2 overflow-hidden">
@@ -590,16 +594,16 @@ const detailPaneSize = computed(() => {
           size="iconSm"
           :disabled="!dms.selectedItem"
           class="hover:text-destructive"
-          title="Archive"
-          @click="archiveItem"
+          title="Delete"
+          @click="deleteItem"
         >
-          <Archive :size="14" />
+          <Trash2 :size="14" />
         </BaseButton>
       </div>
     </div>
 
     <!-- Search Bar -->
-    <div v-if="selectedContextId" class="p-1.5 border-b border-border bg-background">
+    <div v-if="selectedContextId" class="p-2 border-b border-border bg-background">
       <SearchInput v-model="searchQuery" placeholder="Filter items..." />
     </div>
 
@@ -668,7 +672,6 @@ const detailPaneSize = computed(() => {
           <div class="flex h-full w-full relative">
             <!-- Document Preview -->
             <div class="flex-1 h-full relative flex flex-col">
-              <!-- Pass file-name property to ensure download has correct name -->
               <DocumentPreview
                 :identifier="dms.selectedItem?.uuid || ''"
                 source="item"
@@ -712,7 +715,7 @@ const detailPaneSize = computed(() => {
               <StandardDetailPane
                 :item="dms.selectedItem"
                 @edit="editItem"
-                @delete="archiveItem"
+                @delete="deleteItem"
               />
             </div>
           </div>

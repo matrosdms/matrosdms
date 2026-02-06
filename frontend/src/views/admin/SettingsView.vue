@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Database, Users, Box, Plus, RefreshCw, List, UploadCloud, Activity } from 'lucide-vue-next'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useStorage } from '@vueuse/core'
@@ -93,6 +93,13 @@ const currentViewComponent = computed(() => {
     return null
 })
 
+// Auto-select first item when data loads and nothing is selected
+watch(listData, (items) => {
+  if (items?.length > 0 && !selectedId.value) {
+    selectedId.value = items[0].uuid || items[0].id
+  }
+}, { immediate: true })
+
 const onTabChange = (tab) => { 
   activeTab.value = tab
   selectedId.value = null
@@ -101,8 +108,17 @@ const onTabChange = (tab) => {
   customFilter.value = ''
   
   const config = SETTINGS_TABS[tab]
-  if (tab === 'import' && config?.staticData?.length > 0) {
+  if (config?.staticData?.length > 0) {
       selectedId.value = config.staticData[0].uuid
+  }
+}
+
+const onSelectNext = () => {
+  const items = listData.value
+  if (!items?.length) return
+  const currentIndex = items.findIndex(i => (i.uuid || i.id) === selectedId.value)
+  if (currentIndex < items.length - 1) {
+    selectedId.value = items[currentIndex + 1].uuid || items[currentIndex + 1].id
   }
 }
 
@@ -180,7 +196,7 @@ const getRowClass = (row) => (row.uuid === selectedId.value || row.id === select
           </template>
 
           <div class="h-full !bg-background">
-             <DataTable :key="activeTab" :data="listData" :columns="currentConfig?.columns || []" :row-class-name="getRowClass" @row-click="(item) => { selectedId = item.uuid || item.id; isCreating = false; isEditing = false }" />
+             <DataTable :key="activeTab" :data="listData" :columns="currentConfig?.columns || []" :row-class-name="getRowClass" :selected-id="selectedId" @row-click="(item) => { selectedId = item.uuid || item.id; isCreating = false; isEditing = false }" />
           </div>
         </AppPane>
       </template>
@@ -196,6 +212,7 @@ const getRowClass = (row) => (row.uuid === selectedId.value || row.id === select
                     @close="onCloseEditor"
                     @edit="isEditing = true"
                     @delete="onDelete"
+                    @next="onSelectNext"
                 />
             </template>
             

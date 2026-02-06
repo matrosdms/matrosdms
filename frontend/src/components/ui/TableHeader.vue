@@ -12,7 +12,7 @@ defineProps({
       <div 
         v-for="header in headerGroup.headers" 
         :key="header.id" 
-        class="relative px-3 py-2 text-left border-r border-border last:border-r-0 overflow-hidden whitespace-nowrap flex items-center gap-2 group hover:bg-muted transition-colors cursor-default"
+        class="relative px-3 py-2 text-left overflow-hidden whitespace-nowrap flex items-center gap-2 group hover:bg-muted transition-colors cursor-default"
         :class="{'pl-[calc(0.75rem+4px)]': header.index === 0}"
         :style="{ width: header.getSize() + 'px' }"
       >

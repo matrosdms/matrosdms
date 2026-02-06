@@ -54,8 +54,8 @@ export interface paths {
         /** Update item by id */
         put: operations["updateItem"];
         post?: never;
-        /** Delete item by id */
-        delete: operations["deleteItem"];
+        /** Archive item (Soft Delete) */
+        delete: operations["archiveItem"];
         options?: never;
         head?: never;
         patch?: never;
@@ -242,6 +242,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/{uuid}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore archived item */
+        post: operations["restoreItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/items/{uuid}/ai/transform": {
         parameters: {
             query?: never;
@@ -390,8 +407,41 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register the first Admin user (Only allowed if DB is empty) */
         post: operations["registerFirstUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get new Access Token using Refresh Token */
+        post: operations["refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout user (Revoke Refresh Token) */
+        post: operations["logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -407,8 +457,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login user and return JWT token */
+        /** Login user and return JWT + Refresh Token + User Object */
         post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change current user's password and revoke all sessions */
+        post: operations["changePassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -642,6 +709,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/{uuid}/thumbnail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get preview thumbnail */
+        get: operations["getThumbnail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/items/{uuid}/text": {
         parameters: {
             query?: never;
@@ -801,7 +885,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Check if the system is initialized (has users) */
         get: operations["getSystemStatus"];
         put?: never;
         post?: never;
@@ -891,6 +974,23 @@ export interface paths {
         post?: never;
         /** Delete a saved search by name */
         delete: operations["deleteSearch"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/items/{uuid}/permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently destroy item */
+        delete: operations["destroyItem"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1028,7 +1128,7 @@ export interface components {
             shortname?: string;
         };
         /** @enum {string} */
-        EStage: "ACTIVE" | "ARCHIVED" | "DELETED";
+        EStage: "ACTIVE" | "CLOSED";
         UpdateItemMessage: {
             name: string;
             description?: string;
@@ -1132,10 +1232,14 @@ export interface components {
             issueDate?: string;
             /** Format: date-time */
             dateExpire?: string;
+            /** Format: date-time */
+            dateArchived?: string;
             stage?: components["schemas"]["EStage"];
             textParsed?: boolean;
             /** Format: int32 */
             count?: number;
+            /** @description True if the item is archived */
+            readonly archived?: boolean;
         };
         UpdateContextMessage: {
             name: string;
@@ -1316,38 +1420,38 @@ export interface components {
             highlight?: string;
         };
         PageMSearchResult: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
             /** Format: int32 */
-            numberOfElements?: number;
-            first?: boolean;
-            last?: boolean;
-            pageable?: components["schemas"]["PageableObject"];
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MSearchResult"][];
             /** Format: int32 */
             number?: number;
             sort?: components["schemas"]["SortObject"];
+            /** Format: int32 */
+            numberOfElements?: number;
+            first?: boolean;
+            last?: boolean;
+            pageable?: components["schemas"]["PageableObject"];
             empty?: boolean;
         };
         PageableObject: {
+            /** Format: int64 */
+            offset?: number;
+            sort?: components["schemas"]["SortObject"];
             paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
             unpaged?: boolean;
-            /** Format: int64 */
-            offset?: number;
-            sort?: components["schemas"]["SortObject"];
         };
         SortObject: {
+            empty?: boolean;
             sorted?: boolean;
             unsorted?: boolean;
-            empty?: boolean;
         };
         CreateItemMessage: {
             name: string;
@@ -1440,13 +1544,21 @@ export interface components {
              */
             replace: boolean;
         };
+        RefreshTokenRequest: {
+            refreshToken: string;
+        };
+        TokenRefreshResponse: {
+            accessToken?: string;
+            refreshToken?: string;
+            user?: components["schemas"]["MUser"];
+        };
         LoginMessage: {
             username: string;
             password: string;
         };
-        LoginResponse: {
-            token?: string;
-            user?: components["schemas"]["MUser"];
+        ChangePasswordRequest: {
+            oldPassword: string;
+            newPassword: string;
         };
         CreateAttributeMessage: {
             readonly uuid?: string;
@@ -1530,7 +1642,7 @@ export interface components {
              * @description Unique identifier for this specific execution
              * @example ingest-12345-abc
              */
-            instanceId?: string;
+            uuid?: string;
             /**
              * Format: date-time
              * @description When the job is scheduled to run (or started running)
@@ -1540,41 +1652,44 @@ export interface components {
             status?: components["schemas"]["EJobStatus"];
         };
         PageJobMessage: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
             /** Format: int32 */
-            numberOfElements?: number;
-            first?: boolean;
-            last?: boolean;
-            pageable?: components["schemas"]["PageableObject"];
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["JobMessage"][];
             /** Format: int32 */
             number?: number;
             sort?: components["schemas"]["SortObject"];
-            empty?: boolean;
-        };
-        /** @enum {string} */
-        EArchivedState: "INCLUDEALL" | "ONLYACTIVE" | "ONLYARCHIVED";
-        PageMItem: {
-            /** Format: int32 */
-            totalPages?: number;
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             numberOfElements?: number;
             first?: boolean;
             last?: boolean;
             pageable?: components["schemas"]["PageableObject"];
+            empty?: boolean;
+        };
+        /**
+         * @description Filter mode for archival status
+         * @enum {string}
+         */
+        EArchiveFilter: "ALL" | "ACTIVE_ONLY" | "ARCHIVED_ONLY";
+        PageMItem: {
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MItem"][];
             /** Format: int32 */
             number?: number;
             sort?: components["schemas"]["SortObject"];
+            /** Format: int32 */
+            numberOfElements?: number;
+            first?: boolean;
+            last?: boolean;
+            pageable?: components["schemas"]["PageableObject"];
             empty?: boolean;
         };
         /**
@@ -1598,21 +1713,21 @@ export interface components {
          */
         EBroadcastType: "FILE_ADDED" | "STATUS" | "PROGRESS" | "COMPLETE" | "ERROR";
         PageMAction: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
             /** Format: int32 */
-            numberOfElements?: number;
-            first?: boolean;
-            last?: boolean;
-            pageable?: components["schemas"]["PageableObject"];
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MAction"][];
             /** Format: int32 */
             number?: number;
             sort?: components["schemas"]["SortObject"];
+            /** Format: int32 */
+            numberOfElements?: number;
+            first?: boolean;
+            last?: boolean;
+            pageable?: components["schemas"]["PageableObject"];
             empty?: boolean;
         };
         ApiErrorResponse: {
@@ -2187,7 +2302,7 @@ export interface operations {
             };
         };
     };
-    deleteItem: {
+    archiveItem: {
         parameters: {
             query?: never;
             header?: never;
@@ -3629,7 +3744,7 @@ export interface operations {
             query: {
                 context?: string;
                 q?: string;
-                archiveState?: components["schemas"]["EArchivedState"];
+                archiveState?: components["schemas"]["EArchiveFilter"];
                 pageable: components["schemas"]["Pageable"];
             };
             header?: never;
@@ -3715,6 +3830,71 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["MItem"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    restoreItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Bad Request */
             400: {
@@ -4104,7 +4284,7 @@ export interface operations {
     getAllInfoContext: {
         parameters: {
             query?: {
-                archiveState?: components["schemas"]["EArchivedState"];
+                archiveState?: components["schemas"]["EArchiveFilter"];
                 sort?: string;
                 limit?: number;
             };
@@ -4513,6 +4693,142 @@ export interface operations {
             };
         };
     };
+    refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TokenRefreshResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     login: {
         parameters: {
             query?: never;
@@ -4532,8 +4848,75 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["LoginResponse"];
+                    "*/*": components["schemas"]["TokenRefreshResponse"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Bad Request */
             400: {
@@ -5534,6 +5917,73 @@ export interface operations {
             };
         };
     };
+    getThumbnail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     getRawText: {
         parameters: {
             query?: never;
@@ -6470,6 +6920,71 @@ export interface operations {
             header?: never;
             path: {
                 name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    destroyItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
             };
             cookie?: never;
         };

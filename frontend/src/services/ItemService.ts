@@ -1,7 +1,7 @@
 import { client } from '@/api/client'
 import { ItemSchema, ItemListSchema } from '@/schemas'
 import { getErrorMessage } from '@/lib/utils'
-import { EArchivedState } from '@/enums'
+import { EArchiveFilter } from '@/enums'
 import type { Item } from '@/types/models'
 import type { components } from '@/types/schema'
 
@@ -32,7 +32,8 @@ export const ItemService = {
               params: {
                   query: { 
                       context: contextId, 
-                      archiveState: EArchivedState.ONLYACTIVE,
+                      // Use EArchiveFilter to only get non-archived (soft-deleted) items
+                      archiveState: EArchiveFilter.ACTIVE_ONLY,
                       page: page,
                       size: 50,
                       sort: ['issueDate,desc'] 
@@ -85,27 +86,52 @@ export const ItemService = {
     return ItemSchema.parse(data) as Item
   },
 
-  async archive(uuid: string) {
+  /**
+   * Soft-delete (Archive) an item.
+   * Maps to DELETE /api/items/{uuid} in OpenAPI.
+   * Item remains in DB but dateArchived is set.
+   */
+  async delete(uuid: string) {
     const { error } = await client.DELETE('/api/items/{uuid}', { params: { path: { uuid } } })
     if (error) throwWithCode(error)
   },
   
-  async _fetchBlob(url: string): Promise<{ blob: Blob, type: string }> {
-      const { useAuthStore } = await import('@/stores/auth')
-      const auth = useAuthStore()
-      if (!auth.token) throw new Error("Authentication required")
-
-      const response = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${auth.token}` }
-      })
-
-      if (!response.ok) throw new Error("Failed to load content")
-      const blob = await response.blob()
-      return { blob, type: blob.type }
+  // Alias for readability
+  async archive(uuid: string) {
+    return this.delete(uuid)
   },
 
-  async getDocumentBlob(uuid: string) {
-      return this._fetchBlob(`/api/items/${uuid}/content`)
+  /**
+   * Permanently remove item from Database and Storage.
+   * Maps to DELETE /api/items/{uuid}/permanent
+   */
+  async destroy(uuid: string) {
+      const { error } = await client.DELETE('/api/items/{uuid}/permanent', { params: { path: { uuid } } })
+      if (error) throwWithCode(error)
+  },
+  
+  // FIX: Using client.GET with parseAs: 'blob' ensures Token Refresh logic works
+  async getDocumentBlob(uuid: string): Promise<{ blob: Blob, type: string }> {
+      const { data, error, response } = await client.GET("/api/items/{uuid}/content", {
+          params: { path: { uuid } },
+          parseAs: "blob"
+      });
+
+      if (error) throwWithCode(error);
+      
+      const blob = data as Blob;
+      return { 
+          blob, 
+          type: response.headers.get('content-type') || blob.type || 'application/octet-stream' 
+      };
+  },
+
+  /**
+   * Get thumbnail URL for an item. 
+   * Returns the URL directly for use in <img> tags.
+   */
+  getThumbnailUrl(uuid: string): string {
+      return `/api/items/${uuid}/thumbnail`
   },
 
   async openDocument(uuid: string) {

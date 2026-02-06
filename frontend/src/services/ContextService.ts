@@ -1,7 +1,7 @@
 import { client } from '@/api/client'
 import type { components } from '@/types/schema'
 import { getErrorMessage } from '@/lib/utils'
-import { EArchivedState } from '@/enums'
+import { EArchiveFilter } from '@/enums'
 
 type UpdateContextPayload = components['schemas']['UpdateContextMessage'];
 type MContext = components['schemas']['MContext'];
@@ -11,7 +11,8 @@ export const ContextService = {
     const { data, error } = await client.GET("/api/contexts", { 
         params: { 
             query: { 
-                archiveState: EArchivedState.ONLYACTIVE, 
+                // Only fetch non-archived contexts
+                archiveState: EArchiveFilter.ACTIVE_ONLY, 
                 sort: 'name'
             } 
         } 
@@ -32,10 +33,22 @@ export const ContextService = {
     if (error) throw new Error(getErrorMessage(error))
   },
 
-  async archive(uuid: string) {
-    const { error } = await client.DELETE('/api/contexts/{id}', { 
+  /**
+   * Archive/Soft Delete a context.
+   * Maps to DELETE /api/contexts/{id}
+   * Note: Returns 409 Conflict if context contains items (preventing accidental loss).
+   */
+  async close(uuid: string) {
+    const { error, response } = await client.DELETE('/api/contexts/{id}', { 
       params: { path: { id: uuid } } 
     })
+    if (response?.status === 409) {
+      throw new Error('Cannot delete folder. Please move or delete items inside it first.')
+    }
     if (error) throw new Error(getErrorMessage(error))
+  },
+  
+  async archive(uuid: string) {
+    return this.close(uuid)
   }
 }

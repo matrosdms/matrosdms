@@ -21,34 +21,37 @@ import net.schwehla.matrosdms.entity.DBItem;
 
 public interface ItemRepository extends JpaRepository<DBItem, Long> {
 
-	// Optimized Fetch: Get Item + User + Context + Metadata in 1 Query
 	@EntityGraph(value = "Item.detail", type = EntityGraph.EntityGraphType.LOAD)
 	Optional<DBItem> findByUuid(@Param("uuid") String uuid);
 
 	@Query("SELECT c FROM DBItem c where c.infoContext.id = :id")
 	List<DBItem> findAllByContextid(@Param("id") Long pk);
 
-	@Query("SELECT c FROM DBItem c where c.infoContext.id = :id and c.dateArchived is null order by"
-			+ " c.issueDate")
+	// Default fetch for Contexts usually wants active only
+	@Query("SELECT c FROM DBItem c where c.infoContext.id = :id and c.dateArchived is null order by c.issueDate")
 	List<DBItem> findAllNotArchivedByContextid(@Param("id") Long pk);
 
-	// Note: Search results (Page<DBItem>) usually come from Hibernate Search
-	// (SearchService),
-	// which returns the ID list. When Hydrating entities, we rely on batch fetching
-	// defined in
-	// application.yaml
-	// (hibernate.default_batch_fetch_size = 50) to solve N+1 for lists efficiently
-	// without complex
-	// graphs here.
+	// --- MAIN API QUERIES ---
 
+	// 1. ACTIVE ONLY
 	@Query("SELECT i FROM DBItem i WHERE "
 			+ "i.infoContext.uuid = :contextUuid AND "
 			+ "(:query IS NULL OR LOWER(i.name) LIKE LOWER(CONCAT('%', :query, '%'))) AND "
 			+ "i.dateArchived IS NULL")
-	@EntityGraph(attributePaths = { "user", "file" }) // Quick ad-hoc graph for lists
+	@EntityGraph(attributePaths = { "user", "file" })
 	Page<DBItem> findActiveByContextAndQuery(
 			@Param("contextUuid") String contextUuid, @Param("query") String query, Pageable pageable);
 
+	// 2. ARCHIVED ONLY (Trash/Recycle Bin)
+	@Query("SELECT i FROM DBItem i WHERE "
+			+ "i.infoContext.uuid = :contextUuid AND "
+			+ "(:query IS NULL OR LOWER(i.name) LIKE LOWER(CONCAT('%', :query, '%'))) AND "
+			+ "i.dateArchived IS NOT NULL")
+	@EntityGraph(attributePaths = { "user", "file" })
+	Page<DBItem> findArchivedByContextAndQuery(
+			@Param("contextUuid") String contextUuid, @Param("query") String query, Pageable pageable);
+
+	// 3. ALL (Audit/Admin)
 	@Query("SELECT i FROM DBItem i WHERE "
 			+ "i.infoContext.uuid = :contextUuid AND "
 			+ "(:query IS NULL OR LOWER(i.name) LIKE LOWER(CONCAT('%', :query, '%')))")

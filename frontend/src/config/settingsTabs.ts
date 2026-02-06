@@ -15,7 +15,7 @@ import CategoryBatchImport from '@/components/forms/CategoryBatchImport.vue'
 import JobDetailPane from '@/components/panes/JobDetailPane.vue'
 import StandardDetailPane from '@/components/panes/StandardDetailPane.vue'
 import JobTriggerMenu from '@/components/widgets/JobTriggerMenu.vue'
-import TemplateTriggerMenu from '@/components/widgets/TemplateTriggerMenu.vue' // NEW
+import TemplateTriggerMenu from '@/components/widgets/TemplateTriggerMenu.vue' 
 import JobFilter from '@/components/widgets/JobFilter.vue'
 
 // UI Cells
@@ -74,7 +74,7 @@ const jobColumns = [
         cell: (i: any) => h(DateCell, { value: i.getValue() }) 
     },
     { 
-        accessorKey: 'instanceId', 
+        accessorKey: 'uuid', 
         header: 'ID', 
         size: 100, 
         cell: (i: any) => h(SimpleCell, { value: i.getValue(), mono: true, class: 'text-gray-400' }) 
@@ -84,7 +84,6 @@ const jobColumns = [
 export const SETTINGS_TABS: Record<string, TabConfig> = {
     stores: {
         title: 'Physical Stores',
-        // DIRECT SERVICE CALL
         query: { queryKey: queryKeys.admin.stores, queryFn: () => StoreService.getAll() }, 
         service: StoreService,
         components: { create: StoreForm, edit: StoreForm, detail: StandardDetailPane },
@@ -115,10 +114,10 @@ export const SETTINGS_TABS: Record<string, TabConfig> = {
     },
     jobs: {
         title: 'System Jobs',
-        // DIRECT SERVICE CALL (Uses JobService)
-        queryResolver: (statusFilter) => ({ 
-            queryKey: queryKeys.admin.jobs(statusFilter), 
-            queryFn: () => JobService.getUnifiedJobs()
+        // Updated to handle complex filter object (status + range)
+        queryResolver: (filter) => ({ 
+            queryKey: queryKeys.admin.jobs(filter), 
+            queryFn: () => JobService.getUnifiedJobs(filter)
         }),
         service: {}, 
         components: { 
@@ -133,7 +132,7 @@ export const SETTINGS_TABS: Record<string, TabConfig> = {
         staticData: getCategoryStaticData(),
         components: { 
             detail: CategoryBatchImport,
-            actions: TemplateTriggerMenu // <--- MOVED HERE: Renders in Column 2 Header
+            actions: TemplateTriggerMenu
         },
         columns: [
             { accessorKey: 'name', header: 'Dimension', size: 150, cell: (i: any) => h(SimpleCell, { value: i.getValue(), bold: true }) },

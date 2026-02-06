@@ -18,6 +18,10 @@ const props = defineProps<{
     item?: { key: string; name: string }
 }>()
 
+const emit = defineEmits<{
+    (e: 'next'): void
+}>()
+
 const queryClient = useQueryClient()
 const { pendingImportYaml, consumeImportYaml } = useImportState()
 
@@ -85,25 +89,38 @@ const splitYamlByRootKeys = (yaml: string): Partial<Record<ERootCategoryType, st
     return result
 }
 
+// Process pending YAML import
+const processPendingImport = () => {
+    const yaml = pendingImportYaml.value
+    if (!yaml) return
+    
+    // Parse and cache all dimensions
+    const chunks = splitYamlByRootKeys(yaml)
+    templateCache.value = chunks
+    consumeImportYaml()
+    
+    const foundKeys = Object.keys(chunks).join(', ')
+    push.success(`Loaded. Dimensions found: ${foundKeys || 'None'}`)
+    
+    // Populate editor if a dimension is selected
+    if (selectedRootKey.value) {
+        const cachedYaml = chunks[selectedRootKey.value]
+        editorContent.value = cachedYaml || ''
+        logs.value = [`✅ Loaded template`, `   Mapped keys: ${foundKeys}`]
+    }
+}
+
 // WATCH: External Template Loaded via Menu
 watch(pendingImportYaml, (newYaml) => {
-    if (newYaml && selectedRootKey.value) {
-        // Parse and Cache
-        const chunks = splitYamlByRootKeys(newYaml)
-        templateCache.value = chunks
-        populateEditorFromCache()
-        
-        const foundKeys = Object.keys(chunks).join(', ')
-        push.success(`Loaded. Dimensions found: ${foundKeys || 'None'}`)
-        logs.value.push(`✅ Loaded template from menu`)
-        logs.value.push(`   Mapped keys: ${foundKeys}`)
-        
-        consumeImportYaml() // clear flag
-    }
+    if (newYaml) processPendingImport()
 })
 
 const populateEditorFromCache = () => {
+    // Reset all transient state when switching dimensions
     logs.value = []
+    replaceExisting.value = false
+    isProcessing.value = false
+    
     if (!selectedRootKey.value) {
         editorContent.value = ''
         return
@@ -112,8 +129,10 @@ const populateEditorFromCache = () => {
     editorContent.value = cachedYaml || ''
 }
 
-watch(() => props.item?.key, () => {
-    populateEditorFromCache()
+watch(() => props.item?.key, (newKey, oldKey) => {
+    if (newKey !== oldKey) {
+        populateEditorFromCache()
+    }
 }, { immediate: true })
 
 const clearEditor = () => {
@@ -178,6 +197,9 @@ const executeProcess = async (simulate: boolean) => {
             
             queryClient.invalidateQueries({ queryKey: queryKeys.context.all })
             logs.value.push("➜ Cache invalidated. Trees will refresh.")
+            
+            // Advance to next category dimension
+            emit('next')
         }
 
     } catch (e: any) {
@@ -213,7 +235,7 @@ const executeProcess = async (simulate: boolean) => {
           
           <div class="flex gap-2 items-center" v-if="selectedRootKey">
              
-             <!-- Editor Actions Only (Template Loader moved to Pane Header via SettingsTabs) -->
+             <!-- Editor Actions Only -->
              
              <BaseButton variant="ghost" size="iconSm" @click="performFormat" :disabled="isLocked || isProcessing" title="Pretty Print (Format)"><AlignLeft :size="14"/></BaseButton>
              <BaseButton variant="ghost" size="iconSm" @click="clearEditor" :disabled="isLocked || isProcessing" title="Clear Editor"><RotateCcw :size="14"/></BaseButton>
@@ -252,9 +274,15 @@ const executeProcess = async (simulate: boolean) => {
           />
       </div>
 
-      <div class="h-1/3 border-t bg-[#1e1e1e] p-3 overflow-y-auto font-mono text-[11px] text-gray-300 shrink-0">
+      <!-- Theme-aware console log area -->
+      <div class="h-1/3 border-t bg-gray-50 dark:bg-[#1e1e1e] p-3 overflow-y-auto font-mono text-[11px] text-gray-700 dark:text-gray-300 shrink-0 transition-colors border-gray-200 dark:border-gray-800">
           <div v-if="!logs.length" class="opacity-40 italic">{{ selectedRootKey ? 'Ready. Load a template or paste YAML.' : 'Waiting for selection...' }}</div>
-          <div v-for="(log, i) in logs" :key="i" class="whitespace-pre-wrap mb-0.5" :class="{'text-green-400 font-bold': log.includes('Done') || log.includes('Success') || log.includes('Completed') || log.includes('valid'), 'text-red-400 font-bold': log.includes('Error') || log.includes('Failed'), 'text-yellow-400': log.includes('Tip')}">{{ log }}</div>
+          <div v-for="(log, i) in logs" :key="i" class="whitespace-pre-wrap mb-0.5" 
+            :class="{
+                'text-green-600 dark:text-green-400 font-bold': log.includes('Done') || log.includes('Success') || log.includes('Completed') || log.includes('valid'), 
+                'text-red-600 dark:text-red-400 font-bold': log.includes('Error') || log.includes('Failed'), 
+                'text-yellow-600 dark:text-yellow-400': log.includes('Tip')
+            }">{{ log }}</div>
       </div>
   </div>
 </template>

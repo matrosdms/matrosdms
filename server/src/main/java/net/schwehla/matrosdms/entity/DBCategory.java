@@ -25,8 +25,8 @@ import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(name = "Category", indexes = {
-		@Index(name = "IDX_CATEGORY_UUID", columnList = "uuid"),
-		@Index(name = "IDX_CATEGORY_PARENT_NAME", columnList = "PARENT_CATEGORY_ID, name")
+		@Index(name = "idx_category_uuid", columnList = "uuid"),
+		@Index(name = "idx_category_parent_name", columnList = "PARENT_CATEGORY_ID, name")
 }, uniqueConstraints = {
 		@UniqueConstraint(name = "UQ_CATEGORY_PARENT_NAME", columnNames = { "PARENT_CATEGORY_ID", "name" })
 })

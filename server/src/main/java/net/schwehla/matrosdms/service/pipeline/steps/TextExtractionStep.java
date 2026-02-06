@@ -23,21 +23,27 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import net.schwehla.matrosdms.config.model.AppServerSpringConfig;
 import net.schwehla.matrosdms.service.PdfConversionService;
 import net.schwehla.matrosdms.service.PdfConversionService.ConversionResult;
+import net.schwehla.matrosdms.service.PdfTextExtractor;
 import net.schwehla.matrosdms.service.TikaService;
 import net.schwehla.matrosdms.service.pipeline.PipelineContext;
 import net.schwehla.matrosdms.service.pipeline.PipelineStep;
 import net.schwehla.matrosdms.util.TextLayerBuilder;
 
 @Component
-@Order(3) // CHANGED: Was 2
+@Order(3)
 public class TextExtractionStep implements PipelineStep {
 
 	@Autowired
 	TikaService tikaService;
 	@Autowired
 	PdfConversionService conversionService;
+	@Autowired
+	PdfTextExtractor pdfTextExtractor; // NEW
+	@Autowired
+	AppServerSpringConfig appConfig; // NEW
 
 	@Override
 	public void execute(PipelineContext ctx) throws Exception {
@@ -59,7 +65,29 @@ public class TextExtractionStep implements PipelineStep {
 			ctx.setExtension(res.extension());
 			ctx.setMimeType(res.mimeType());
 
-			String rawText = tikaService.extractText(res.path());
+			String rawText = "";
+			boolean isPdf = "application/pdf".equals(res.mimeType());
+
+			// --- SMART OCR LOGIC START ---
+			if (isPdf && appConfig.getProcessing().isPreferScannerText()) {
+				ctx.log("Checking for existing text layer...");
+				String scannerText = pdfTextExtractor.quickExtract(res.path());
+
+				// Threshold: If we found > 50 characters, assume scanner OCR is good
+				if (scannerText.length() > 50) {
+					rawText = scannerText;
+					ctx.log("Text layer found (" + scannerText.length() + " chars). Skipping OCR.");
+				} else {
+					ctx.log("Insufficient text layer. Fallback to Tika/OCR.");
+				}
+			}
+			// --- SMART OCR LOGIC END ---
+
+			// Fallback to Tika if Quick Extract failed or file is image
+			if (rawText.isBlank()) {
+				rawText = tikaService.extractText(res.path());
+			}
+
 			if (rawText == null || rawText.isBlank()) {
 				ctx.addWarning("OCR: No text found.");
 				rawText = "";

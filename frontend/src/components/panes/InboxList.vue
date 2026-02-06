@@ -4,6 +4,7 @@ import BasePane from '@/components/ui/BasePane.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import InboxItem from '@/components/panes/InboxItem.vue'
 import { useInboxQueries } from '@/composables/queries/useInboxQueries'
+import { useContextQueries } from '@/composables/queries/useContextQueries'
 import { useServerEvents } from '@/composables/useServerEvents'
 import { useDmsStore } from '@/stores/dms'
 import { useWorkflowStore } from '@/stores/workflow'
@@ -35,6 +36,7 @@ const dms = useDmsStore()
 const ui = useUIStore()
 const workflow = useWorkflowStore()
 const { inboxFiles, isLoadingInbox, refetchInbox } = useInboxQueries()
+const { contexts } = useContextQueries()
 
 useServerEvents()
 
@@ -255,18 +257,47 @@ const handleFileClick = (file: InboxFile) => {
   }
 
   const hash = file.sha256
+  const name = file.emailInfo?.subject || file.fileInfo.originalFilename || "Untitled"
+  const payload = {
+    sha256: hash,
+    name,
+    prediction: file.prediction || null
+  }
 
-  // Auto-add mode
-  if (dms.selectedContext) {
-    const name = file.emailInfo?.subject || file.fileInfo.originalFilename || "Untitled"
-    const payload = {
-      sha256: hash,
-      name,
-      prediction: file.prediction || null
-    }
-    dms.startItemCreation(dms.selectedContext, payload)
+  // Priority: Use linked context if present, otherwise selected context
+  let targetContext = null
+  
+  if (file.prediction?.context) {
+    // Find the linked context by ID
+    targetContext = contexts.value.find((c: any) => c.uuid === file.prediction?.context)
+  }
+  
+  // Fallback to selected context if no link or link not found
+  if (!targetContext) {
+    targetContext = dms.selectedContext
+  }
+
+  if (targetContext) {
+    dms.startItemCreation(targetContext, payload)
   } else {
     openPreview(file)
+  }
+}
+
+const assignContextToFile = (hash: string, contextId: string) => {
+  // Update the live file prediction via workflow store (reactive)
+  workflow.upsertLiveFile({
+    sha256: hash,
+    prediction: {
+      context: contextId,
+      manuallyAssigned: true
+    }
+  })
+  
+  // Find context name for feedback
+  const ctx = contexts.value.find((c: any) => c.uuid === contextId)
+  if (ctx) {
+    push.success(`Linked to ${ctx.name}`)
   }
 }
 
@@ -420,6 +451,7 @@ onUnmounted(() => {
             @preview="openPreview(file)"
             @ignore="ignoreFile(file.sha256)"
             @analyze="triggerDigest(file.sha256)"
+            @assign-context="assignContextToFile(file.sha256, $event)"
           />
         </template>
       </div>

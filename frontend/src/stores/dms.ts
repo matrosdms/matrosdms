@@ -37,8 +37,8 @@ export const useDmsStore = defineStore('dms', () => {
 
   function setActiveContext(ctx: string) {
       filter.setActiveContext(ctx as any)
-      // Clear secondary selection when changing main dimension
-      selection.setSelectedCategory(null, '')
+      // Clear category selection when changing main dimension, but preserve context selection
+      selection.clearSelectedCategory()
   }
 
   // --- 2. Facade Exports ---
@@ -54,6 +54,7 @@ export const useDmsStore = defineStore('dms', () => {
 
     // Actions (Proxied)
     setSelectedCategory: selection.setSelectedCategory,
+    clearSelectedCategory: selection.clearSelectedCategory,
     setSelectedItem,
     setSelectedContext,
     

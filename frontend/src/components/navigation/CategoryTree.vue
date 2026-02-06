@@ -75,6 +75,17 @@ const mapCategory = (cat: Category): any => ({
     children: (cat.children || []).map(mapCategory)
 })
 
+// --- Collect all descendant IDs (O(1) lookup via Set) ---
+const collectDescendantIds = (node: any, result: Set<string> = new Set()): Set<string> => {
+    result.add(node.id)
+    if (node.children) {
+        for (const child of node.children) {
+            collectDescendantIds(child, result)
+        }
+    }
+    return result
+}
+
 const visibleNodes = computed(() => {
     if (!rootCategory.value) return []
     const rawNodes = (rootCategory.value.children || []).map(mapCategory)
@@ -92,15 +103,55 @@ const selectNode = (id: string, label: string) => {
     else dms.setSelectedCategory(id, label)
 }
 
+// --- Add to Filter Bar (Double-click / 'F' key) ---
+const addToFilter = (node: FlatNode) => {
+    if (props.selectionMode) return
+    const rootType = activeContextKey.value as any
+    
+    // Build Set of this node + all descendants for O(1) matching
+    const transitiveChildrenAndSelf = collectDescendantIds(node.node)
+    
+    dms.addFilter(rootType, { 
+        id: node.id, 
+        label: node.label,
+        transitiveChildrenAndSelf 
+    })
+    dms.setActiveContext(rootType)
+    notify.success(`Added "${node.label}" to ${rootType} filter`)
+}
+
+const onDoubleClick = (node: FlatNode) => {
+    addToFilter(node)
+}
+
+// --- Expand All Children (Windows '*' key behavior) ---
+const expandAll = (nodeId: string, nodeLevel: number) => {
+    const startIdx = visibleNodes.value.findIndex(n => n.id === nodeId)
+    if (startIdx === -1) return
+    
+    expandedIds.value.add(nodeId)
+    
+    // Expand all descendants
+    for (let i = startIdx + 1; i < visibleNodes.value.length; i++) {
+        const n = visibleNodes.value[i]
+        if (n.level <= nodeLevel) break
+        if (n.hasChildren) expandedIds.value.add(n.id)
+    }
+}
+
 // --- Drag Support (Category -> Filter Bar) ---
 const onDragStart = (event: DragEvent, node: any) => {
     event.stopPropagation()
-    // UPDATED: Include 'rootType' in payload so ContextFilterBar can validate the drop
+    
+    // Build Set of descendants for filter matching
+    const transitiveIds = Array.from(collectDescendantIds(node.node))
+    
     const payload = { 
         id: node.id, 
         label: node.label, 
         name: node.label,
-        rootType: activeContextKey.value // <--- Added Dimension Type
+        rootType: activeContextKey.value,
+        transitiveIds // Array of all descendant IDs including self
     }
     startDrag(event, 'category-node', payload)
 }
@@ -108,39 +159,100 @@ const onDragStart = (event: DragEvent, node: any) => {
 const onKeyDown = (e: KeyboardEvent) => {
     if (!visibleNodes.value.length) return
 
-    e.preventDefault()
-    e.stopPropagation()
-
     const currentIndex = visibleNodes.value.findIndex(n => n.id === focusedNodeId.value)
     let nextIndex = currentIndex
 
     switch (e.key) {
         case 'ArrowDown':
+            e.preventDefault()
             nextIndex = Math.min(currentIndex + 1, visibleNodes.value.length - 1)
             if (currentIndex === -1) nextIndex = 0
             break
         case 'ArrowUp':
+            e.preventDefault()
             nextIndex = Math.max(currentIndex - 1, 0)
             break
         case 'ArrowRight':
+            e.preventDefault()
             if (currentIndex !== -1) {
                 const node = visibleNodes.value[currentIndex]
-                if (node.hasChildren && !expandedIds.value.has(node.id)) expandedIds.value.add(node.id)
+                if (node.hasChildren && !expandedIds.value.has(node.id)) {
+                    expandedIds.value.add(node.id)
+                } else if (node.hasChildren && node.isOpen) {
+                    // Windows Explorer behavior: move to first child
+                    nextIndex = currentIndex + 1
+                }
             }
             break
         case 'ArrowLeft':
+            e.preventDefault()
             if (currentIndex !== -1) {
                 const node = visibleNodes.value[currentIndex]
-                if (node.hasChildren && expandedIds.value.has(node.id)) expandedIds.value.delete(node.id)
+                if (node.hasChildren && expandedIds.value.has(node.id)) {
+                    expandedIds.value.delete(node.id)
+                } else if (node.level > 0) {
+                    // Windows Explorer behavior: jump to parent
+                    for (let i = currentIndex - 1; i >= 0; i--) {
+                        if (visibleNodes.value[i].level < node.level) {
+                            nextIndex = i
+                            break
+                        }
+                    }
+                }
             }
+            break
+        case 'Home':
+            e.preventDefault()
+            nextIndex = 0
+            break
+        case 'End':
+            e.preventDefault()
+            nextIndex = visibleNodes.value.length - 1
             break
         case 'Enter':
         case ' ':
+            e.preventDefault()
             if (currentIndex !== -1) {
                 const node = visibleNodes.value[currentIndex]
-                selectNode(node.id, node.label)
+                // In selection mode: select. In normal mode: add to filter (like double-click)
+                if (props.selectionMode) {
+                    selectNode(node.id, node.label)
+                } else {
+                    addToFilter(node)
+                }
             }
             break
+        case 'f':
+        case 'F':
+            // Add to filter bar (alias for Enter in non-selection mode)
+            e.preventDefault()
+            if (currentIndex !== -1 && !props.selectionMode) {
+                const node = visibleNodes.value[currentIndex]
+                addToFilter(node)
+            }
+            break
+        case '*':
+            // Expand all children (Windows Explorer behavior)
+            e.preventDefault()
+            if (currentIndex !== -1) {
+                const node = visibleNodes.value[currentIndex]
+                expandAll(node.id, node.level)
+            }
+            break
+        default:
+            // Type-ahead: jump to node starting with typed letter
+            if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
+                const char = e.key.toLowerCase()
+                const startIdx = currentIndex + 1
+                for (let i = 0; i < visibleNodes.value.length; i++) {
+                    const idx = (startIdx + i) % visibleNodes.value.length
+                    if (visibleNodes.value[idx].label.toLowerCase().startsWith(char)) {
+                        nextIndex = idx
+                        break
+                    }
+                }
+            }
+            return // Don't prevent default for unhandled keys
     }
 
     if (nextIndex !== currentIndex && nextIndex !== -1) {
@@ -228,6 +340,7 @@ const onAddCategory = () => {
                     :aria-expanded="node.hasChildren ? node.isOpen : undefined"
                     :aria-selected="(selectionMode && selectedId === node.id) || (!selectionMode && dms.selectedCategoryId === node.id)"
                     @click="selectNode(node.id, node.label)"
+                    @dblclick="onDoubleClick(node)"
                 >
                     <!-- Expander -->
                     <div 

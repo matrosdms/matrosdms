@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, computed, ref } from 'vue'
+import { h, computed, ref, watch } from 'vue'
 import BasePane from '@/components/ui/BasePane.vue'
 import DataTable from '@/components/ui/DataTable.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
@@ -43,7 +43,8 @@ const COLUMN_SIZES = {
 } as const
 
 const STAGE_ROW_CLASSES: Record<string, string> = {
-  [EStage.ACTIVE]: 'bg-white dark:bg-gray-900'
+  [EStage.ACTIVE]: 'bg-white dark:bg-gray-900',
+  [EStage.ARCHIVED]: 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-l-4 border-red-300 dark:border-red-600'
 }
 
 // ============================================================================
@@ -145,6 +146,16 @@ const filteredContexts = computed(() => {
     })
   })
 })
+
+// ============================================================================
+// AUTO-SELECT FIRST
+// ============================================================================
+
+watch(filteredContexts, (list) => {
+  if (list?.length > 0 && !dms.selectedContext) {
+    dms.setSelectedContext(list[0])
+  }
+}, { immediate: true })
 
 // ============================================================================
 // ROW STYLING
@@ -338,6 +349,7 @@ const columns: ColumnDef<any>[] = [
         :data="filteredContexts"
         :columns="columns"
         :row-class-name="getRowClass"
+        :selected-id="dms.selectedContext?.uuid"
         @row-click="handleRowClick"
         @row-dblclick="handleRowDblClick"
         @row-dragstart="handleRowDragStart"

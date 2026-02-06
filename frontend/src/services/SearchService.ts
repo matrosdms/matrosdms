@@ -17,6 +17,7 @@ export const SearchService = {
     if (typeof queryOrPayload === 'string') {
         if (!queryOrPayload || queryOrPayload.length < 2) return [];
         payload = {
+            type: 'GROUP',
             logic: 'AND',
             children: [
                 { 

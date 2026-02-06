@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useUIStore } from '@/stores/ui'
 import { useStorage } from '@vueuse/core'
 import { UserService } from '@/services/UserService'
+import { client } from '@/api/client'
 import type { components } from '@/types/schema'
 
 type User = components['schemas']['MUser'];
@@ -18,27 +19,51 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   const token = useStorage<string | null>('matros-token-v1', null)
+  const refreshToken = useStorage<string | null>('matros-refresh-token-v1', null)
+  
+  // Track if a refresh is in progress to avoid concurrent refreshes
+  const isRefreshing = ref(false)
 
   const isAuthenticated = computed(() => !!currentUser.value)
   const isAdmin = computed(() => !!currentUser.value)
   
   const isConfigLoaded = ref(false)
 
-  // Login now accepts both the User object AND the Token
-  function login(userObj: User, jwtToken?: string) {
+  // Login now accepts both the User object AND the Token + Refresh Token
+  function login(userObj: User, jwtToken?: string, jwtRefreshToken?: string) {
     currentUser.value = userObj
     if (jwtToken) {
         token.value = jwtToken
     }
+    if (jwtRefreshToken) {
+        refreshToken.value = jwtRefreshToken
+    }
     ui.addLog(`User logged in: ${userObj.name}`, 'success')
   }
 
-  function logout() {
-    currentUser.value = null
-    token.value = null
-    ui.addLog('User logged out.', 'info')
-    // Removed window.location.reload() to prevent "Booting System" flash
-    // State is reactive, so App.vue will switch to LoginView immediately
+  // Logout now notifies the backend to revoke the refresh token
+  async function logout() {
+    try {
+        if (refreshToken.value) {
+            await client.POST("/api/auth/logout", {
+                body: { refreshToken: refreshToken.value }
+            })
+        }
+    } catch (e) {
+        console.warn("Logout API call failed", e)
+    } finally {
+        // Always clear local state even if API fails
+        currentUser.value = null
+        token.value = null
+        refreshToken.value = null
+        ui.addLog('User logged out.', 'info')
+    }
+  }
+  
+  // Update tokens after a refresh
+  function updateTokens(accessToken: string, newRefreshToken: string) {
+    token.value = accessToken
+    refreshToken.value = newRefreshToken
   }
 
   async function validateSession() {
@@ -56,14 +81,13 @@ export const useAuthStore = defineStore('auth', () => {
         // If validation fails (401/403), clear local storage immediately
         currentUser.value = null
         token.value = null
+        refreshToken.value = null
         ui.addLog("Session expired or invalid.", 'error')
     }
   }
 
   async function loadConfig() {
-    await new Promise(r => setTimeout(r, 100))
-    
-    // Robustness: Only validate if we have a user
+    // Check session on load
     if (currentUser.value) {
         await validateSession()
     }
@@ -76,12 +100,15 @@ export const useAuthStore = defineStore('auth', () => {
 
   return { 
       currentUser, 
-      token, 
+      token,
+      refreshToken,
+      isRefreshing,
       isAuthenticated, 
       isAdmin, 
       isConfigLoaded, 
-      login, 
-      logout, 
+      login,
+      logout,
+      updateTokens,
       loadConfig, 
       validateSession 
   }

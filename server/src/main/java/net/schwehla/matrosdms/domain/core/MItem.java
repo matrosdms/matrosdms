@@ -14,6 +14,8 @@ import java.util.List;
 
 import net.schwehla.matrosdms.domain.attribute.MAttribute;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 public class MItem extends MBaseElement {
 	private static final long serialVersionUID = 1L;
 
@@ -23,11 +25,20 @@ public class MItem extends MBaseElement {
 	private MContext context;
 	private String storeIdentifier;
 	private String storeItemNumber;
+
+	// Lifecycle Dates
 	private LocalDateTime issueDate;
 	private LocalDateTime dateExpire;
+	private LocalDateTime dateArchived;
+
 	private EStage stage = EStage.ACTIVE;
 
-	// NEW: Flag only. Content is fetched via separate API call if needed.
+	@Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "True if the item is archived")
+	public boolean isArchived() {
+		return dateArchived != null;
+	}
+
+	// Flag only
 	private boolean textParsed;
 
 	public MFileMetadata getMetadata() {
@@ -84,6 +95,14 @@ public class MItem extends MBaseElement {
 
 	public void setDateExpire(LocalDateTime dateExpire) {
 		this.dateExpire = dateExpire;
+	}
+
+	public LocalDateTime getDateArchived() {
+		return dateArchived;
+	}
+
+	public void setDateArchived(LocalDateTime dateArchived) {
+		this.dateArchived = dateArchived;
 	}
 
 	public int getCount() {
