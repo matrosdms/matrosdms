@@ -125,6 +125,16 @@ const getNextIndex = (currentIndex: number, action: string): number => {
   }
 }
 
+const focusContainer = () => {
+  containerRef.value?.focus({ preventScroll: true })
+}
+
+const handleRowClick = (row: any) => {
+  emit('row-click', row)
+  // Ensure the table container keeps focus so arrow keys work
+  nextTick(() => focusContainer())
+}
+
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!props.data.length || e.key === 'Tab') return
 
@@ -176,6 +186,13 @@ const handleRowDrop = async (event: DragEvent, rowData: any) => {
 watch(() => props.selectedId, (newId) => {
   if (newId) scrollToRow(newId)
 })
+
+// Auto-focus the table when data first appears so arrow keys work out of the box
+watch(() => props.data.length, (len, oldLen) => {
+  if (len > 0 && (!oldLen || oldLen === 0)) {
+    nextTick(() => focusContainer())
+  }
+})
 </script>
 
 <template>
@@ -225,10 +242,10 @@ watch(() => props.selectedId, (newId) => {
             class="flex w-full border-b border-border last:border-b-0 cursor-pointer 
                    transition-colors group border-l-4 border-l-transparent 
                    hover:bg-muted/50 text-foreground"
-            :class="rowClassName(rows[virtualRow.index].original)"
+            :class="[rowClassName(rows[virtualRow.index].original), getRowId(rows[virtualRow.index].original) === selectedId ? 'bg-primary/10 border-l-primary' : '']"
             :style="{ height: `${ROW_HEIGHT}px` }"
             @dragstart="emit('row-dragstart', $event, rows[virtualRow.index].original)"
-            @click.stop="emit('row-click', rows[virtualRow.index].original)"
+            @click.stop="handleRowClick(rows[virtualRow.index].original)"
             @dblclick.stop="emit('row-dblclick', rows[virtualRow.index].original)"
             @dragover.prevent
             @drop.stop="handleRowDrop($event, rows[virtualRow.index].original)"

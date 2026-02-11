@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed, ref, watch } from 'vue'
+import { onMounted, computed, ref, watch, nextTick } from 'vue'
 import BasePane from '@/components/ui/BasePane.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import ActionItem from '@/components/panes/ActionItem.vue'
@@ -8,6 +8,7 @@ import { useActionStore } from '@/stores/action'
 import { useWorkflowStore } from '@/stores/workflow'
 import { useDmsStore } from '@/stores/dms'
 import { UserService } from '@/services/UserService'
+import { useListNavigation } from '@/composables/useListNavigation'
 import { useQuery } from '@tanstack/vue-query'
 import { RefreshCw, Plus, CheckSquare, Filter, EyeOff, Eye, CalendarDays } from 'lucide-vue-next'
 import { EActionStatus } from '@/enums'
@@ -60,6 +61,37 @@ const onCreate = () => {
 }
 
 const onEdit = (action: any) => workflow.startActionEditing(action)
+
+// ── Keyboard Navigation ──────────────────────────────────────────────────
+const activeIndex = ref(-1)
+const listContainerRef = ref<HTMLDivElement | null>(null)
+
+const focusListContainer = () => {
+  nextTick(() => listContainerRef.value?.focus({ preventScroll: true }))
+}
+
+watch(filteredActions, (list) => {
+  if (!list.length) { activeIndex.value = -1; return }
+  if (activeIndex.value >= list.length) activeIndex.value = list.length - 1
+  if (activeIndex.value === -1 && list.length > 0) activeIndex.value = 0
+})
+
+const { handleKey: handleListKey } = useListNavigation({
+  listLength: computed(() => filteredActions.value.length),
+  activeIndex,
+  onSelect: (index) => {
+    const action = filteredActions.value[index]
+    if (action) onEdit(action)
+  },
+})
+
+const handleListKeyDown = (event: KeyboardEvent) => handleListKey(event)
+
+const handleActionClick = (action: any, index: number) => {
+  activeIndex.value = index
+  onEdit(action)
+  focusListContainer()
+}
 </script>
 
 <template>
@@ -105,7 +137,13 @@ const onEdit = (action: any) => workflow.startActionEditing(action)
         </div>
     </template>
 
-    <div class="p-2 space-y-2">
+    <div
+      ref="listContainerRef"
+      class="p-2 space-y-2 outline-none"
+      tabindex="0"
+      @keydown="handleListKeyDown"
+      @focus="() => { if (activeIndex === -1 && filteredActions.length) activeIndex = 0 }"
+    >
         <div v-if="actionStore.isLoading && !actionStore.actions.length" class="flex justify-center p-6">
             <div class="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
@@ -119,11 +157,12 @@ const onEdit = (action: any) => workflow.startActionEditing(action)
         
         <ActionItem 
             v-else
-            v-for="action in filteredActions" 
+            v-for="(action, index) in filteredActions" 
             :key="action.uuid" 
-            :action="action" 
+            :action="action"
+            :class="index === activeIndex ? 'ring-2 ring-blue-400/80 ring-offset-1 ring-offset-white dark:ring-offset-gray-900' : ''"
             @toggle="actionStore.toggleComplete(action)"
-            @click="onEdit(action)" 
+            @click="handleActionClick(action, index)" 
         />
     </div>
   </BasePane>
