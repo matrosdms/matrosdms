@@ -27,6 +27,7 @@
     "lucide-vue-next": "^0.292.0",
     "notivue": "^2.4.4",
     "openapi-fetch": "^0.15.0",
+    "pdfjs-dist": "^4.0.0",
     "pinia": "^3.0.4",
     "postal-mime": "^2.2.0",
     "splitpanes": "^3.0.0",

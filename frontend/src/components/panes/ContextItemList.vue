@@ -18,6 +18,7 @@ import { useContextQueries } from '@/composables/queries/useContextQueries'
 import { useAdminQueries } from '@/composables/queries/useAdminQueries'
 import { useDragDrop } from '@/composables/useDragDrop'
 import { ItemService } from '@/services/ItemService'
+import { parseBackendDate } from '@/lib/utils'
 import {
   Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar,
   Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText,
@@ -308,7 +309,10 @@ const createNameCell = (info: any) => {
 }
 
 const columns: ColumnDef<any>[] = [
-  { accessorKey: 'issueDate', header: () => createHeaderIcon(Calendar, 'Date'), ...COLUMN_SIZES.DATE, cell: (info) => h('span', { class: 'text-xs text-muted-foreground font-mono' }, new Date(info.getValue()).toLocaleDateString()) },
+  { accessorKey: 'issueDate', header: () => createHeaderIcon(Calendar, 'Date'), ...COLUMN_SIZES.DATE, cell: (info) => {
+    const date = parseBackendDate(info.getValue())
+    return h('span', { class: 'text-xs text-muted-foreground font-mono' }, date ? date.toLocaleDateString() : '-')
+  } },
   { accessorKey: 'kindList', header: () => createHeaderIcon(Tag, 'Type'), ...COLUMN_SIZES.TYPE, cell: (info) => h('span', { class: 'text-xs truncate' }, info.getValue()?.[0]?.name || '-') },
   { accessorKey: 'name', header: () => createHeaderIcon(FileText, 'Name'), ...COLUMN_SIZES.NAME, cell: (info) => createNameCell(info) },
   { accessorKey: 'storeIdentifier', header: () => createHeaderIcon(Box, 'Store'), ...COLUMN_SIZES.STORE, cell: (info) => h('span', { class: 'text-xs text-muted-foreground truncate' }, storeMap.value.get(info.getValue()) || '-') },
