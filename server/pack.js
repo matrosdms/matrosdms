@@ -10,6 +10,7 @@ const IGNORE_DIRS = [
     '.idea', 
     '.vscode', 
     '.mvn', 
+	'data', 
     'target', 
     'build', 
     'bin', 

@@ -56,7 +56,7 @@ public class PipelineContext {
 
 	public void log(String message) {
 		if (publisher != null) {
-            // FIX: Pass getDisplayFilename() to the event
+			// FIX: Pass getDisplayFilename() to the event
 			publisher.publishEvent(
 					new PipelineProgressEvent(hash, getDisplayFilename(), message, currentStepIndex, totalSteps));
 		}

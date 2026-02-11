@@ -49,12 +49,14 @@ public class ItemTextBridge implements TypeBridge<DBItem> {
 
 		target.addValue("textParsed", String.valueOf(item.isTextParsed()));
 
-		if (item.getUuid() != null) {
+		// Only index fulltext from the text layer when text was successfully parsed
+		if (item.getUuid() != null && item.isTextParsed()) {
 			String rawXmlContent = StoreContext.readTextFile(item.getUuid());
-			// FIX: Clean the XML/Binary artifacts before indexing
 			if (rawXmlContent != null && !rawXmlContent.isEmpty()) {
 				String cleanText = TextLayerUtils.extractCleanText(rawXmlContent);
-				target.addValue(contentField, cleanText);
+				if (!cleanText.isEmpty()) {
+					target.addValue(contentField, cleanText);
+				}
 			}
 		}
 		if (item.getInfoContext() != null) {

@@ -12,6 +12,7 @@ export enum ESearchDimension {
   FULLTEXT = 'FULLTEXT',
   ATTRIBUTE = 'ATTRIBUTE',
   SOURCE = 'SOURCE',
+  UUID = 'UUID',
   HAS_TEXT = 'HAS_TEXT',
 }
 
@@ -27,6 +28,7 @@ export const ESearchDimensionList = [
   ESearchDimension.FULLTEXT,
   ESearchDimension.ATTRIBUTE,
   ESearchDimension.SOURCE,
+  ESearchDimension.UUID,
   ESearchDimension.HAS_TEXT,
 ] as const;
 
@@ -44,5 +46,6 @@ export const ESearchDimensionLabels: Record<ESearchDimensionType, string> = {
   [ESearchDimension.FULLTEXT]: 'Fulltext',
   [ESearchDimension.ATTRIBUTE]: 'Attribute',
   [ESearchDimension.SOURCE]: 'Source',
+  [ESearchDimension.UUID]: 'Uuid',
   [ESearchDimension.HAS_TEXT]: 'Has Text',
 };

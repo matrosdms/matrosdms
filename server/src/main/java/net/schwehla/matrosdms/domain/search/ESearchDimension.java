@@ -12,11 +12,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(enumAsRef = true)
 public enum ESearchDimension {
 	WHO("kindList"), WHAT("kindList"), WHERE("kindList"), KIND("kindList"), CONTEXT("infoContext"), STORE(
-			"store"), ISSUE_DATE(
-					"issueDate"), CREATED("dateCreated"), FULLTEXT("fulltext"), ATTRIBUTE("attr"), SOURCE("source"),
-
-	// NEW: Search Filter "Has Text Layer" -> Yes/No
-	HAS_TEXT("textParsed");
+			"store"), ISSUE_DATE("issueDate"), CREATED("dateCreated"), FULLTEXT(
+					"fulltext"), ATTRIBUTE("attr"), SOURCE("source"), UUID("uuid"), HAS_TEXT("textParsed");
 
 	private final String luceneField;
 

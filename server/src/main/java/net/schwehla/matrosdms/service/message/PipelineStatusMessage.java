@@ -45,6 +45,11 @@ public class PipelineStatusMessage {
 
 	// Factory: Duplicate
 	public static PipelineStatusMessage duplicate(String hash, String filename) {
+		return duplicate(hash, filename, null);
+	}
+
+	// Factory: Duplicate with existing item UUID
+	public static PipelineStatusMessage duplicate(String hash, String filename, String existingUuid) {
 		PipelineStatusMessage m = new PipelineStatusMessage();
 		m.sha256 = hash;
 		m.status = EPipelineStatus.DUPLICATE;
@@ -52,6 +57,7 @@ public class PipelineStatusMessage {
 		m.fileState.setSha256(hash);
 		m.fileState.getFileInfo().setOriginalFilename(filename);
 		m.fileState.setStatus(EPipelineStatus.DUPLICATE);
+		m.fileState.setDoublette(existingUuid);
 		return m;
 	}
 

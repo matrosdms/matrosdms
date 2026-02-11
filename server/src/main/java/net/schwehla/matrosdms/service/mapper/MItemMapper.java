@@ -38,11 +38,16 @@ import net.schwehla.matrosdms.service.message.UpdateItemMessage;
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public abstract class MItemMapper implements BasicMapper {
 
-	@Autowired protected CategoryLookupService categoryCache;
-	@Autowired protected AttributeLookupService attributeLookup;
-	@Autowired protected CategoryRepository categoryRepository;
-	@Autowired protected StoreRepository storeRepository;
-	@Autowired protected MCategoryMapper categoryMapper;
+	@Autowired
+	protected CategoryLookupService categoryCache;
+	@Autowired
+	protected AttributeLookupService attributeLookup;
+	@Autowired
+	protected CategoryRepository categoryRepository;
+	@Autowired
+	protected StoreRepository storeRepository;
+	@Autowired
+	protected MCategoryMapper categoryMapper;
 
 	public abstract List<MItem> map(List<DBItem> items);
 
@@ -90,9 +95,9 @@ public abstract class MItemMapper implements BasicMapper {
 		}
 	}
 
-    // UPDATED MAPPING: Included Canonical Hash
+	// UPDATED MAPPING: Included Canonical Hash
 	@Mapping(target = "sha256", source = "sha256Original")
-    @Mapping(target = "sha256Canonical", source = "sha256Canonical")
+	@Mapping(target = "sha256Canonical", source = "sha256Canonical")
 	@Mapping(target = "textLayer", ignore = true)
 	public abstract MFileMetadata mapMetadata(DBItemMetadata file);
 

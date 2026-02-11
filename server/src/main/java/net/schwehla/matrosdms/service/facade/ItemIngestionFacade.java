@@ -52,18 +52,30 @@ public class ItemIngestionFacade {
 
 	private static final Logger log = LoggerFactory.getLogger(ItemIngestionFacade.class);
 
-	@Autowired ItemRepository itemRepository;
-	@Autowired ContextRepository contextRepository;
-	@Autowired UserRepository userRepository;
-	@Autowired MItemMapper itemMapper;
-	@Autowired InboxPipelineService pipelineService;
-	@Autowired MatrosObjectStoreService storeService;
-	@Autowired InboxFileManager inboxManager;
-	@Autowired Scheduler scheduler;
-	@Autowired Task<Long> indexItemTask;
-	@Autowired ObjectMapper objectMapper;
-	@Autowired UUIDProvider uuidProvider;
-    @Autowired FileUtils fileUtils;
+	@Autowired
+	ItemRepository itemRepository;
+	@Autowired
+	ContextRepository contextRepository;
+	@Autowired
+	UserRepository userRepository;
+	@Autowired
+	MItemMapper itemMapper;
+	@Autowired
+	InboxPipelineService pipelineService;
+	@Autowired
+	MatrosObjectStoreService storeService;
+	@Autowired
+	InboxFileManager inboxManager;
+	@Autowired
+	Scheduler scheduler;
+	@Autowired
+	Task<Long> indexItemTask;
+	@Autowired
+	ObjectMapper objectMapper;
+	@Autowired
+	UUIDProvider uuidProvider;
+	@Autowired
+	FileUtils fileUtils;
 
 	@Transactional
 	@Caching(evict = {
@@ -116,8 +128,8 @@ public class ItemIngestionFacade {
 
 		metadata.setFilename(filename);
 		metadata.setMimetype(mimetype);
-        
-        // 1. Set Gatekeeper Hash
+
+		// 1. Set Gatekeeper Hash
 		metadata.setSha256Original(hashOriginal);
 
 		try {
@@ -130,18 +142,18 @@ public class ItemIngestionFacade {
 				dbItem.setTextParsed(false);
 			}
 
-            // 2. Calculate Canonical Hash (The file after processing, before encryption)
-            String hashCanonical = fileUtils.getSHA256(processedFile);
-            metadata.setSha256Canonical(hashCanonical);
+			// 2. Calculate Canonical Hash (The file after processing, before encryption)
+			String hashCanonical = fileUtils.getSHA256(processedFile);
+			metadata.setSha256Canonical(hashCanonical);
 
-            // 3. Store (Encrypts file)
+			// 3. Store (Encrypts file)
 			StoreResult storeResult = storeService.persist(processedFile, textFile, dbItem.getUuid(), filename);
 
-            // 4. Set Vault Guard Hash
+			// 4. Set Vault Guard Hash
 			metadata.setFilesize(Files.size(processedFile));
 			metadata.setSha256Stored(storeResult.getSHA256());
 			metadata.setCryptSettings(storeResult.getCryptSettings());
-            
+
 			dbItem.setFile(metadata);
 
 			DBItem saved = itemRepository.save(dbItem);

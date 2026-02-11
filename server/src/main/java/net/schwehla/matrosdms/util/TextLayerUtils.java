@@ -22,6 +22,11 @@ public class TextLayerUtils {
 		if (xmlTextLayer == null || xmlTextLayer.isEmpty())
 			return "";
 
+		// Reject binary content (e.g. raw PDF bytes stored without text extraction)
+		if (isBinaryContent(xmlTextLayer)) {
+			return "";
+		}
+
 		StringBuilder sb = new StringBuilder();
 
 		// 1. Try to extract CDATA content (The standard we implemented)
@@ -39,5 +44,26 @@ public class TextLayerUtils {
 		}
 
 		return sb.toString().trim();
+	}
+
+	/**
+	 * Detect binary/non-text content by checking for non-printable characters.
+	 * A valid text layer is XML or plain text — never raw PDF/image bytes.
+	 */
+	private static boolean isBinaryContent(String content) {
+		// Check the first 512 chars (enough to detect binary headers like %PDF)
+		int checkLen = Math.min(content.length(), 512);
+		int nonPrintable = 0;
+		for (int i = 0; i < checkLen; i++) {
+			char c = content.charAt(i);
+			// Allow tab, newline, carriage return + normal printable range
+			if (c < 0x20 && c != '\t' && c != '\n' && c != '\r') {
+				nonPrintable++;
+			} else if (c == 0xFFFD) { // Unicode replacement character
+				nonPrintable++;
+			}
+		}
+		// More than 5% non-printable → binary garbage
+		return nonPrintable > checkLen * 0.05;
 	}
 }

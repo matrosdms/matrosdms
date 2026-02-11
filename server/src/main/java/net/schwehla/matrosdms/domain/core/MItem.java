@@ -25,25 +25,25 @@ public class MItem extends MBaseElement {
 	private MContext context;
 	private String storeIdentifier;
 	private String storeItemNumber;
-	
-    // Lifecycle Dates
-    private LocalDateTime issueDate;
+
+	// Lifecycle Dates
+	private LocalDateTime issueDate;
 	private LocalDateTime dateExpire;
-    private LocalDateTime dateArchived;
+	private LocalDateTime dateArchived;
 
 	private EStage stage = EStage.ACTIVE;
 
 	// Internal Flag
 	private boolean textParsed;
 
-    /**
-     * API Flag: Indicates if a text layer is available for download.
-     * Endpoint: GET /api/items/{uuid}/text
-     */
-    @JsonProperty("hasTextLayer")
-    public boolean hasTextLayer() {
-        return textParsed;
-    }
+	/**
+	 * API Flag: Indicates if a text layer is available for download.
+	 * Endpoint: GET /api/items/{uuid}/text
+	 */
+	@JsonProperty("hasTextLayer")
+	public boolean hasTextLayer() {
+		return textParsed;
+	}
 
 	public MFileMetadata getMetadata() {
 		return metadata;
@@ -101,13 +101,13 @@ public class MItem extends MBaseElement {
 		this.dateExpire = dateExpire;
 	}
 
-    public LocalDateTime getDateArchived() {
-        return dateArchived;
-    }
+	public LocalDateTime getDateArchived() {
+		return dateArchived;
+	}
 
-    public void setDateArchived(LocalDateTime dateArchived) {
-        this.dateArchived = dateArchived;
-    }
+	public void setDateArchived(LocalDateTime dateArchived) {
+		this.dateArchived = dateArchived;
+	}
 
 	public int getCount() {
 		return kindList.size();

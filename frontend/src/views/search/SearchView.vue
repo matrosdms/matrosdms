@@ -133,6 +133,25 @@ const getFilterBadgeClasses = (field: string) => {
     return map[field] || 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
 }
 
+// --- HELPERS ---
+
+/** Returns true if the string is mostly printable (not binary garbage). */
+const isReadableText = (text: string | undefined | null): boolean => {
+    if (!text) return false
+    // Strip HTML tags for the check (highlight may contain <em>/<b>)
+    const plain = text.replace(/<[^>]*>/g, '')
+    if (plain.length === 0) return false
+    // Count characters outside the normal printable range (allow common unicode letters too)
+    let bad = 0
+    for (let i = 0; i < plain.length; i++) {
+        const code = plain.charCodeAt(i)
+        // Allow tab, newline, carriage return, and printable range 0x20-0xFFFD
+        if (code < 0x20 && code !== 0x09 && code !== 0x0A && code !== 0x0D) bad++
+        else if (code === 0xFFFD) bad++ // replacement character
+    }
+    return bad / plain.length < 0.1 // less than 10% garbage → readable
+}
+
 // --- DATA TABLE COLUMNS ---
 const columns = [
     {
@@ -141,10 +160,13 @@ const columns = [
         size: 300,
         cell: (info: any) => {
             const val = info.getValue()
-            const highlight = info.row.original.highlight
+            const rawHighlight = info.row.original.highlight
+            const rawDesc = info.row.original.description
+            const highlight = isReadableText(rawHighlight) ? rawHighlight : null
+            const description = isReadableText(rawDesc) ? rawDesc : null
             return h('div', { class: 'flex flex-col' }, [
                 h('span', { class: 'font-medium text-sm text-foreground truncate', innerHTML: highlight || val }),
-                info.row.original.description ? h('span', { class: 'text-[10px] text-muted-foreground truncate' }, info.row.original.description) : null
+                description ? h('span', { class: 'text-[10px] text-muted-foreground truncate' }, description) : null
             ])
         }
     },

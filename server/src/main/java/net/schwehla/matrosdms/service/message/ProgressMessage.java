@@ -15,9 +15,9 @@ public class ProgressMessage {
 	@Schema(description = "The File ID")
 	private String sha256;
 
-    // NEW: Ensure UI can render the card even if it missed the start event
-    @Schema(description = "Display name of the file being processed")
-    private String filename;
+	// NEW: Ensure UI can render the card even if it missed the start event
+	@Schema(description = "Display name of the file being processed")
+	private String filename;
 
 	@Schema(description = "Human readable progress info", example = "OCR Running...")
 	private String info;
@@ -33,7 +33,7 @@ public class ProgressMessage {
 
 	public ProgressMessage(String sha256, String filename, String info, int step, int totalSteps) {
 		this.sha256 = sha256;
-        this.filename = filename;
+		this.filename = filename;
 		this.info = info;
 		this.step = step;
 		this.totalSteps = totalSteps;
@@ -47,13 +47,13 @@ public class ProgressMessage {
 		this.sha256 = sha256;
 	}
 
-    public String getFilename() {
-        return filename;
-    }
+	public String getFilename() {
+		return filename;
+	}
 
-    public void setFilename(String filename) {
-        this.filename = filename;
-    }
+	public void setFilename(String filename) {
+		this.filename = filename;
+	}
 
 	public String getInfo() {
 		return info;

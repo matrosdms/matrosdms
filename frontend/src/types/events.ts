@@ -37,12 +37,16 @@ export interface InboxFile {
     manuallyAssigned?: boolean;
   };
   
+  /** UUID of existing item if this file is a duplicate */
+  doublette?: string;
+
   // Helper for UI (optional override)
   displayName?: string;
 }
 
 export interface ProgressMessage {
   sha256: string;
+  filename?: string; // Display name from backend
   info: string; // e.g., "Extracting Text (OCR)..."
   step?: number;
   totalSteps?: number;

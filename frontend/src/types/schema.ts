@@ -1048,6 +1048,8 @@ export interface components {
             fileInfo?: components["schemas"]["FileMetadata"];
             emailInfo?: components["schemas"]["EmailMetadata"];
             prediction?: components["schemas"]["Prediction"];
+            /** @description UUID of existing item if this is a duplicate */
+            doublette?: string;
             /** @description Primary display title */
             displayName?: string;
         };
@@ -1055,6 +1057,8 @@ export interface components {
         ProgressMessage: {
             /** @description The File ID */
             sha256?: string;
+            /** @description Display name of the file being processed */
+            filename?: string;
             /**
              * @description Human readable progress info
              * @example OCR Running...
@@ -1394,7 +1398,7 @@ export interface components {
         /** @enum {string} */
         EOperator: "EQ" | "CONTAINS" | "GT" | "LT" | "GTE" | "LTE";
         /** @enum {string} */
-        ESearchDimension: "WHO" | "WHAT" | "WHERE" | "KIND" | "CONTEXT" | "STORE" | "ISSUE_DATE" | "CREATED" | "FULLTEXT" | "ATTRIBUTE" | "SOURCE" | "HAS_TEXT";
+        ESearchDimension: "WHO" | "WHAT" | "WHERE" | "KIND" | "CONTEXT" | "STORE" | "ISSUE_DATE" | "CREATED" | "FULLTEXT" | "ATTRIBUTE" | "SOURCE" | "UUID" | "HAS_TEXT";
         SearchCriteria: {
             /** @enum {string} */
             type?: "GROUP" | "FILTER";
@@ -1420,10 +1424,10 @@ export interface components {
             highlight?: string;
         };
         PageMSearchResult: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MSearchResult"][];
@@ -1441,11 +1445,11 @@ export interface components {
             /** Format: int64 */
             offset?: number;
             sort?: components["schemas"]["SortObject"];
-            /** Format: int32 */
-            pageNumber?: number;
+            paged?: boolean;
             /** Format: int32 */
             pageSize?: number;
-            paged?: boolean;
+            /** Format: int32 */
+            pageNumber?: number;
             unpaged?: boolean;
         };
         SortObject: {
@@ -1652,10 +1656,10 @@ export interface components {
             status?: components["schemas"]["EJobStatus"];
         };
         PageJobMessage: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["JobMessage"][];
@@ -1675,10 +1679,10 @@ export interface components {
          */
         EArchiveFilter: "ALL" | "ACTIVE_ONLY" | "ARCHIVED_ONLY";
         PageMItem: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MItem"][];
@@ -1713,10 +1717,10 @@ export interface components {
          */
         EBroadcastType: "FILE_ADDED" | "STATUS" | "PROGRESS" | "COMPLETE" | "ERROR";
         PageMAction: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MAction"][];

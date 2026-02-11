@@ -56,6 +56,7 @@ public class InboxPipelineService {
 		Path contentFile = findContentFile(jobDir, hash);
 		if (contentFile == null) {
 			log.error("Pipeline failed: Content file missing for {}", hash);
+			publisher.publishEvent(new PipelineErrorEvent(hash, "Content file missing"));
 			return;
 		}
 
@@ -70,12 +71,13 @@ public class InboxPipelineService {
 				PipelineStep step = pipelineSteps.get(i);
 				int currentStep = i + 1;
 				ctx.setCurrentStepIndex(currentStep);
-                
-                // FIX: Added 'originalName' to the constructor to match the new PipelineProgressEvent signature
+
+				// FIX: Added 'originalName' to the constructor to match the new
+				// PipelineProgressEvent signature
 				publisher.publishEvent(
 						new PipelineProgressEvent(
 								hash, originalName, "Step " + currentStep + "/" + totalSteps, currentStep, totalSteps));
-                                
+
 				step.execute(ctx);
 			}
 
@@ -84,6 +86,19 @@ public class InboxPipelineService {
 					ctx.getWarnings());
 
 			objectMapper.writeValue(jobDir.resolve("pipeline.json").toFile(), result);
+			publisher.publishEvent(new PipelineResultEvent(result));
+
+		} catch (DuplicateException de) {
+			log.info("Duplicate detected for {}: existing item {}", hash, de.getExistingUuid());
+
+			PipelineStatusMessage result = PipelineStatusMessage.duplicate(
+					hash, originalName, de.getExistingUuid());
+
+			try {
+				objectMapper.writeValue(jobDir.resolve("pipeline.json").toFile(), result);
+			} catch (Exception ignored) {
+			}
+
 			publisher.publishEvent(new PipelineResultEvent(result));
 
 		} catch (Exception e) {
@@ -132,7 +147,12 @@ public class InboxPipelineService {
 	private Path findContentFile(Path dir, String hash) {
 		try (Stream<Path> s = Files.list(dir)) {
 			return s.filter(Files::isRegularFile)
-					.filter(p -> !p.toString().endsWith(".json") && !p.toString().endsWith(".txt"))
+					.filter(p -> {
+						String name = p.getFileName().toString();
+						return !name.endsWith(".json")
+								&& !name.endsWith(".txt")
+								&& !name.equals("source.info");
+					})
 					.findFirst()
 					.orElse(null);
 		} catch (IOException e) {

@@ -7007,6 +7007,10 @@
 					"prediction": {
 						"$ref": "#/components/schemas/Prediction"
 					},
+					"doublette": {
+						"type": "string",
+						"description": "UUID of existing item if this is a duplicate"
+					},
 					"displayName": {
 						"type": "string",
 						"description": "Primary display title"
@@ -7020,6 +7024,10 @@
 					"sha256": {
 						"type": "string",
 						"description": "The File ID"
+					},
+					"filename": {
+						"type": "string",
+						"description": "Display name of the file being processed"
 					},
 					"info": {
 						"type": "string",
@@ -7417,14 +7425,14 @@
 								"empty": {
 									"type": "boolean"
 								},
-								"allTransitiveChildren": {
+								"selfAndTransitiveParents": {
 									"type": "array",
 									"items": {
 										"$ref": "#/components/schemas/MCategory"
 									},
 									"uniqueItems": true
 								},
-								"selfAndTransitiveParents": {
+								"allTransitiveChildren": {
 									"type": "array",
 									"items": {
 										"$ref": "#/components/schemas/MCategory"
@@ -7530,14 +7538,14 @@
 							"empty": {
 								"type": "boolean"
 							},
-							"allTransitiveChildren": {
+							"selfAndTransitiveParents": {
 								"type": "array",
 								"items": {
 									"$ref": "#/components/schemas/MCategory"
 								},
 								"uniqueItems": true
 							},
-							"selfAndTransitiveParents": {
+							"allTransitiveChildren": {
 								"type": "array",
 								"items": {
 									"$ref": "#/components/schemas/MCategory"
@@ -8046,6 +8054,7 @@
 					"FULLTEXT",
 					"ATTRIBUTE",
 					"SOURCE",
+					"UUID",
 					"HAS_TEXT"
 				]
 			},
@@ -8125,13 +8134,13 @@
 			"PageMSearchResult": {
 				"type": "object",
 				"properties": {
-					"totalPages": {
-						"type": "integer",
-						"format": "int32"
-					},
 					"totalElements": {
 						"type": "integer",
 						"format": "int64"
+					},
+					"totalPages": {
+						"type": "integer",
+						"format": "int32"
 					},
 					"size": {
 						"type": "integer",
@@ -8178,16 +8187,16 @@
 					"sort": {
 						"$ref": "#/components/schemas/SortObject"
 					},
-					"pageNumber": {
-						"type": "integer",
-						"format": "int32"
+					"paged": {
+						"type": "boolean"
 					},
 					"pageSize": {
 						"type": "integer",
 						"format": "int32"
 					},
-					"paged": {
-						"type": "boolean"
+					"pageNumber": {
+						"type": "integer",
+						"format": "int32"
 					},
 					"unpaged": {
 						"type": "boolean"
@@ -8703,13 +8712,13 @@
 			"PageJobMessage": {
 				"type": "object",
 				"properties": {
-					"totalPages": {
-						"type": "integer",
-						"format": "int32"
-					},
 					"totalElements": {
 						"type": "integer",
 						"format": "int64"
+					},
+					"totalPages": {
+						"type": "integer",
+						"format": "int32"
 					},
 					"size": {
 						"type": "integer",
@@ -8758,13 +8767,13 @@
 			"PageMItem": {
 				"type": "object",
 				"properties": {
-					"totalPages": {
-						"type": "integer",
-						"format": "int32"
-					},
 					"totalElements": {
 						"type": "integer",
 						"format": "int64"
+					},
+					"totalPages": {
+						"type": "integer",
+						"format": "int32"
 					},
 					"size": {
 						"type": "integer",
@@ -8846,13 +8855,13 @@
 			"PageMAction": {
 				"type": "object",
 				"properties": {
-					"totalPages": {
-						"type": "integer",
-						"format": "int32"
-					},
 					"totalElements": {
 						"type": "integer",
 						"format": "int64"
+					},
+					"totalPages": {
+						"type": "integer",
+						"format": "int32"
 					},
 					"size": {
 						"type": "integer",

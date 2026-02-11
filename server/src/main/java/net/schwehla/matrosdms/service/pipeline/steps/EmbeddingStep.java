@@ -28,7 +28,7 @@ import net.schwehla.matrosdms.service.pipeline.PipelineStep;
  * Enable via: matros.ai.embedding.enabled=true
  */
 @Component
-@Order(5)
+@Order(7)
 public class EmbeddingStep implements PipelineStep {
 
 	private static final Logger log = LoggerFactory.getLogger(EmbeddingStep.class);

@@ -37,6 +37,9 @@ public class InboxFile implements Serializable {
 	@Schema(nullable = true)
 	private Prediction prediction;
 
+	@Schema(description = "UUID of existing item if this is a duplicate", nullable = true)
+	private String doublette;
+
 	@JsonIgnore
 	private transient Path path;
 
@@ -114,5 +117,13 @@ public class InboxFile implements Serializable {
 
 	public void setPath(Path path) {
 		this.path = path;
+	}
+
+	public String getDoublette() {
+		return doublette;
+	}
+
+	public void setDoublette(String doublette) {
+		this.doublette = doublette;
 	}
 }

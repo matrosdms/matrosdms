@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import BasePane from '@/components/ui/BasePane.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import InboxItem from '@/components/panes/InboxItem.vue'
 import { useInboxQueries } from '@/composables/queries/useInboxQueries'
 import { useContextQueries } from '@/composables/queries/useContextQueries'
 import { useServerEvents } from '@/composables/useServerEvents'
+import { useListNavigation } from '@/composables/useListNavigation'
 import { useDmsStore } from '@/stores/dms'
 import { useWorkflowStore } from '@/stores/workflow'
 import { useUIStore } from '@/stores/ui'
 import { ViewMode } from '@/enums'
 import { client } from '@/api/client'
 import { InboxService } from '@/services/InboxService'
+import { ItemService } from '@/services/ItemService'
 import { FileText, RefreshCw, Wand2, UploadCloud, Loader2 } from 'lucide-vue-next'
 import { push } from 'notivue'
 import type { InboxFile } from '@/types/events'
@@ -61,6 +63,8 @@ const searchQuery = ref('')
 const ignoredSet = ref(new Set<string>())
 const isDragOver = ref(false)
 const isUploading = ref(false)
+const activeIndex = ref(-1)
+const listContainerRef = ref<HTMLDivElement | null>(null)
 
 let watchdogTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -108,6 +112,45 @@ const filteredFiles = computed(() => {
 const processableFiles = computed(() => 
   filteredFiles.value.filter(file => !PROCESSABLE_STATUSES.has(file.status))
 )
+
+const focusListContainer = () => {
+  requestAnimationFrame(() => {
+    listContainerRef.value?.focus({ preventScroll: true })
+  })
+}
+
+const ensureActiveIndex = () => {
+  if (!filteredFiles.value.length) {
+    activeIndex.value = -1
+    return
+  }
+  if (activeIndex.value === -1) {
+    activeIndex.value = 0
+  } else if (activeIndex.value >= filteredFiles.value.length) {
+    activeIndex.value = filteredFiles.value.length - 1
+  }
+}
+
+watch(filteredFiles, ensureActiveIndex, { immediate: true })
+
+const { handleKey: handleListKey } = useListNavigation({
+  listLength: computed(() => filteredFiles.value.length),
+  activeIndex,
+  onSelect: (index) => {
+    const file = filteredFiles.value[index]
+    if (file) {
+      handleFileClick(file, index)
+    }
+  },
+})
+
+const handleListKeyDown = (event: KeyboardEvent) => {
+  handleListKey(event)
+}
+
+const setActiveIndex = (index: number) => {
+  activeIndex.value = index
+}
 
 // ============================================================================
 // WATCHDOG - STALE FILE DETECTION
@@ -243,16 +286,28 @@ const openPreview = (file: InboxFile) => {
     name: file.emailInfo?.subject || file.fileInfo.originalFilename,
     source: 'inbox'
   })
+  nextTick(() => focusListContainer())
 }
 
-const handleFileClick = (file: InboxFile) => {
+const handleFileClick = (file: InboxFile, index?: number) => {
+  if (typeof index === 'number') {
+    setActiveIndex(index)
+  }
+
   if (file.status === 'DUPLICATE') {
-    push.warning("Duplicate file. Please ignore/delete it.")
+    if (file.doublette) {
+      ItemService.openDocument(file.doublette)
+      push.info(`Opening existing document...`)
+    } else {
+      push.warning("Duplicate file. Please ignore/delete it.")
+    }
+    nextTick(() => focusListContainer())
     return
   }
 
   if (file.status === 'PROCESSING') {
     push.info("File is processing. Please wait.")
+    nextTick(() => focusListContainer())
     return
   }
 
@@ -282,6 +337,13 @@ const handleFileClick = (file: InboxFile) => {
   } else {
     openPreview(file)
   }
+
+  nextTick(() => focusListContainer())
+}
+
+const handlePreviewClick = (file: InboxFile, index: number) => {
+  setActiveIndex(index)
+  openPreview(file)
 }
 
 const assignContextToFile = (hash: string, contextId: string) => {
@@ -419,7 +481,14 @@ onUnmounted(() => {
       </template>
 
       <!-- File List -->
-      <div class="p-2 space-y-1">
+      <div
+        ref="listContainerRef"
+        class="p-2 space-y-1"
+        tabindex="0"
+        @keydown="handleListKeyDown"
+        @focus="ensureActiveIndex()"
+        @mousedown="focusListContainer"
+      >
         <!-- Loading State -->
         <div
           v-if="isLoadingInbox && filteredFiles.length === 0"
@@ -442,13 +511,14 @@ onUnmounted(() => {
         <!-- File Items -->
         <template v-else>
           <InboxItem
-            v-for="file in filteredFiles"
+            v-for="(file, index) in filteredFiles"
             :key="file.sha256"
             :file="file"
             :is-processing="file.status === 'PROCESSING'"
             :is-duplicate="file.status === 'DUPLICATE'"
-            @click="handleFileClick(file)"
-            @preview="openPreview(file)"
+            :is-active="index === activeIndex"
+            @click="handleFileClick(file, index)"
+            @preview="handlePreviewClick(file, index)"
             @ignore="ignoreFile(file.sha256)"
             @analyze="triggerDigest(file.sha256)"
             @assign-context="assignContextToFile(file.sha256, $event)"

@@ -53,16 +53,16 @@ export const useWorkflowStore = defineStore('workflow', () => {
       const hash = file.sha256
       const existing = liveInboxFiles.value[hash] || {}
       
-      // Merge Strategy: Overlay new fields onto existing state
+      // Merge Strategy: Overlay new fields onto existing state, preserving metadata
       liveInboxFiles.value = {
           ...liveInboxFiles.value,
           [hash]: {
               ...existing,
               ...file,
-              // Deep merge key nested objects to avoid overwriting with undefined
+              // Deep merge nested objects to avoid losing metadata during SSE progress updates
               fileInfo: { ...(existing.fileInfo || {}), ...(file.fileInfo || {}) },
-              emailInfo: file.emailInfo ? { ...file.emailInfo } : (existing.emailInfo),
-              prediction: file.prediction ? { ...file.prediction } : (existing.prediction)
+              emailInfo: { ...(existing.emailInfo || {}), ...(file.emailInfo || {}) },
+              prediction: { ...(existing.prediction || {}), ...(file.prediction || {}) }
           } as InboxFile
       }
       

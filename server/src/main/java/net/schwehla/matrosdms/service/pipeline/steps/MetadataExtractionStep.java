@@ -35,7 +35,7 @@ import net.schwehla.matrosdms.service.pipeline.PipelineEvents.PipelineStatusEven
 import net.schwehla.matrosdms.service.pipeline.PipelineStep;
 
 @Component
-@Order(2) // CHANGED: Runs after EmailEmbeddingStep
+@Order(3) // Runs after DuplicateCheckStep (Order 2)
 public class MetadataExtractionStep implements PipelineStep {
 
 	@Override

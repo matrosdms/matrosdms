@@ -33,7 +33,7 @@ import net.schwehla.matrosdms.service.pipeline.PipelineStep;
 import net.schwehla.matrosdms.util.TextLayerBuilder;
 
 @Component
-@Order(3)
+@Order(4) // Primary text extraction (emails + files with scanner text)
 public class TextExtractionStep implements PipelineStep {
 
 	@Autowired

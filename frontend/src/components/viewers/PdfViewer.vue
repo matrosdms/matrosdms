@@ -166,11 +166,30 @@ const prevPage = () => { if (pageNum.value > 1) pageNum.value-- }
 const zoomIn  = () => { scale.value = Math.min(scale.value + 0.2, 4.0) }
 const zoomOut = () => { scale.value = Math.max(scale.value - 0.2, 0.5) }
 
-const condition = () => true
-useHotkeys(['ArrowRight', 'l'], nextPage, { condition })
-useHotkeys(['ArrowLeft', 'h'], prevPage, { condition })
-useHotkeys(['+', '='], zoomIn, { condition })
-useHotkeys(['-', '_'], zoomOut, { condition })
+// Skip viewer shortcuts when focus is inside an editable field.
+const isEditableElement = (el: HTMLElement | null) => {
+  if (!el) return false
+  if (el.isContentEditable) return true
+  if (el instanceof HTMLTextAreaElement) return true
+  if (el instanceof HTMLSelectElement) return true
+  if (el instanceof HTMLInputElement) {
+    const nonBlockingTypes = new Set(['button', 'checkbox', 'radio', 'range', 'color', 'file', 'submit', 'reset', 'image', 'hidden'])
+    return !nonBlockingTypes.has(el.type)
+  }
+  return false
+}
+
+const hotkeyCondition = () => {
+  if (!mounted.value) return false
+  const active = document.activeElement as HTMLElement | null
+  if (!active) return true
+  return !isEditableElement(active)
+}
+
+useHotkeys(['ArrowRight', 'l'], nextPage, { condition: hotkeyCondition })
+useHotkeys(['ArrowLeft', 'h'], prevPage, { condition: hotkeyCondition })
+useHotkeys(['+', '='], zoomIn, { condition: hotkeyCondition })
+useHotkeys(['-', '_'], zoomOut, { condition: hotkeyCondition })
 
 // ── Cleanup on unmount ───────────────────────────────────────────────────
 onUnmounted(() => { cleanup() })

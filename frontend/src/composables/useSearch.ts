@@ -45,7 +45,9 @@ export function useSearch() {
         'issued': ESearchDimension.ISSUE_DATE,
         'created': ESearchDimension.CREATED,
         'source': ESearchDimension.SOURCE,
-        'text': ESearchDimension.FULLTEXT
+        'text': ESearchDimension.FULLTEXT,
+        'uuid': ESearchDimension.UUID,
+        'id': ESearchDimension.UUID,
     }
 
     const keysPattern = Object.keys(DIMENSION_MAP).join('|')

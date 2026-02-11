@@ -6,6 +6,7 @@ import {
 } from 'lucide-vue-next'
 import { useDragDrop } from '@/composables/useDragDrop'
 import { useMatrosData } from '@/composables/useMatrosData'
+import { useDmsStore } from '@/stores/dms'
 import type { InboxFile } from '@/types/events'
 
 // ============================================================================
@@ -16,6 +17,7 @@ interface InboxItemProps {
   file: InboxFile
   isProcessing: boolean
   isDuplicate: boolean
+  isActive?: boolean
 }
 
 interface InboxItemEmits {
@@ -36,7 +38,9 @@ interface DroppedContextData {
 // PROPS & EMITS
 // ============================================================================
 
-const props = defineProps<InboxItemProps>()
+const props = withDefaults(defineProps<InboxItemProps>(), {
+  isActive: false,
+})
 const emit = defineEmits<InboxItemEmits>()
 
 // ============================================================================
@@ -45,6 +49,7 @@ const emit = defineEmits<InboxItemEmits>()
 
 const { startDrag, endDrag } = useDragDrop()
 const { contexts } = useMatrosData()
+const dms = useDmsStore()
 
 // ============================================================================
 // CONSTANTS
@@ -78,6 +83,7 @@ const lastDropTime = ref(0)
 
 const displayName = computed(() => 
   props.file.displayName || 
+  props.file.emailInfo?.subject ||
   props.file.fileInfo.originalFilename || 
   'Unknown'
 )
@@ -117,6 +123,12 @@ const contextName = computed(() => {
 })
 
 const categoryName = computed(() => prediction.value?.category)
+
+const duplicateLabel = computed(() => {
+  const uuid = props.file.doublette
+  if (!uuid) return ''
+  return uuid.length > 12 ? `${uuid.slice(0, 12)}…` : uuid
+})
 
 // ============================================================================
 // COMPUTED - STYLING
@@ -176,9 +188,10 @@ const handleDragEnd = () => {
 // DRAG & DROP - TARGET
 // ============================================================================
 
-const canAcceptDrop = computed(() => 
-  !props.isProcessing && !props.isDuplicate
-)
+const canAcceptDrop = computed(() => {
+  if (props.isProcessing || props.isDuplicate) return false
+  return dms.currentDragType === 'dms-context'
+})
 
 const handleDragEnter = () => {
   if (canAcceptDrop.value) {
@@ -251,7 +264,7 @@ const handleIgnore = (event: Event) => {
     :draggable="isDraggable"
     class="group relative flex flex-col rounded-xl transition-all border 
            select-none overflow-hidden mb-3 cursor-pointer"
-    :class="containerClass"
+        :class="[containerClass, props.isActive ? 'ring-2 ring-blue-400/80 ring-offset-2 ring-offset-white dark:ring-offset-gray-900' : '']"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
     @dragenter.prevent="handleDragEnter"
@@ -299,25 +312,36 @@ const handleIgnore = (event: Event) => {
 
       <!-- Action Buttons -->
       <div
-        v-if="!isDuplicate"
         class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
       >
-        <button
-          v-if="!isProcessing"
-          class="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-600 
-                 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 rounded-md 
-                 transition-colors"
-          title="Re-run AI Analysis"
-          @click="handleAnalyze"
-        >
-          <Sparkles :size="16" />
-        </button>
+        <template v-if="!isDuplicate">
+          <button
+            v-if="!isProcessing"
+            class="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-600 
+                   dark:hover:bg-blue-900/30 dark:hover:text-blue-400 rounded-md 
+                   transition-colors"
+            title="Re-run AI Analysis"
+            @click="handleAnalyze"
+          >
+            <Sparkles :size="16" />
+          </button>
 
+          <button
+            class="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 
+                   dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-md 
+                   transition-colors"
+            title="Ignore"
+            @click="handleIgnore"
+          >
+            <Ban :size="16" />
+          </button>
+        </template>
         <button
-          class="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 
-                 dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-md 
+          v-else
+          class="p-1.5 hover:bg-orange-50 text-orange-500 hover:text-orange-700 
+                 dark:hover:bg-orange-900/30 dark:text-orange-400 rounded-md 
                  transition-colors"
-          title="Ignore"
+          title="Remove duplicate"
           @click="handleIgnore"
         >
           <Ban :size="16" />
@@ -372,9 +396,16 @@ const handleIgnore = (event: Event) => {
           </span>
           <span
             v-else-if="isDuplicate"
-            class="text-orange-600 dark:text-orange-400 font-bold uppercase"
+            class="text-orange-600 dark:text-orange-400 font-bold uppercase flex items-center gap-1"
           >
-            Duplicate
+            <AlertTriangle :size="10" /> Duplicate
+          </span>
+          <span
+            v-if="isDuplicate && file.doublette"
+            class="mt-0.5 text-[10px] text-orange-500/80 dark:text-orange-400/60 font-normal cursor-pointer hover:underline"
+            :title="`Click to open existing document (${file.doublette})`"
+          >
+            duplicate of {{ duplicateLabel }}
           </span>
         </div>
 

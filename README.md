@@ -196,6 +196,7 @@ mvn install
 ```
 
 For development (backend only, faster):
+
 ```bash
 mvn install -DskipFrontend
 ```
@@ -217,12 +218,12 @@ This compiles the backend (Java 21), bundles the Vue 3 UI, and creates:
 
 ### Custom Builds
 
-|             Command              |             What it does             |
-|----------------------------------|--------------------------------------|
-| `mvn install`                    | **Full build** (Backend + Frontend + Windows .exe) |
-| `mvn install -DskipFrontend`     | Backend only (fast, ~15s) — for development |
-| `mvn install -Prelease`          | Full release with CLI tools          |
-| `mvn clean`                      | Clean build artifacts                |
+|           Command            |                    What it does                    |
+|------------------------------|----------------------------------------------------|
+| `mvn install`                | **Full build** (Backend + Frontend + Windows .exe) |
+| `mvn install -DskipFrontend` | Backend only (fast, ~15s) — for development        |
+| `mvn install -Prelease`      | Full release with CLI tools                        |
+| `mvn clean`                  | Clean build artifacts                              |
 
 ---
 

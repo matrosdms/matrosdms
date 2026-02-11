@@ -62,11 +62,12 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 
 	@PostConstruct
 	public void init() {
-        // OPTIMIZATION: Configurable Concurrency
-        int permits = appConfig.getAi().getConcurrency();
-        if (permits < 1) permits = 1;
-        this.gpuLock = new Semaphore(permits);
-        log.info("AI: Ollama Concurrency Level: {}", permits);
+		// OPTIMIZATION: Configurable Concurrency
+		int permits = appConfig.getAi().getConcurrency();
+		if (permits < 1)
+			permits = 1;
+		this.gpuLock = new Semaphore(permits);
+		log.info("AI: Ollama Concurrency Level: {}", permits);
 
 		try {
 			promptTemplate = new String(promptResource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);

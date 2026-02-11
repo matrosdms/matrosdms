@@ -17,7 +17,7 @@ import net.schwehla.matrosdms.service.pipeline.PipelineContext;
 import net.schwehla.matrosdms.service.pipeline.PipelineStep;
 
 @Component
-@Order(4) // CHANGED: Was 3
+@Order(6)
 public class AiPredictionStep implements PipelineStep {
 
 	@Autowired

@@ -72,17 +72,17 @@ public class AppServerSpringConfig {
 		private ClassificationConfig classification = new ClassificationConfig();
 		private StrategyConfig chat = new StrategyConfig();
 		private EmbeddingConfig embedding = new EmbeddingConfig();
-        
-        // NEW: Concurrency setting for AI
-        private int concurrency = 2;
 
-        public int getConcurrency() {
-            return concurrency;
-        }
+		// NEW: Concurrency setting for AI
+		private int concurrency = 2;
 
-        public void setConcurrency(int concurrency) {
-            this.concurrency = concurrency;
-        }
+		public int getConcurrency() {
+			return concurrency;
+		}
+
+		public void setConcurrency(int concurrency) {
+			this.concurrency = concurrency;
+		}
 
 		public ClassificationConfig getClassification() {
 			return classification;
@@ -203,9 +203,9 @@ public class AppServerSpringConfig {
 		private boolean convertTextToPdf = true;
 		private boolean preferScannerText = true;
 		private int concurrency = 4; // BUMPED DEFAULT TO 4
-        
-        // NEW: Specific limit for heavy OCR/PDF operations
-        private int ocrConcurrency = 4; 
+
+		// NEW: Specific limit for heavy OCR/PDF operations
+		private int ocrConcurrency = 4;
 
 		public boolean isConvertTextToPdf() {
 			return convertTextToPdf;
@@ -231,13 +231,13 @@ public class AppServerSpringConfig {
 			this.concurrency = concurrency;
 		}
 
-        public int getOcrConcurrency() {
-            return ocrConcurrency;
-        }
+		public int getOcrConcurrency() {
+			return ocrConcurrency;
+		}
 
-        public void setOcrConcurrency(int ocrConcurrency) {
-            this.ocrConcurrency = ocrConcurrency;
-        }
+		public void setOcrConcurrency(int ocrConcurrency) {
+			this.ocrConcurrency = ocrConcurrency;
+		}
 	}
 
 	public static class Server {

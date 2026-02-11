@@ -23,7 +23,7 @@ import net.schwehla.matrosdms.service.pipeline.PipelineStep;
 import net.schwehla.matrosdms.util.TextLayerBuilder;
 
 @Component
-@Order(3) // CHANGED: Was 2
+@Order(5) // Fallback: Runs after TextExtractionStep (Order 4) for files without text
 public class TikaOcrStep implements PipelineStep {
 
 	@Autowired

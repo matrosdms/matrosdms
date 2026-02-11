@@ -118,7 +118,9 @@ export function useServerEvents() {
                     workflow.upsertLiveFile({
                         sha256: prog.sha256,
                         status: 'PROCESSING',
-                        progressMessage: prog.info
+                        progressMessage: prog.info,
+                        // Preserve filename from backend so UI never shows "Unknown"
+                        ...(prog.filename ? { fileInfo: { originalFilename: prog.filename } } : {})
                     });
                 }
             }

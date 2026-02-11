@@ -19,8 +19,8 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "ItemMetadata", indexes = {
-        @Index(name = "idx_meta_original", columnList = "sha256Original", unique = true),
-        @Index(name = "idx_meta_canonical", columnList = "sha256_canonical", unique = true)
+		@Index(name = "idx_meta_original", columnList = "sha256Original", unique = true),
+		@Index(name = "idx_meta_canonical", columnList = "sha256_canonical", unique = true)
 })
 /**
  * Space for the physical files
