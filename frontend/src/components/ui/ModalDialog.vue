@@ -1,12 +1,17 @@
-<script setup>
+<script setup lang="ts">
 import { X } from 'lucide-vue-next'
 
-defineProps({
-  isOpen: Boolean,
-  title: String
-})
+defineProps<{
+  isOpen: boolean
+  title?: string
+}>()
 
 defineEmits(['close', 'submit'])
+
+defineSlots<{
+  default(props: {}): any
+  footer(props: {}): any
+}>()
 </script>
 
 <template>
@@ -33,12 +38,14 @@ defineEmits(['close', 'submit'])
 
         <!-- Footer -->
         <div class="flex justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
-          <button @click="$emit('close')" class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-200">
-            Cancel
-          </button>
-          <button @click="$emit('submit')" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
-            Save Changes
-          </button>
+          <slot name="footer">
+            <button @click="$emit('close')" class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-200">
+                Cancel
+            </button>
+            <button @click="$emit('submit')" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
+                Save Changes
+            </button>
+          </slot>
         </div>
       </div>
     </div>

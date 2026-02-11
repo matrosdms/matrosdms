@@ -313,10 +313,10 @@ const columns: ColumnDef<any>[] = [
     const date = parseBackendDate(info.getValue())
     return h('span', { class: 'text-xs text-muted-foreground font-mono' }, date ? date.toLocaleDateString() : '-')
   } },
-  { accessorKey: 'kindList', header: () => createHeaderIcon(Tag, 'Type'), ...COLUMN_SIZES.TYPE, cell: (info) => h('span', { class: 'text-xs truncate' }, info.getValue()?.[0]?.name || '-') },
+  { accessorKey: 'kindList', header: () => createHeaderIcon(Tag, 'Type'), ...COLUMN_SIZES.TYPE, cell: (info) => h('span', { class: 'text-xs truncate' }, (info.getValue() as any[])?.[0]?.name || '-') },
   { accessorKey: 'name', header: () => createHeaderIcon(FileText, 'Name'), ...COLUMN_SIZES.NAME, cell: (info) => createNameCell(info) },
-  { accessorKey: 'storeIdentifier', header: () => createHeaderIcon(Box, 'Store'), ...COLUMN_SIZES.STORE, cell: (info) => h('span', { class: 'text-xs text-muted-foreground truncate' }, storeMap.value.get(info.getValue()) || '-') },
-  { accessorKey: 'stage', header: () => createHeaderIcon(Activity, 'Stage'), ...COLUMN_SIZES.STAGE, cell: (info) => h('span', { class: 'text-xs' }, info.getValue()) }
+  { accessorKey: 'storeIdentifier', header: () => createHeaderIcon(Box, 'Store'), ...COLUMN_SIZES.STORE, cell: (info) => h('span', { class: 'text-xs text-muted-foreground truncate' }, storeMap.value.get(info.getValue() as string) || '-') },
+  { accessorKey: 'stage', header: () => createHeaderIcon(Activity, 'Stage'), ...COLUMN_SIZES.STAGE, cell: (info) => h('span', { class: 'text-xs' }, String(info.getValue())) }
 ]
 
 const listPaneSize = computed(() => !props.layout ? (dms.selectedItem ? SPLIT_LAYOUT.defaultList : SPLIT_LAYOUT.maxSize) : props.layout[0])
