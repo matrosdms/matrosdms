@@ -28,33 +28,28 @@ public class SseEventListener {
 	@Async
 	@EventListener
 	public void handleFileDetected(FileDetectedEvent event) {
-		// New file arrived -> Add to List
 		messageBus.sendMessageToGUI(EBroadcastSource.INBOX, EBroadcastType.FILE_ADDED, event.file());
 	}
 
 	@Async
 	@EventListener
 	public void handleProgress(PipelineProgressEvent event) {
-		// Progress Tick -> Update Progress Bar / Status Text
+        // FIX: Map filename from event to message
 		messageBus.sendMessageToGUI(
 				EBroadcastSource.PIPELINE,
 				EBroadcastType.PROGRESS,
-				new ProgressMessage(event.sha256(), event.info(), event.step(), event.totalSteps()));
+				new ProgressMessage(event.sha256(), event.filename(), event.info(), event.step(), event.totalSteps()));
 	}
 
 	@Async
 	@EventListener
 	public void handleStatusUpdate(PipelineStatusEvent event) {
-		// FIX: Change Source to INBOX.
-		// This forces the Frontend List to merge the new Metadata (Subject, Date)
-		// immediately.
 		messageBus.sendMessageToGUI(EBroadcastSource.INBOX, EBroadcastType.STATUS, event.payload());
 	}
 
 	@Async
 	@EventListener
 	public void handleResult(PipelineResultEvent event) {
-		// Final Result -> Update List (Ready state)
 		messageBus.sendMessageToGUI(EBroadcastSource.INBOX, EBroadcastType.STATUS, event.result());
 	}
 

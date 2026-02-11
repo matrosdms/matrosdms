@@ -15,8 +15,8 @@ public class PipelineEvents {
 	public record FileDetectedEvent(InboxFile file) {
 	}
 
-	// 2. Progress Tick (Step 1/3, 2/3...)
-	public record PipelineProgressEvent(String sha256, String info, int step, int totalSteps) {
+	// 2. Progress Tick (Step 1/3, 2/3...) - ADDED FILENAME
+	public record PipelineProgressEvent(String sha256, String filename, String info, int step, int totalSteps) {
 	}
 
 	// 3. Metadata Enriched (Subject/From found)

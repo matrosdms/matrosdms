@@ -1207,6 +1207,7 @@ export interface components {
             mimetype?: string;
             filename?: string;
             sha256?: string;
+            sha256Canonical?: string;
             /** Format: int64 */
             filesize?: number;
             textLayer?: string;
@@ -1238,8 +1239,7 @@ export interface components {
             textParsed?: boolean;
             /** Format: int32 */
             count?: number;
-            /** @description True if the item is archived */
-            readonly archived?: boolean;
+            hasTextLayer?: boolean;
         };
         UpdateContextMessage: {
             name: string;
@@ -1420,10 +1420,10 @@ export interface components {
             highlight?: string;
         };
         PageMSearchResult: {
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MSearchResult"][];
@@ -1441,11 +1441,11 @@ export interface components {
             /** Format: int64 */
             offset?: number;
             sort?: components["schemas"]["SortObject"];
-            paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
+            paged?: boolean;
             unpaged?: boolean;
         };
         SortObject: {
@@ -1652,10 +1652,10 @@ export interface components {
             status?: components["schemas"]["EJobStatus"];
         };
         PageJobMessage: {
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["JobMessage"][];
@@ -1675,10 +1675,10 @@ export interface components {
          */
         EArchiveFilter: "ALL" | "ACTIVE_ONLY" | "ARCHIVED_ONLY";
         PageMItem: {
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MItem"][];
@@ -1713,10 +1713,10 @@ export interface components {
          */
         EBroadcastType: "FILE_ADDED" | "STATUS" | "PROGRESS" | "COMPLETE" | "ERROR";
         PageMAction: {
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MAction"][];

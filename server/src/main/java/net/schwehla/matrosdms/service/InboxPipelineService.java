@@ -70,9 +70,12 @@ public class InboxPipelineService {
 				PipelineStep step = pipelineSteps.get(i);
 				int currentStep = i + 1;
 				ctx.setCurrentStepIndex(currentStep);
+                
+                // FIX: Added 'originalName' to the constructor to match the new PipelineProgressEvent signature
 				publisher.publishEvent(
 						new PipelineProgressEvent(
-								hash, "Step " + currentStep + "/" + totalSteps, currentStep, totalSteps));
+								hash, originalName, "Step " + currentStep + "/" + totalSteps, currentStep, totalSteps));
+                                
 				step.execute(ctx);
 			}
 

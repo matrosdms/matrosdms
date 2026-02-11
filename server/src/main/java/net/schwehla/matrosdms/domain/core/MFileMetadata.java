@@ -13,7 +13,13 @@ public class MFileMetadata {
 
 	String mimetype;
 	String filename;
+    
+    // Maps to sha256Original (The Upload Hash)
 	String sha256;
+    
+    // Maps to sha256Canonical (The Processed/Downloadable Hash)
+    String sha256Canonical;
+
 	Long filesize;
 
 	transient String textLayer;
@@ -41,6 +47,14 @@ public class MFileMetadata {
 	public void setSha256(String sha256) {
 		this.sha256 = sha256;
 	}
+
+    public String getSha256Canonical() {
+        return sha256Canonical;
+    }
+
+    public void setSha256Canonical(String sha256Canonical) {
+        this.sha256Canonical = sha256Canonical;
+    }
 
 	public String getMimetype() {
 		return mimetype;

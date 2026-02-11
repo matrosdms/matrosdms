@@ -42,6 +42,7 @@ import net.schwehla.matrosdms.service.InboxPipelineService;
 import net.schwehla.matrosdms.service.mapper.MItemMapper;
 import net.schwehla.matrosdms.service.message.CreateItemMessage;
 import net.schwehla.matrosdms.service.message.PipelineStatusMessage;
+import net.schwehla.matrosdms.store.FileUtils;
 import net.schwehla.matrosdms.store.MatrosObjectStoreService;
 import net.schwehla.matrosdms.store.StoreResult;
 import net.schwehla.matrosdms.util.UUIDProvider;
@@ -51,28 +52,18 @@ public class ItemIngestionFacade {
 
 	private static final Logger log = LoggerFactory.getLogger(ItemIngestionFacade.class);
 
-	@Autowired
-	ItemRepository itemRepository;
-	@Autowired
-	ContextRepository contextRepository;
-	@Autowired
-	UserRepository userRepository;
-	@Autowired
-	MItemMapper itemMapper;
-	@Autowired
-	InboxPipelineService pipelineService;
-	@Autowired
-	MatrosObjectStoreService storeService;
-	@Autowired
-	InboxFileManager inboxManager;
-	@Autowired
-	Scheduler scheduler;
-	@Autowired
-	Task<Long> indexItemTask;
-	@Autowired
-	ObjectMapper objectMapper;
-	@Autowired
-	UUIDProvider uuidProvider;
+	@Autowired ItemRepository itemRepository;
+	@Autowired ContextRepository contextRepository;
+	@Autowired UserRepository userRepository;
+	@Autowired MItemMapper itemMapper;
+	@Autowired InboxPipelineService pipelineService;
+	@Autowired MatrosObjectStoreService storeService;
+	@Autowired InboxFileManager inboxManager;
+	@Autowired Scheduler scheduler;
+	@Autowired Task<Long> indexItemTask;
+	@Autowired ObjectMapper objectMapper;
+	@Autowired UUIDProvider uuidProvider;
+    @Autowired FileUtils fileUtils;
 
 	@Transactional
 	@Caching(evict = {
@@ -82,7 +73,6 @@ public class ItemIngestionFacade {
 	})
 	public MItem ingestItem(CreateItemMessage itemMessage) {
 
-		// FIX: Use .getSha256()
 		log.info("FACADE: Starting ingestion for Inbox File Hash: {}", itemMessage.getSha256());
 
 		DBContext dbContext = contextRepository
@@ -100,7 +90,6 @@ public class ItemIngestionFacade {
 		dbItem.setUser(dbUser);
 		dbItem.setInfoContext(dbContext);
 
-		// FIX: Use .getSha256()
 		PipelineStatusMessage result = pipelineService.getOrWaitForResult(itemMessage.getSha256());
 
 		if (result == null || result.getStatus() == EPipelineStatus.ERROR) {
@@ -123,15 +112,17 @@ public class ItemIngestionFacade {
 		String filename = state != null ? state.getFileInfo().getOriginalFilename() : "unknown";
 		String mimetype = state != null ? state.getFileInfo().getContentType() : "application/octet-stream";
 		String extension = state != null ? state.getFileInfo().getExtension() : ".bin";
-		String hash = state != null ? state.getSha256() : "unknown";
+		String hashOriginal = state != null ? state.getSha256() : "unknown";
 
 		metadata.setFilename(filename);
 		metadata.setMimetype(mimetype);
-		metadata.setSha256Original(hash);
+        
+        // 1. Set Gatekeeper Hash
+		metadata.setSha256Original(hashOriginal);
 
 		try {
-			Path processedFile = pipelineService.getProcessedFile(hash, extension);
-			Path textFile = pipelineService.getTextLayerFile(hash);
+			Path processedFile = pipelineService.getProcessedFile(hashOriginal, extension);
+			Path textFile = pipelineService.getTextLayerFile(hashOriginal);
 
 			if (Files.exists(textFile) && Files.size(textFile) > 0) {
 				dbItem.setTextParsed(true);
@@ -139,11 +130,18 @@ public class ItemIngestionFacade {
 				dbItem.setTextParsed(false);
 			}
 
+            // 2. Calculate Canonical Hash (The file after processing, before encryption)
+            String hashCanonical = fileUtils.getSHA256(processedFile);
+            metadata.setSha256Canonical(hashCanonical);
+
+            // 3. Store (Encrypts file)
 			StoreResult storeResult = storeService.persist(processedFile, textFile, dbItem.getUuid(), filename);
 
+            // 4. Set Vault Guard Hash
 			metadata.setFilesize(Files.size(processedFile));
-			metadata.setSha256Crypted(storeResult.getSHA256());
+			metadata.setSha256Stored(storeResult.getSHA256());
 			metadata.setCryptSettings(storeResult.getCryptSettings());
+            
 			dbItem.setFile(metadata);
 
 			DBItem saved = itemRepository.save(dbItem);
@@ -151,8 +149,8 @@ public class ItemIngestionFacade {
 			scheduler.schedule(
 					indexItemTask.instance("idx-" + saved.getUuid(), saved.getId()), Instant.now());
 
-			inboxManager.moveToProcessed(hash);
-			pipelineService.cleanup(hash);
+			inboxManager.moveToProcessed(hashOriginal);
+			pipelineService.cleanup(hashOriginal);
 
 			return itemMapper.entityToModel(saved);
 

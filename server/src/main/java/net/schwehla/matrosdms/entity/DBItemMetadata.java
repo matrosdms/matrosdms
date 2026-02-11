@@ -12,13 +12,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "ItemMetadata")
-
+@Table(name = "ItemMetadata", indexes = {
+        @Index(name = "idx_meta_original", columnList = "sha256Original", unique = true),
+        @Index(name = "idx_meta_canonical", columnList = "sha256_canonical", unique = true)
+})
 /**
  * Space for the physical files
  *
@@ -46,13 +49,22 @@ public class DBItemMetadata {
 	@Column(nullable = false, unique = false)
 	String mimetype;
 
-	// SHA shall not be equal for same file
+	// --- 1. THE GATEKEEPER ---
+	// SHA shall not be equal for same file (Raw Upload)
 	@Column(nullable = false, unique = true, updatable = false)
 	String sha256Original;
 
-	// SHA shall not be equal for same file
-	@Column(nullable = false, unique = true, updatable = false)
-	String sha256Crypted;
+	// --- 2. THE CANONICAL STATE ---
+	// Hash of the file AFTER metadata injection but BEFORE encryption
+	// Detects re-uploads of files downloaded from the DMS
+	@Column(name = "sha256_canonical", nullable = false, unique = true)
+	String sha256Canonical;
+
+	// --- 3. THE VAULT GUARD ---
+	// Hash of the file on disk (Encrypted). Checks physical integrity.
+	// Mapped to legacy column name for compatibility
+	@Column(name = "sha256crypted", nullable = false)
+	String sha256Stored;
 
 	@Column(nullable = false, unique = false)
 	String cryptSettings;
@@ -73,12 +85,20 @@ public class DBItemMetadata {
 		this.sha256Original = sha256Original;
 	}
 
-	public String getSha256Crypted() {
-		return sha256Crypted;
+	public String getSha256Canonical() {
+		return sha256Canonical;
 	}
 
-	public void setSha256Crypted(String sha256Crypted) {
-		this.sha256Crypted = sha256Crypted;
+	public void setSha256Canonical(String sha256Canonical) {
+		this.sha256Canonical = sha256Canonical;
+	}
+
+	public String getSha256Stored() {
+		return sha256Stored;
+	}
+
+	public void setSha256Stored(String sha256Stored) {
+		this.sha256Stored = sha256Stored;
 	}
 
 	public String getCryptSettings() {

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Calendar, FileText, ArrowDown, Tag, GripVertical } from 'lucide-vue-next'
+import { Calendar, FileText, ArrowDown, Tag, GripVertical, Box, Hash } from 'lucide-vue-next'
 import { parseBackendDate } from '@/lib/utils'
 import { useDmsStore } from '@/stores/dms'
 import { useDragDrop } from '@/composables/useDragDrop'
+import { useAdminQueries } from '@/composables/queries/useAdminQueries'
 
 const props = defineProps<{
   items: any[]
@@ -12,18 +13,16 @@ const props = defineProps<{
 const emit = defineEmits(['select'])
 const dms = useDmsStore()
 const { startDrag, endDrag } = useDragDrop()
+const { useStores } = useAdminQueries()
+const { data: stores } = useStores()
 
-// ============================================================================
-// DRAG & DROP
-// ============================================================================
-
-const handleDragStart = (event: DragEvent, item: any) => {
-  startDrag(event, 'dms-item', item)
-}
-
-const handleDragEnd = () => {
-  endDrag()
-}
+const storeMap = computed(() => {
+    const map = new Map<string, string>()
+    if (stores.value) {
+        stores.value.forEach((s: any) => map.set(s.uuid, s.shortname || s.name))
+    }
+    return map
+})
 
 // Helper: Calculate gap between dates
 const getGapText = (current: Date, prev: Date) => {
@@ -53,8 +52,17 @@ const timelineItems = computed(() => {
       const prevDate = parseBackendDate(sorted[index - 1].issueDate)
       if (prevDate) gapText = getGapText(date, prevDate)
     }
+    
+    // Resolve store name
+    const storeName = item.storeIdentifier ? storeMap.value.get(item.storeIdentifier) : null
+    
+    // Process Attributes (extract first 3 key/value pairs for display)
+    const topAttributes = item.attributeList ? item.attributeList.slice(0, 3).map((attr: any) => ({
+        name: attr.name,
+        value: attr.value?.value || attr.value
+    })) : []
 
-    return { ...item, _dateObj: date, _gap: gapText }
+    return { ...item, _dateObj: date, _gap: gapText, _storeName: storeName, _topAttributes: topAttributes }
   })
 })
 
@@ -63,6 +71,10 @@ const onItemClick = (item: any) => {
     dms.setSelectedItem(item)
     // Delegate action to parent
     emit('select', item)
+}
+
+const handleDragStart = (event: DragEvent, item: any) => {
+  startDrag(event, 'dms-item', item)
 }
 </script>
 
@@ -93,10 +105,11 @@ const onItemClick = (item: any) => {
             @click="onItemClick(item)"
             draggable="true"
             @dragstart="handleDragStart($event, item)"
-            @dragend="handleDragEnd"
+            @dragend="endDrag"
             class="bg-white dark:bg-gray-800 border rounded-lg p-3 shadow-sm hover:shadow-md cursor-pointer transition-all relative top-0 hover:-top-0.5 group-hover:border-blue-300 dark:group-hover:border-blue-700"
             :class="dms.selectedItem?.uuid === item.uuid ? 'ring-1 ring-blue-500 border-blue-500 dark:border-blue-500' : 'border-gray-200 dark:border-gray-700'"
         >
+            <!-- Top Row: Date & Kind -->
             <div class="flex justify-between items-start mb-1.5">
                 <div class="flex items-center gap-1.5">
                     <GripVertical :size="12" class="text-gray-300 dark:text-gray-600 cursor-grab active:cursor-grabbing" />
@@ -111,6 +124,7 @@ const onItemClick = (item: any) => {
                 </span>
             </div>
 
+            <!-- Main Content: Name -->
             <h3 class="text-xs font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-1 leading-tight">
                 <FileText :size="14" class="text-blue-500 dark:text-blue-400 shrink-0" />
                 <span class="truncate">{{ item.name }}</span>
@@ -119,6 +133,23 @@ const onItemClick = (item: any) => {
             <p v-if="item.description" class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 pl-5 mt-1 leading-snug">
                 {{ item.description }}
             </p>
+
+            <!-- Metadata Row (Store, Attributes) -->
+            <div v-if="item._storeName || item.storeItemNumber || item._topAttributes.length > 0" class="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex flex-wrap gap-2 pl-5">
+                
+                <!-- Store Pill -->
+                <div v-if="item._storeName" class="flex items-center gap-1 text-[9px] font-medium bg-orange-50 dark:bg-orange-900/10 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded border border-orange-100 dark:border-orange-800">
+                    <Box :size="10" />
+                    {{ item._storeName }} <span v-if="item.storeItemNumber">#{{ item.storeItemNumber }}</span>
+                </div>
+
+                <!-- Attributes Pills -->
+                <div v-for="attr in item._topAttributes" :key="attr.name" class="flex items-center gap-1 text-[9px] text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700">
+                    <Hash :size="10" class="opacity-50" />
+                    <span class="opacity-70">{{ attr.name }}:</span> 
+                    <span class="font-bold">{{ attr.value }}</span>
+                </div>
+            </div>
         </div>
       </div>
       

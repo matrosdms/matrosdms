@@ -72,6 +72,17 @@ public class AppServerSpringConfig {
 		private ClassificationConfig classification = new ClassificationConfig();
 		private StrategyConfig chat = new StrategyConfig();
 		private EmbeddingConfig embedding = new EmbeddingConfig();
+        
+        // NEW: Concurrency setting for AI
+        private int concurrency = 2;
+
+        public int getConcurrency() {
+            return concurrency;
+        }
+
+        public void setConcurrency(int concurrency) {
+            this.concurrency = concurrency;
+        }
 
 		public ClassificationConfig getClassification() {
 			return classification;
@@ -190,11 +201,11 @@ public class AppServerSpringConfig {
 
 	public static class Processing {
 		private boolean convertTextToPdf = true;
-
-		// NEW: Prefer existing text layer (Smart OCR for ScanSnap)
 		private boolean preferScannerText = true;
-
-		private int concurrency = 2;
+		private int concurrency = 4; // BUMPED DEFAULT TO 4
+        
+        // NEW: Specific limit for heavy OCR/PDF operations
+        private int ocrConcurrency = 4; 
 
 		public boolean isConvertTextToPdf() {
 			return convertTextToPdf;
@@ -219,12 +230,19 @@ public class AppServerSpringConfig {
 		public void setConcurrency(int concurrency) {
 			this.concurrency = concurrency;
 		}
+
+        public int getOcrConcurrency() {
+            return ocrConcurrency;
+        }
+
+        public void setOcrConcurrency(int ocrConcurrency) {
+            this.ocrConcurrency = ocrConcurrency;
+        }
 	}
 
 	public static class Server {
 		Cache cache = new Cache();
 		Inbox inbox = new Inbox();
-		// REMOVED: Upload upload = new Upload();
 		Processed processed = new Processed();
 		Inbox ignored = new Inbox();
 		Inbox temp = new Inbox();

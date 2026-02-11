@@ -1,7 +1,7 @@
 import { client } from '@/api/client'
 import { ItemSchema, ItemListSchema } from '@/schemas'
 import { getErrorMessage } from '@/lib/utils'
-import { EArchiveFilter } from '@/enums'
+import { EArchiveFilter, type EArchiveFilterType } from '@/enums'
 import type { Item } from '@/types/models'
 import type { components } from '@/types/schema'
 
@@ -21,7 +21,7 @@ const throwWithCode = (error: any) => {
 
 export const ItemService = {
   
-  async getByContext(contextId: string): Promise<Item[]> {
+  async getByContext(contextId: string, archiveState: EArchiveFilterType = EArchiveFilter.ACTIVE_ONLY): Promise<Item[]> {
       const allItems: any[] = []
       let page = 0
       let hasNext = true
@@ -32,8 +32,8 @@ export const ItemService = {
               params: {
                   query: { 
                       context: contextId, 
-                      // Use EArchiveFilter to only get non-archived (soft-deleted) items
-                      archiveState: EArchiveFilter.ACTIVE_ONLY,
+                      // Explicitly pass the filter (Active vs Archived)
+                      archiveState: archiveState,
                       page: page,
                       size: 50,
                       sort: ['issueDate,desc'] 
@@ -67,8 +67,6 @@ export const ItemService = {
   async getById(uuid: string): Promise<Item> {
     const { data, error } = await client.GET("/api/items/{uuid}", { params: { path: { uuid } } })
     if (error) throwWithCode(error)
-    
-    // Validate single item
     return ItemSchema.parse(data) as Item
   },
 
@@ -88,17 +86,24 @@ export const ItemService = {
 
   /**
    * Soft-delete (Archive) an item.
-   * Maps to DELETE /api/items/{uuid} in OpenAPI.
-   * Item remains in DB but dateArchived is set.
+   * Maps to DELETE /api/items/{uuid}
    */
   async delete(uuid: string) {
     const { error } = await client.DELETE('/api/items/{uuid}', { params: { path: { uuid } } })
     if (error) throwWithCode(error)
   },
   
-  // Alias for readability
+  // Alias
   async archive(uuid: string) {
     return this.delete(uuid)
+  },
+
+  /**
+   * Restore an archived item to active state.
+   */
+  async restore(uuid: string) {
+      const { error } = await client.POST('/api/items/{uuid}/restore', { params: { path: { uuid } } })
+      if (error) throwWithCode(error)
   },
 
   /**
@@ -110,7 +115,36 @@ export const ItemService = {
       if (error) throwWithCode(error)
   },
   
-  // FIX: Using client.GET with parseAs: 'blob' ensures Token Refresh logic works
+  /**
+   * Get the extracted text layer (OCR) for an item.
+   */
+  async getRawText(uuid: string): Promise<string> {
+      const { data, error } = await client.GET("/api/items/{uuid}/text", {
+          params: { path: { uuid } },
+          parseAs: "text"
+      });
+      if (error) throwWithCode(error);
+      return data || "";
+  },
+
+  /**
+   * Run an AI transformation on the item content.
+   */
+  async aiTransform(uuid: string, instruction: 'SUMMARY' | 'KEY_FACTS' | 'action_items' | 'proofread', format: 'TEXT' | 'MARKDOWN' | 'JSON' = 'MARKDOWN'): Promise<string> {
+      // Map lowercase inputs to UpperCase Enums if needed
+      const safeInstruction = instruction.toUpperCase() as any;
+      
+      const { data, error } = await client.POST("/api/items/{uuid}/ai/transform", {
+          params: { 
+              path: { uuid },
+              query: { instruction: safeInstruction, format }
+          },
+          parseAs: "text"
+      });
+      if (error) throwWithCode(error);
+      return data || "";
+  },
+
   async getDocumentBlob(uuid: string): Promise<{ blob: Blob, type: string }> {
       const { data, error, response } = await client.GET("/api/items/{uuid}/content", {
           params: { path: { uuid } },
@@ -126,10 +160,6 @@ export const ItemService = {
       };
   },
 
-  /**
-   * Get thumbnail URL for an item. 
-   * Returns the URL directly for use in <img> tags.
-   */
   getThumbnailUrl(uuid: string): string {
       return `/api/items/${uuid}/thumbnail`
   },

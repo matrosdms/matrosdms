@@ -48,7 +48,7 @@ public class PipelineContext {
 
 		// Init State
 		this.currentState = new InboxFile();
-		this.currentState.setSha256(hash); // Set standardized SHA
+		this.currentState.setSha256(hash);
 		this.currentState.getFileInfo().setOriginalFilename(originalFilename);
 
 		this.aiResult = new DigestResultMessage();
@@ -56,8 +56,9 @@ public class PipelineContext {
 
 	public void log(String message) {
 		if (publisher != null) {
+            // FIX: Pass getDisplayFilename() to the event
 			publisher.publishEvent(
-					new PipelineProgressEvent(hash, message, currentStepIndex, totalSteps));
+					new PipelineProgressEvent(hash, getDisplayFilename(), message, currentStepIndex, totalSteps));
 		}
 	}
 

@@ -5,7 +5,7 @@ import { useFilterStore } from './filter'
 import { useWorkflowStore } from './workflow'
 import { useClipboardStore } from './clipboard'
 import { useUIStore } from '@/stores/ui'
-import { ViewMode } from '@/enums'
+import { ViewMode, EArchiveFilter, type EArchiveFilterType } from '@/enums'
 import type { Item, Context } from '@/types/models'
 
 /**
@@ -18,6 +18,18 @@ export const useDmsStore = defineStore('dms', () => {
   const workflow = useWorkflowStore()
   const clipboard = useClipboardStore()
   const ui = useUIStore()
+
+  // --- NEW: Archive/Trash View State ---
+  const archiveViewMode = ref<EArchiveFilterType>(EArchiveFilter.ACTIVE_ONLY)
+
+  function toggleArchiveView() {
+      archiveViewMode.value = archiveViewMode.value === EArchiveFilter.ACTIVE_ONLY 
+          ? EArchiveFilter.ARCHIVED_ONLY 
+          : EArchiveFilter.ACTIVE_ONLY
+      
+      // Reset selection to prevent actions on invisible items
+      setSelectedItem(null)
+  }
 
   // --- 1. Selection Coordination ---
   function setSelectedContext(contextObj: Context | null) {
@@ -37,7 +49,7 @@ export const useDmsStore = defineStore('dms', () => {
 
   function setActiveContext(ctx: string) {
       filter.setActiveContext(ctx as any)
-      // Clear category selection when changing main dimension, but preserve context selection
+      // Clear category selection when changing main dimension
       selection.clearSelectedCategory()
   }
 
@@ -51,6 +63,10 @@ export const useDmsStore = defineStore('dms', () => {
     // Export Stack from Clipboard Store
     itemStack: computed(() => clipboard.stack),
     currentDragType: computed(() => workflow.currentDragType),
+    
+    // Archive/Trash State
+    archiveViewMode,
+    toggleArchiveView,
 
     // Actions (Proxied)
     setSelectedCategory: selection.setSelectedCategory,

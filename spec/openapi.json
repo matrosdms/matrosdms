@@ -7417,14 +7417,14 @@
 								"empty": {
 									"type": "boolean"
 								},
-								"selfAndTransitiveParents": {
+								"allTransitiveChildren": {
 									"type": "array",
 									"items": {
 										"$ref": "#/components/schemas/MCategory"
 									},
 									"uniqueItems": true
 								},
-								"allTransitiveChildren": {
+								"selfAndTransitiveParents": {
 									"type": "array",
 									"items": {
 										"$ref": "#/components/schemas/MCategory"
@@ -7455,6 +7455,9 @@
 						"type": "string"
 					},
 					"sha256": {
+						"type": "string"
+					},
+					"sha256Canonical": {
 						"type": "string"
 					},
 					"filesize": {
@@ -7527,14 +7530,14 @@
 							"empty": {
 								"type": "boolean"
 							},
-							"selfAndTransitiveParents": {
+							"allTransitiveChildren": {
 								"type": "array",
 								"items": {
 									"$ref": "#/components/schemas/MCategory"
 								},
 								"uniqueItems": true
 							},
-							"allTransitiveChildren": {
+							"selfAndTransitiveParents": {
 								"type": "array",
 								"items": {
 									"$ref": "#/components/schemas/MCategory"
@@ -7586,10 +7589,8 @@
 						"type": "integer",
 						"format": "int32"
 					},
-					"archived": {
-						"type": "boolean",
-						"description": "True if the item is archived",
-						"readOnly": true
+					"hasTextLayer": {
+						"type": "boolean"
 					}
 				}
 			},
@@ -8124,13 +8125,13 @@
 			"PageMSearchResult": {
 				"type": "object",
 				"properties": {
-					"totalElements": {
-						"type": "integer",
-						"format": "int64"
-					},
 					"totalPages": {
 						"type": "integer",
 						"format": "int32"
+					},
+					"totalElements": {
+						"type": "integer",
+						"format": "int64"
 					},
 					"size": {
 						"type": "integer",
@@ -8177,9 +8178,6 @@
 					"sort": {
 						"$ref": "#/components/schemas/SortObject"
 					},
-					"paged": {
-						"type": "boolean"
-					},
 					"pageNumber": {
 						"type": "integer",
 						"format": "int32"
@@ -8187,6 +8185,9 @@
 					"pageSize": {
 						"type": "integer",
 						"format": "int32"
+					},
+					"paged": {
+						"type": "boolean"
 					},
 					"unpaged": {
 						"type": "boolean"
@@ -8702,13 +8703,13 @@
 			"PageJobMessage": {
 				"type": "object",
 				"properties": {
-					"totalElements": {
-						"type": "integer",
-						"format": "int64"
-					},
 					"totalPages": {
 						"type": "integer",
 						"format": "int32"
+					},
+					"totalElements": {
+						"type": "integer",
+						"format": "int64"
 					},
 					"size": {
 						"type": "integer",
@@ -8757,13 +8758,13 @@
 			"PageMItem": {
 				"type": "object",
 				"properties": {
-					"totalElements": {
-						"type": "integer",
-						"format": "int64"
-					},
 					"totalPages": {
 						"type": "integer",
 						"format": "int32"
+					},
+					"totalElements": {
+						"type": "integer",
+						"format": "int64"
 					},
 					"size": {
 						"type": "integer",
@@ -8845,13 +8846,13 @@
 			"PageMAction": {
 				"type": "object",
 				"properties": {
-					"totalElements": {
-						"type": "integer",
-						"format": "int64"
-					},
 					"totalPages": {
 						"type": "integer",
 						"format": "int32"
+					},
+					"totalElements": {
+						"type": "integer",
+						"format": "int64"
 					},
 					"size": {
 						"type": "integer",

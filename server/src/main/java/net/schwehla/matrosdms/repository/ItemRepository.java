@@ -58,7 +58,17 @@ public interface ItemRepository extends JpaRepository<DBItem, Long> {
 	Page<DBItem> findAllByContextAndQuery(
 			@Param("contextUuid") String contextUuid, @Param("query") String query, Pageable pageable);
 
-	boolean existsByFileSha256Original(String sha256);
+    /**
+     * Checks if a file hash exists as either an Original upload 
+     * OR as a processed Canonical file.
+     */
+    @Query("""
+        SELECT COUNT(m) > 0 
+        FROM DBItemMetadata m 
+        WHERE m.sha256Original = :hash 
+           OR m.sha256Canonical = :hash
+    """)
+    boolean isDuplicate(@Param("hash") String hash);
 
 	long countByInfoContext_UuidAndDateArchivedIsNull(String uuid);
 }

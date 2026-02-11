@@ -42,7 +42,7 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 
 	private static final Logger log = LoggerFactory.getLogger(OllamaPredictionStrategy.class);
 
-	private final Semaphore gpuLock = new Semaphore(1);
+	private Semaphore gpuLock;
 	private final RestTemplate restTemplate;
 	private final ObjectMapper jsonMapper;
 
@@ -62,6 +62,12 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 
 	@PostConstruct
 	public void init() {
+        // OPTIMIZATION: Configurable Concurrency
+        int permits = appConfig.getAi().getConcurrency();
+        if (permits < 1) permits = 1;
+        this.gpuLock = new Semaphore(permits);
+        log.info("AI: Ollama Concurrency Level: {}", permits);
+
 		try {
 			promptTemplate = new String(promptResource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 		} catch (IOException e) {
@@ -81,7 +87,7 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 			ClassificationCandidates candidates,
 			DigestResultMessage result) {
 		try {
-			log.info("AI: Waiting for GPU slot...");
+			log.debug("AI: Waiting for slot...");
 			gpuLock.acquire();
 
 			String url = appConfig.getAi().getClassification().getOllama().getUrl();
@@ -106,7 +112,6 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 	}
 
 	private OllamaResponse callOllama(String url, String model, String prompt) {
-		// Important: Set stream=false to get full JSON at once
 		OllamaRequest req = new OllamaRequest(model, prompt, false);
 		try {
 			ResponseEntity<OllamaResponse> resp = restTemplate.postForEntity(url + "/api/generate", req,
@@ -120,15 +125,12 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 
 	private void parseJsonResult(String json, DigestResultMessage result) {
 		try {
-			// Llama 3 sometimes adds "Here is the JSON:" text. We need to find the first
-			// '{' and last '}'
 			int start = json.indexOf("{");
 			int end = json.lastIndexOf("}");
 			if (start >= 0 && end > start) {
 				String cleanJson = json.substring(start, end + 1);
 				AiClassificationResult dto = jsonMapper.readValue(cleanJson, AiClassificationResult.class);
 
-				// FIX: Populate the nested Prediction object
 				Prediction p = result.getPrediction();
 				p.setContext(dto.getContextUuid());
 				p.setCategory(dto.getCategoryUuid());
@@ -151,8 +153,6 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 	}
 
 	private String buildPrompt(String text, String filename, ClassificationCandidates candidates) {
-		// Limit text to avoid blowing up context window (Llama3 handles 8k, but let's
-		// be safe with 6k)
 		String safeText = text.length() > 6000 ? text.substring(0, 6000) : text;
 		String contextList = formatList(candidates.contexts());
 		String categoryList = formatList(candidates.categories());

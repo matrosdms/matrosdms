@@ -38,16 +38,11 @@ import net.schwehla.matrosdms.service.message.UpdateItemMessage;
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public abstract class MItemMapper implements BasicMapper {
 
-	@Autowired
-	protected CategoryLookupService categoryCache;
-	@Autowired
-	protected AttributeLookupService attributeLookup;
-	@Autowired
-	protected CategoryRepository categoryRepository;
-	@Autowired
-	protected StoreRepository storeRepository;
-	@Autowired
-	protected MCategoryMapper categoryMapper;
+	@Autowired protected CategoryLookupService categoryCache;
+	@Autowired protected AttributeLookupService attributeLookup;
+	@Autowired protected CategoryRepository categoryRepository;
+	@Autowired protected StoreRepository storeRepository;
+	@Autowired protected MCategoryMapper categoryMapper;
 
 	public abstract List<MItem> map(List<DBItem> items);
 
@@ -58,7 +53,6 @@ public abstract class MItemMapper implements BasicMapper {
 	@Mapping(target = "attributeList", ignore = true)
 	@Mapping(target = "storeIdentifier", source = "store.uuid")
 	@Mapping(target = "storeItemNumber", source = "storageItemIdentifier")
-	// Mapped automatically because name matches: dateArchived -> dateArchived
 	public abstract MItem entityToModel(DBItem dbItem);
 
 	@AfterMapping
@@ -96,7 +90,9 @@ public abstract class MItemMapper implements BasicMapper {
 		}
 	}
 
+    // UPDATED MAPPING: Included Canonical Hash
 	@Mapping(target = "sha256", source = "sha256Original")
+    @Mapping(target = "sha256Canonical", source = "sha256Canonical")
 	@Mapping(target = "textLayer", ignore = true)
 	public abstract MFileMetadata mapMetadata(DBItemMetadata file);
 
@@ -105,7 +101,7 @@ public abstract class MItemMapper implements BasicMapper {
 	@Mapping(target = "version", ignore = true)
 	@Mapping(target = "dateCreated", ignore = true)
 	@Mapping(target = "dateUpdated", ignore = true)
-	@Mapping(target = "dateArchived", ignore = true) // Ignored on create
+	@Mapping(target = "dateArchived", ignore = true)
 	@Mapping(target = "attributes", ignore = true)
 	@Mapping(target = "kindList", ignore = true)
 	@Mapping(target = "store", ignore = true)
@@ -124,7 +120,7 @@ public abstract class MItemMapper implements BasicMapper {
 	@Mapping(target = "uuid", ignore = true)
 	@Mapping(target = "dateCreated", ignore = true)
 	@Mapping(target = "dateUpdated", ignore = true)
-	@Mapping(target = "dateArchived", ignore = true) // Prevent archiving via Update PUT
+	@Mapping(target = "dateArchived", ignore = true)
 	@Mapping(target = "infoContext", ignore = true)
 	@Mapping(target = "user", ignore = true)
 	@Mapping(target = "file", ignore = true)
