@@ -24,8 +24,8 @@ const goBack = () => {
     ui.setRightPanelView(ViewMode.DETAILS)
 }
 
-// Enable ESC key to exit
-useHotkeys('Escape', goBack)
+// Enable ESC and Backspace key to exit
+useHotkeys(['Escape', 'Backspace'], goBack)
 
 const switchToSplit = () => {
     ui.triggerForceZoom() // Force Split Mode

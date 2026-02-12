@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch, nextTick } from 'vue'
 import { Calendar, FileText, ArrowDown, Tag, GripVertical, Box, Hash } from 'lucide-vue-next'
 import { parseBackendDate } from '@/lib/utils'
 import { useDmsStore } from '@/stores/dms'
@@ -76,6 +76,16 @@ const onItemClick = (item: any) => {
 const handleDragStart = (event: DragEvent, item: any) => {
   startDrag(event, 'dms-item', item)
 }
+
+// Auto-scroll to selected item
+watch(() => dms.selectedItem?.uuid, (newId) => {
+    if (newId) {
+        nextTick(() => {
+            const el = document.getElementById(`timeline-item-${newId}`)
+            if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+        })
+    }
+})
 </script>
 
 <template>
@@ -84,7 +94,12 @@ const handleDragStart = (event: DragEvent, item: any) => {
       <!-- Continuous Line - starts at first dot center -->
       <div class="absolute left-[15px] top-[22px] bottom-0 w-0.5 bg-gray-200 dark:bg-gray-800"></div>
 
-      <div v-for="(item, index) in timelineItems" :key="item.uuid" class="relative pl-10 pb-6 group">
+      <div 
+        v-for="(item, index) in timelineItems" 
+        :key="item.uuid" 
+        :id="`timeline-item-${item.uuid}`"
+        class="relative pl-10 pb-6 group"
+      >
         
         <!-- Dot -->
         <div 

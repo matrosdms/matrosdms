@@ -18,21 +18,8 @@ import { FileText, RefreshCw, Wand2, UploadCloud, Loader2 } from 'lucide-vue-nex
 import { push } from 'notivue'
 import type { InboxFile } from '@/types/events'
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 type InboxFileStatus = 'READY' | 'PROCESSING' | 'ERROR' | 'DUPLICATE'
-
-interface StatusCheckData {
-  sha256: string
-  status: InboxFileStatus
-  progressMessage?: string
-}
-
-// ============================================================================
-// STORES & COMPOSABLES
-// ============================================================================
+interface StatusCheckData { sha256: string; status: InboxFileStatus; progressMessage?: string }
 
 const dms = useDmsStore()
 const ui = useUIStore()
@@ -42,22 +29,9 @@ const { contexts } = useContextQueries()
 
 useServerEvents()
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-const WATCHDOG_CONFIG = {
-  interval: 10000, // 10 seconds
-  staleThreshold: 10000, // 10 seconds without update
-} as const
-
+const WATCHDOG_CONFIG = { interval: 10000, staleThreshold: 10000 }
 const CONCURRENT_ANALYSIS_LIMIT = 2
-
 const PROCESSABLE_STATUSES: Set<InboxFileStatus> = new Set(['READY', 'DUPLICATE', 'PROCESSING'])
-
-// ============================================================================
-// STATE
-// ============================================================================
 
 const searchQuery = ref('')
 const ignoredSet = ref(new Set<string>())
@@ -65,178 +39,123 @@ const isDragOver = ref(false)
 const isUploading = ref(false)
 const activeIndex = ref(-1)
 const listContainerRef = ref<HTMLDivElement | null>(null)
-
 let watchdogTimer: ReturnType<typeof setTimeout> | null = null
-
-// ============================================================================
-// FILE MERGING & FILTERING
-// ============================================================================
 
 const effectiveFiles = computed(() => {
   const apiFiles = inboxFiles.value || []
   const fileMap = new Map<string, InboxFile>()
-
-  // Build map from API data
-  apiFiles.forEach((file: any) => {
-    const key = file.sha256
-    if (key) {
-      fileMap.set(key, { ...file, sha256: key } as InboxFile)
-    }
-  })
-
-  // Overlay live data
+  apiFiles.forEach((file: any) => { if (file.sha256) fileMap.set(file.sha256, { ...file, sha256: file.sha256 } as InboxFile) })
   for (const [hash, liveFile] of Object.entries(workflow.liveInboxFiles)) {
-    if (fileMap.has(hash)) {
-      fileMap.set(hash, { ...fileMap.get(hash), ...liveFile } as InboxFile)
-    } else {
-      fileMap.set(hash, liveFile)
-    }
+    if (fileMap.has(hash)) fileMap.set(hash, { ...fileMap.get(hash), ...liveFile } as InboxFile)
+    else fileMap.set(hash, liveFile)
   }
-
-  // Filter ignored files
-  return Array.from(fileMap.values()).filter(
-    file => file.sha256 && !ignoredSet.value.has(file.sha256)
-  )
+  return Array.from(fileMap.values()).filter(file => file.sha256 && !ignoredSet.value.has(file.sha256))
 })
 
 const filteredFiles = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
   if (!query) return effectiveFiles.value
-
-  return effectiveFiles.value.filter(file => {
-    const name = file.emailInfo?.subject || file.fileInfo.originalFilename || ''
-    return name.toLowerCase().includes(query)
-  })
+  return effectiveFiles.value.filter(file => (file.emailInfo?.subject || file.fileInfo.originalFilename || '').toLowerCase().includes(query))
 })
 
-const processableFiles = computed(() => 
-  filteredFiles.value.filter(file => !PROCESSABLE_STATUSES.has(file.status))
-)
+const processableFiles = computed(() => filteredFiles.value.filter(file => !PROCESSABLE_STATUSES.has(file.status)))
+
+// Scrolls active item into view and ensures container focus
+const scrollActiveIntoView = () => {
+    if (activeIndex.value < 0) return
+    const el = listContainerRef.value?.children[activeIndex.value] as HTMLElement
+    if (el) el.scrollIntoView({ block: 'nearest' })
+}
 
 const focusListContainer = () => {
-  requestAnimationFrame(() => {
-    listContainerRef.value?.focus({ preventScroll: true })
-  })
+    requestAnimationFrame(() => {
+        listContainerRef.value?.focus({ preventScroll: true })
+        scrollActiveIntoView()
+    })
 }
 
 const ensureActiveIndex = () => {
-  if (!filteredFiles.value.length) {
-    activeIndex.value = -1
-    return
-  }
-  if (activeIndex.value === -1) {
-    activeIndex.value = 0
-  } else if (activeIndex.value >= filteredFiles.value.length) {
-    activeIndex.value = filteredFiles.value.length - 1
-  }
+  if (!filteredFiles.value.length) { activeIndex.value = -1; return }
+  if (activeIndex.value === -1) activeIndex.value = 0
+  else if (activeIndex.value >= filteredFiles.value.length) activeIndex.value = filteredFiles.value.length - 1
 }
 
 watch(filteredFiles, ensureActiveIndex, { immediate: true })
 
+const handleFileClick = (file: InboxFile, index?: number) => {
+  if (typeof index === 'number') setActiveIndex(index)
+  if (file.status === 'DUPLICATE') {
+    if (file.doublette) { ItemService.openDocument(file.doublette); push.info(`Opening existing document...`) } 
+    else push.warning("Duplicate file. Please ignore/delete it.")
+    nextTick(focusListContainer); return
+  }
+  if (file.status === 'PROCESSING') { push.info("File is processing. Please wait."); nextTick(focusListContainer); return }
+  
+  let targetContext = null
+  if (file.prediction?.context) targetContext = contexts.value.find((c: any) => c.uuid === file.prediction?.context)
+  if (!targetContext) targetContext = dms.selectedContext
+  
+  if (targetContext) dms.startItemCreation(targetContext, { sha256: file.sha256, name: file.emailInfo?.subject || file.fileInfo.originalFilename || "Untitled", prediction: file.prediction || null })
+  else openPreview(file)
+  nextTick(focusListContainer)
+}
+
 const { handleKey: handleListKey } = useListNavigation({
   listLength: computed(() => filteredFiles.value.length),
   activeIndex,
-  onSelect: (index) => {
-    const file = filteredFiles.value[index]
-    if (file) {
-      handleFileClick(file, index)
-    }
-  },
+  onSelect: (index) => { 
+      const file = filteredFiles.value[index]
+      if (file) handleFileClick(file, index) 
+  }
 })
 
 const handleListKeyDown = (event: KeyboardEvent) => {
-  handleListKey(event)
+    handleListKey(event)
+    // Scroll visually on arrow keys
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        nextTick(scrollActiveIntoView)
+    }
 }
 
-const setActiveIndex = (index: number) => {
-  activeIndex.value = index
-}
-
-// ============================================================================
-// WATCHDOG - STALE FILE DETECTION
-// ============================================================================
+const setActiveIndex = (index: number) => activeIndex.value = index
 
 const checkStaleFiles = async () => {
   const now = Date.now()
-
   for (const hash of workflow.processingInboxItems) {
-    const lastUpdate = workflow.lastInboxUpdate[hash] || 0
-    const isStale = now - lastUpdate > WATCHDOG_CONFIG.staleThreshold
-
-    if (!isStale) continue
-
+    if (now - (workflow.lastInboxUpdate[hash] || 0) <= WATCHDOG_CONFIG.staleThreshold) continue
     try {
-      const { data, error } = await client.GET("/api/inbox/{hash}/status", {
-        params: { path: { hash } }
-      })
-
+      const { data, error } = await client.GET("/api/inbox/{hash}/status", { params: { path: { hash } } })
       if (error || !data) continue
-
       const statusData = data as unknown as StatusCheckData
-      const isFinal = ['READY', 'ERROR', 'DUPLICATE'].includes(statusData.status)
-
-      if (isFinal) {
-        workflow.upsertLiveFile(statusData)
-        await refetchInbox()
+      if (['READY', 'ERROR', 'DUPLICATE'].includes(statusData.status)) {
+        workflow.upsertLiveFile(statusData); await refetchInbox()
       } else {
         workflow.lastInboxUpdate[hash] = now
       }
-    } catch (error) {
-      console.error(`Failed to check status for ${hash}:`, error)
-    }
+    } catch (e) { console.error(`Failed check ${hash}`, e) }
   }
 }
 
-const startWatchdog = () => {
-  watchdogTimer = setInterval(checkStaleFiles, WATCHDOG_CONFIG.interval)
-}
-
-const stopWatchdog = () => {
-  if (watchdogTimer) {
-    clearInterval(watchdogTimer)
-    watchdogTimer = null
-  }
-}
-
-// ============================================================================
-// FILE OPERATIONS
-// ============================================================================
+const startWatchdog = () => watchdogTimer = setInterval(checkStaleFiles, WATCHDOG_CONFIG.interval)
+const stopWatchdog = () => { if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null } }
 
 const triggerDigest = async (hash?: string) => {
   if (!hash) return
-
-  workflow.upsertLiveFile({
-    sha256: hash,
-    status: 'PROCESSING',
-    progressMessage: 'Starting Analysis...'
-  })
-
+  workflow.upsertLiveFile({ sha256: hash, status: 'PROCESSING', progressMessage: 'Starting Analysis...' })
   try {
-    const { error } = await client.POST("/api/inbox/{hash}/digest", {
-      params: { path: { hash } }
-    })
-
+    const { error } = await client.POST("/api/inbox/{hash}/digest", { params: { path: { hash } } })
     if (error) throw new Error("Request failed")
   } catch (error) {
-    workflow.upsertLiveFile({
-      sha256: hash,
-      status: 'ERROR',
-      progressMessage: 'Analysis Request Failed'
-    })
+    workflow.upsertLiveFile({ sha256: hash, status: 'ERROR', progressMessage: 'Analysis Request Failed' })
     push.error("Failed to start analysis")
   }
 }
 
 const ignoreFile = async (hash?: string) => {
   if (!hash) return
-
   ignoredSet.value.add(hash)
-
   try {
-    await client.POST("/api/inbox/{hash}/ignore", {
-      params: { path: { hash } }
-    })
-
+    await client.POST("/api/inbox/{hash}/ignore", { params: { path: { hash } } })
     push.success("File ignored")
     workflow.removeLiveFile(hash)
     await refetchInbox()
@@ -248,281 +167,77 @@ const ignoreFile = async (hash?: string) => {
 
 const analyzeAll = async () => {
   const toProcess = processableFiles.value
-
-  if (toProcess.length === 0) {
-    push.info("Nothing new to analyze")
-    return
-  }
-
+  if (toProcess.length === 0) { push.info("Nothing new to analyze"); return }
   push.info(`Queued ${toProcess.length} documents...`)
-
   const queue = [...toProcess]
-  
   const processNext = async (): Promise<void> => {
     if (queue.length === 0) return
-
     const file = queue.shift()
-    if (file?.sha256) {
-      await triggerDigest(file.sha256)
-    }
-
+    if (file?.sha256) await triggerDigest(file.sha256)
     await processNext()
   }
-
-  // Start concurrent processing
   const workers = Array(CONCURRENT_ANALYSIS_LIMIT).fill(null).map(() => processNext())
   await Promise.all(workers)
 }
 
-// ============================================================================
-// UI INTERACTIONS
-// ============================================================================
-
 const openPreview = (file: InboxFile) => {
   if (!file.sha256) return
-
-  ui.setRightPanel(ViewMode.PREVIEW, {
-    id: file.sha256,
-    name: file.emailInfo?.subject || file.fileInfo.originalFilename,
-    source: 'inbox'
-  })
-  nextTick(() => focusListContainer())
+  ui.setRightPanel(ViewMode.PREVIEW, { id: file.sha256, name: file.emailInfo?.subject || file.fileInfo.originalFilename, source: 'inbox' })
+  nextTick(focusListContainer)
 }
 
-const handleFileClick = (file: InboxFile, index?: number) => {
-  if (typeof index === 'number') {
-    setActiveIndex(index)
-  }
-
-  if (file.status === 'DUPLICATE') {
-    if (file.doublette) {
-      ItemService.openDocument(file.doublette)
-      push.info(`Opening existing document...`)
-    } else {
-      push.warning("Duplicate file. Please ignore/delete it.")
-    }
-    nextTick(() => focusListContainer())
-    return
-  }
-
-  if (file.status === 'PROCESSING') {
-    push.info("File is processing. Please wait.")
-    nextTick(() => focusListContainer())
-    return
-  }
-
-  const hash = file.sha256
-  const name = file.emailInfo?.subject || file.fileInfo.originalFilename || "Untitled"
-  const payload = {
-    sha256: hash,
-    name,
-    prediction: file.prediction || null
-  }
-
-  // Priority: Use linked context if present, otherwise selected context
-  let targetContext = null
-  
-  if (file.prediction?.context) {
-    // Find the linked context by ID
-    targetContext = contexts.value.find((c: any) => c.uuid === file.prediction?.context)
-  }
-  
-  // Fallback to selected context if no link or link not found
-  if (!targetContext) {
-    targetContext = dms.selectedContext
-  }
-
-  if (targetContext) {
-    dms.startItemCreation(targetContext, payload)
-  } else {
-    openPreview(file)
-  }
-
-  nextTick(() => focusListContainer())
-}
-
-const handlePreviewClick = (file: InboxFile, index: number) => {
-  setActiveIndex(index)
-  openPreview(file)
-}
-
+const handlePreviewClick = (file: InboxFile, index: number) => { setActiveIndex(index); openPreview(file) }
 const assignContextToFile = (hash: string, contextId: string) => {
-  // Update the live file prediction via workflow store (reactive)
-  workflow.upsertLiveFile({
-    sha256: hash,
-    prediction: {
-      context: contextId,
-      manuallyAssigned: true
-    }
-  })
-  
-  // Find context name for feedback
+  workflow.upsertLiveFile({ sha256: hash, prediction: { context: contextId, manuallyAssigned: true } })
   const ctx = contexts.value.find((c: any) => c.uuid === contextId)
-  if (ctx) {
-    push.success(`Linked to ${ctx.name}`)
-  }
+  if (ctx) push.success(`Linked to ${ctx.name}`)
 }
 
-// ============================================================================
-// DRAG & DROP
-// ============================================================================
-
-const handleDragEnter = (event: DragEvent) => {
-  if (event.dataTransfer?.types.includes('Files')) {
-    isDragOver.value = true
-  }
-}
-
-const handleDragLeave = () => {
-  isDragOver.value = false
-}
-
+const handleDragEnter = (event: DragEvent) => { if (event.dataTransfer?.types.includes('Files')) isDragOver.value = true }
+const handleDragLeave = () => isDragOver.value = false
 const handleDrop = async (event: DragEvent) => {
-  isDragOver.value = false
-  event.stopPropagation()
-
-  const files = event.dataTransfer?.files
-  if (!files?.length) return
-
-  isUploading.value = true
-  let successCount = 0
-
+  isDragOver.value = false; event.stopPropagation()
+  const files = event.dataTransfer?.files; if (!files?.length) return
+  isUploading.value = true; let successCount = 0
   for (const file of Array.from(files)) {
     if (file.size === 0) continue
-
-    try {
-      await InboxService.upload(file)
-      successCount++
-    } catch (error: any) {
-      push.error(`Failed to upload ${file.name}: ${error.message}`)
-    }
+    try { await InboxService.upload(file); successCount++ } catch (e: any) { push.error(`Failed to upload ${file.name}: ${e.message}`) }
   }
-
-  if (successCount > 0) {
-    push.success(`Uploaded ${successCount} file${successCount > 1 ? 's' : ''}`)
-  }
-
+  if (successCount > 0) push.success(`Uploaded ${successCount} file${successCount > 1 ? 's' : ''}`)
   isUploading.value = false
 }
 
-// ============================================================================
-// LIFECYCLE
-// ============================================================================
-
-onMounted(() => {
-  startWatchdog()
-})
-
-onUnmounted(() => {
-  stopWatchdog()
-})
+onMounted(startWatchdog)
+onUnmounted(stopWatchdog)
 </script>
 
 <template>
-  <div
-    class="h-full relative group/inbox"
-    @dragover.prevent="handleDragEnter"
-    @dragleave.prevent="handleDragLeave"
-    @drop.prevent="handleDrop"
-  >
-    <!-- Drag Overlay -->
-    <div
-      v-if="isDragOver"
-      class="absolute inset-0 z-50 bg-blue-50/90 dark:bg-blue-900/90 
-             flex flex-col items-center justify-center border-4 border-blue-400 
-             border-dashed m-2 rounded-lg pointer-events-none animate-in 
-             fade-in duration-200 backdrop-blur-sm"
-    >
-      <UploadCloud :size="48" class="text-blue-500 dark:text-blue-300 mb-2" />
-      <span class="text-lg font-bold text-blue-700 dark:text-blue-200">
-        Drop files to upload
-      </span>
+  <div class="h-full relative group/inbox" @dragover.prevent="handleDragEnter" @dragleave.prevent="handleDragLeave" @drop.prevent="handleDrop">
+    <div v-if="isDragOver" class="absolute inset-0 z-50 bg-blue-50/90 dark:bg-blue-900/90 flex flex-col items-center justify-center border-4 border-blue-400 border-dashed m-2 rounded-lg pointer-events-none animate-in fade-in duration-200 backdrop-blur-sm">
+      <UploadCloud :size="48" class="text-blue-500 dark:text-blue-300 mb-2" /><span class="text-lg font-bold text-blue-700 dark:text-blue-200">Drop files to upload</span>
     </div>
-
-    <!-- Upload Progress Overlay -->
-    <div
-      v-if="isUploading"
-      class="absolute inset-0 z-50 bg-white/80 dark:bg-gray-900/80 
-             flex flex-col items-center justify-center backdrop-blur-sm"
-    >
-      <Loader2 :size="32" class="text-blue-600 dark:text-blue-400 animate-spin mb-2" />
-      <span class="text-sm font-bold text-gray-600 dark:text-gray-300">
-        Uploading files...
-      </span>
+    <div v-if="isUploading" class="absolute inset-0 z-50 bg-white/80 dark:bg-gray-900/80 flex flex-col items-center justify-center backdrop-blur-sm">
+      <Loader2 :size="32" class="text-blue-600 dark:text-blue-400 animate-spin mb-2" /><span class="text-sm font-bold text-gray-600 dark:text-gray-300">Uploading files...</span>
     </div>
-
-    <!-- Main Content -->
     <BasePane title="Inbox" :count="filteredFiles.length">
       <template #actions>
-        <button
-          type="button"
-          class="btn-icon text-purple-600 hover:bg-purple-50 
-                 dark:text-purple-400 dark:hover:bg-purple-900/30"
-          title="Analyze All (Skip Duplicates)"
-          @click="analyzeAll"
-        >
-          <Wand2 :size="14" />
-        </button>
-
+        <button class="btn-icon text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/30" title="Analyze All (Skip Duplicates)" @click="analyzeAll"><Wand2 :size="14" /></button>
         <div class="w-px h-3 bg-gray-300 dark:bg-gray-600 mx-1" />
-
-        <button
-          type="button"
-          class="btn-icon"
-          title="Refresh"
-          @click="() => refetchInbox()"
-        >
-          <RefreshCw :size="14" />
-        </button>
+        <button class="btn-icon" title="Refresh" @click="() => refetchInbox()"><RefreshCw :size="14" /></button>
       </template>
-
-      <template #filter>
-        <SearchInput v-model="searchQuery" placeholder="Filter inbox..." />
-      </template>
-
-      <!-- File List -->
-      <div
-        ref="listContainerRef"
-        class="p-2 space-y-1"
-        tabindex="0"
-        @keydown="handleListKeyDown"
-        @focus="ensureActiveIndex()"
+      <template #filter><SearchInput v-model="searchQuery" placeholder="Filter inbox..." /></template>
+      <div 
+        ref="listContainerRef" 
+        class="p-2 space-y-1 outline-none focus:pane-focused transition-all" 
+        tabindex="0" 
+        @keydown="handleListKeyDown" 
+        @focus="ensureActiveIndex()" 
         @mousedown="focusListContainer"
       >
-        <!-- Loading State -->
-        <div
-          v-if="isLoadingInbox && filteredFiles.length === 0"
-          class="p-4 text-xs text-gray-400 italic text-center"
-        >
-          Loading...
-        </div>
-
-        <!-- Empty State -->
-        <div
-          v-else-if="filteredFiles.length === 0"
-          class="p-6 text-center flex flex-col items-center opacity-50"
-        >
-          <FileText :size="24" class="mb-2 text-gray-300 dark:text-gray-600" />
-          <span class="text-xs text-gray-500 dark:text-gray-400 italic">
-            Drop files here to upload
-          </span>
-        </div>
-
-        <!-- File Items -->
+        <div v-if="isLoadingInbox && filteredFiles.length === 0" class="p-4 text-xs text-gray-400 italic text-center">Loading...</div>
+        <div v-else-if="filteredFiles.length === 0" class="p-6 text-center flex flex-col items-center opacity-50"><FileText :size="24" class="mb-2 text-gray-300 dark:text-gray-600" /><span class="text-xs text-gray-500 dark:text-gray-400 italic">Drop files here to upload</span></div>
         <template v-else>
-          <InboxItem
-            v-for="(file, index) in filteredFiles"
-            :key="file.sha256"
-            :file="file"
-            :is-processing="file.status === 'PROCESSING'"
-            :is-duplicate="file.status === 'DUPLICATE'"
-            :is-active="index === activeIndex"
-            @click="handleFileClick(file, index)"
-            @preview="handlePreviewClick(file, index)"
-            @ignore="ignoreFile(file.sha256)"
-            @analyze="triggerDigest(file.sha256)"
-            @assign-context="assignContextToFile(file.sha256, $event)"
-          />
+          <InboxItem v-for="(file, index) in filteredFiles" :key="file.sha256" :file="file" :is-processing="file.status === 'PROCESSING'" :is-duplicate="file.status === 'DUPLICATE'" :is-active="index === activeIndex" @click="handleFileClick(file, index)" @preview="handlePreviewClick(file, index)" @ignore="ignoreFile(file.sha256)" @analyze="triggerDigest(file.sha256)" @assign-context="assignContextToFile(file.sha256, $event)" />
         </template>
       </div>
     </BasePane>

@@ -75,10 +75,30 @@
 .matros-tag-default { @apply bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200; }
 
 /* Table Rows - Global States */
-.table-row-active {
-  @apply bg-white dark:bg-gray-900;
+
+/* Selected State: Very subtle tint to indicate selection without overwhelming */
+.table-row-selected {
+  @apply bg-blue-50 dark:bg-[#1e293b] !important; 
 }
+
+/* Selected Focus Indicator: Distinct left border */
+.table-row-selected::before {
+  content: "";
+  @apply absolute left-0 top-0 bottom-0 w-1 bg-blue-500 z-10;
+}
+
+/* Hover effect on top of selection (slightly darker) */
+.table-row-selected:hover {
+  @apply bg-blue-100/50 dark:bg-[#263345] !important;
+}
+
+/* Closed State */
 .table-row-closed {
   @apply bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 italic;
+}
+
+/* List Focus State - Indicates which pane is active */
+.pane-focused {
+  @apply ring-1 ring-inset ring-blue-400/50 dark:ring-blue-600/50;
 }
 }

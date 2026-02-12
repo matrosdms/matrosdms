@@ -62,8 +62,7 @@ public class DBItemMetadata {
 
 	// --- 3. THE VAULT GUARD ---
 	// Hash of the file on disk (Encrypted). Checks physical integrity.
-	// Mapped to legacy column name for compatibility
-	@Column(name = "sha256crypted", nullable = false)
+	@Column(name = "sha256Stored", nullable = false)
 	String sha256Stored;
 
 	@Column(nullable = false, unique = false)
