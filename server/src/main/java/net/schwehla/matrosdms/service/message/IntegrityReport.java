@@ -13,11 +13,19 @@ import java.util.List;
 public class IntegrityReport {
 	private int totalDbItems;
 	private int missingCount;
+	private int corruptCount;
+    
 	private List<MissingItem> missingItems = new ArrayList<>();
+	private List<CorruptItem> corruptItems = new ArrayList<>();
 
 	public void addMissingItem(String uuid, String name) {
 		missingItems.add(new MissingItem(uuid, name));
 		missingCount++;
+	}
+
+	public void addCorruptItem(String uuid, String name, String expected, String actual) {
+		corruptItems.add(new CorruptItem(uuid, name, expected, actual));
+		corruptCount++;
 	}
 
 	public int getTotalDbItems() {
@@ -32,8 +40,16 @@ public class IntegrityReport {
 		return missingCount;
 	}
 
+	public int getCorruptCount() {
+		return corruptCount;
+	}
+
 	public List<MissingItem> getMissingItems() {
 		return missingItems;
+	}
+
+	public List<CorruptItem> getCorruptItems() {
+		return corruptItems;
 	}
 
 	public static class MissingItem {
@@ -43,6 +59,20 @@ public class IntegrityReport {
 		public MissingItem(String uuid, String name) {
 			this.uuid = uuid;
 			this.name = name;
+		}
+	}
+
+	public static class CorruptItem {
+		public String uuid;
+		public String name;
+		public String expectedHash;
+		public String actualHash;
+
+		public CorruptItem(String uuid, String name, String expected, String actual) {
+			this.uuid = uuid;
+			this.name = name;
+			this.expectedHash = expected;
+			this.actualHash = actual;
 		}
 	}
 }

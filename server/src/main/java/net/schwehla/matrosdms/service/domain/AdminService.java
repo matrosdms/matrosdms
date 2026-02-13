@@ -31,6 +31,7 @@ import net.schwehla.matrosdms.domain.storage.EStorageLocation;
 import net.schwehla.matrosdms.entity.DBItem;
 import net.schwehla.matrosdms.repository.ItemRepository;
 import net.schwehla.matrosdms.service.message.IntegrityReport;
+import net.schwehla.matrosdms.store.FileUtils;
 import net.schwehla.matrosdms.store.IMatrosStore;
 
 @Service
@@ -44,14 +45,15 @@ public class AdminService {
 	AppServerSpringConfig appConfig;
 	@Autowired
 	IMatrosStore matrosStore;
+	@Autowired
+	FileUtils fileUtils; // Inject FileUtils for hashing
 
-	// Export to rootdir/export (outside workspace for cloud sync safety)
 	@Value("${app.base-path}/export")
 	private String exportBasePath;
 
 	@Transactional(readOnly = true)
 	public IntegrityReport runIntegrityCheck() {
-		log.info("Starting Integrity Check...");
+		log.info("Starting Integrity Check (Bit-Rot Detection)...");
 		IntegrityReport report = new IntegrityReport();
 
 		StoreElement localStore = getLocalStore();
@@ -62,32 +64,57 @@ public class AdminService {
 
 		for (DBItem item : allItems) {
 			String uuid = item.getUuid();
-			if (uuid == null)
-				continue;
+			if (uuid == null) continue;
 
+            // 1. Locate File
 			Path folder = rootPath.resolve(uuid.substring(0, 3));
 			File folderFile = folder.toFile();
 
-			boolean found = false;
+			File foundFile = null;
 			if (folderFile.exists()) {
 				for (File f : folderFile.listFiles()) {
-					if (f.getName().startsWith(uuid) && !f.getName().contains(".txt")) {
-						found = true;
+					if (f.getName().startsWith(uuid) 
+                            && !f.getName().endsWith(".txt") 
+                            && !f.getName().endsWith(".txt.enc") 
+                            && !f.getName().endsWith(".thumb.jpg")
+                            && !f.getName().endsWith(".thumb.jpg.enc")) {
+						foundFile = f;
 						break;
 					}
 				}
 			}
 
-			if (!found) {
+            // 2. Existence Check
+			if (foundFile == null) {
 				report.addMissingItem(uuid, item.getName());
 				log.warn("INTEGRITY FAIL: Missing file for item '{}' ({})", item.getName(), uuid);
-			}
+                continue;
+			} 
+            
+            // 3. Hash / Bit-Rot Check
+            // We compare disk file hash against DB 'sha256Stored' (The Vault Guard)
+            if (item.getFile() != null && item.getFile().getSha256Stored() != null) {
+                try {
+                    String actualHash = fileUtils.getSHA256(foundFile.toPath());
+                    String expectedHash = item.getFile().getSha256Stored();
+                    
+                    if (!expectedHash.equalsIgnoreCase(actualHash)) {
+                        report.addCorruptItem(uuid, item.getName(), expectedHash, actualHash);
+                        log.error("CORRUPTION DETECTED: Item '{}' ({}). Expected {}, but disk has {}", 
+                                item.getName(), uuid, expectedHash, actualHash);
+                    }
+                } catch (Exception e) {
+                    log.error("Error hashing file for integrity check: " + uuid, e);
+                }
+            }
 		}
 
 		log.info(
-				"Integrity Check Complete. Scanned {} items, found {} missing.",
+				"Integrity Check Complete. Scanned {} items. Missing: {}, Corrupt: {}.",
 				report.getTotalDbItems(),
-				report.getMissingCount());
+				report.getMissingCount(),
+                report.getCorruptCount());
+                
 		return report;
 	}
 
@@ -107,7 +134,6 @@ public class AdminService {
 
 			for (DBItem item : allItems) {
 				try {
-					// Get context name for folder structure
 					String contextName = item.getInfoContext() != null
 							? sanitizeFilename(item.getInfoContext().getName())
 							: "_unsorted";
@@ -117,7 +143,6 @@ public class AdminService {
 						Files.createDirectories(contextDir);
 					}
 
-					// Load decrypted stream from store
 					MDocumentStream stream = matrosStore.loadStream(item.getUuid());
 					if (stream == null || stream.getInputStream() == null) {
 						log.warn("Export: No content for item {} ({})", item.getName(), item.getUuid());
@@ -125,18 +150,15 @@ public class AdminService {
 						continue;
 					}
 
-					// Get original filename from DB, fallback to item name + extension
 					String fileName;
 					if (item.getFile() != null && item.getFile().getFilename() != null) {
 						fileName = sanitizeFilename(item.getFile().getFilename());
 					} else {
-						// Fallback: item name + extension from mime type
 						String baseName = sanitizeFilename(item.getName());
 						String extension = getExtension(stream.getFilename(), item);
 						fileName = baseName + extension;
 					}
 
-					// Handle duplicates
 					Path targetFile = contextDir.resolve(fileName);
 					int counter = 1;
 					while (Files.exists(targetFile)) {
@@ -147,7 +169,6 @@ public class AdminService {
 						counter++;
 					}
 
-					// Write decrypted content
 					try (InputStream is = stream.getInputStream();
 							OutputStream os = Files.newOutputStream(targetFile)) {
 						is.transferTo(os);
@@ -181,11 +202,9 @@ public class AdminService {
 	}
 
 	private String getExtension(String filename, DBItem item) {
-		// First try: original filename
 		if (filename != null && filename.contains(".")) {
 			return filename.substring(filename.lastIndexOf("."));
 		}
-		// Fallback: derive from mime type stored in DB file info
 		if (item.getFile() != null && item.getFile().getMimetype() != null) {
 			String mime = item.getFile().getMimetype();
 			return switch (mime) {
@@ -193,22 +212,8 @@ public class AdminService {
 				case "message/rfc822" -> ".eml";
 				case "application/msword" -> ".doc";
 				case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> ".docx";
-				case "application/vnd.ms-excel" -> ".xls";
-				case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> ".xlsx";
-				case "application/vnd.ms-powerpoint" -> ".ppt";
-				case "application/vnd.openxmlformats-officedocument.presentationml.presentation" -> ".pptx";
-				case "application/zip" -> ".zip";
-				case "application/xml", "text/xml" -> ".xml";
-				case "application/json" -> ".json";
-				case "text/plain" -> ".txt";
-				case "text/html" -> ".html";
-				case "text/csv" -> ".csv";
 				case "image/jpeg" -> ".jpg";
 				case "image/png" -> ".png";
-				case "image/gif" -> ".gif";
-				case "image/tiff" -> ".tiff";
-				case "image/webp" -> ".webp";
-				case "image/bmp" -> ".bmp";
 				default -> mime.startsWith("image/") ? "." + mime.substring(6) : ".bin";
 			};
 		}

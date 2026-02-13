@@ -54,7 +54,6 @@ app:
   server:
     inbox:
         path: "${app.base-path}/workspace/inbox"
-    # REMOVED: staging_upload
     temp:
         path: "${app.base-path}/workspace/temp"
     cache: 

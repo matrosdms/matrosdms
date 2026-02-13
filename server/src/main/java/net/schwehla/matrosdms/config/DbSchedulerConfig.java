@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,11 +19,15 @@ import com.github.kagkarlsson.scheduler.task.Task;
 import com.github.kagkarlsson.scheduler.task.helper.Tasks;
 
 import net.schwehla.matrosdms.domain.admin.EJobType;
+import net.schwehla.matrosdms.domain.api.EBroadcastSource;
+import net.schwehla.matrosdms.domain.api.EBroadcastType;
 import net.schwehla.matrosdms.entity.admin.DBAdminJob;
 import net.schwehla.matrosdms.entity.admin.DBAdminJob.JobStatus;
+import net.schwehla.matrosdms.messagebus.VUEMessageBus;
 import net.schwehla.matrosdms.repository.AdminJobRepository;
 import net.schwehla.matrosdms.service.SearchService;
 import net.schwehla.matrosdms.service.domain.AdminService;
+import net.schwehla.matrosdms.service.message.IntegrityReport;
 
 @Configuration
 public class DbSchedulerConfig {
@@ -34,11 +39,14 @@ public class DbSchedulerConfig {
 	public static final String TASK_INTEGRITY = "integrity-check";
 	public static final String TASK_EXPORT = "export-archive";
 
+    // Inject MessageBus to notify UI when long-running jobs finish
+    @Autowired
+    VUEMessageBus messageBus;
+
 	// --- BEAN DEFINITIONS ---
 
 	@Bean
 	public Task<Long> indexItemTask(SearchService searchService) {
-		// Quick background task, usually doesn't need persistent history log in UI
 		return Tasks.oneTime(TASK_INDEX_ITEM, Long.class)
 				.execute((inst, ctx) -> {
 					Long itemId = inst.getData();
@@ -51,21 +59,14 @@ public class DbSchedulerConfig {
 	public Task<Void> reindexTask(SearchService searchService, AdminJobRepository jobRepo) {
 		return Tasks.oneTime(TASK_REINDEX_ALL, Void.class)
 				.execute((inst, ctx) -> {
-					// 1. Create Log Entry
 					DBAdminJob job = createJobLog(jobRepo, EJobType.REINDEX_SEARCH, "Reindexing Lucene...");
-
 					try {
 						log.info("JOB [Reindex All]: Starting...");
 						searchService.reindexAll();
-
-						// 2. Success
 						completeJobLog(jobRepo, job, "Reindex Complete");
-						log.info("JOB [Reindex All]: Completed.");
-
 					} catch (Exception e) {
-						// 3. Failure
 						failJobLog(jobRepo, job, e);
-						throw e; // Rethrow to let db-scheduler handle retry logic if needed
+						throw e;
 					}
 				});
 	}
@@ -77,13 +78,23 @@ public class DbSchedulerConfig {
 					DBAdminJob job = createJobLog(jobRepo, EJobType.INTEGRITY_CHECK, "Checking Files...");
 					try {
 						log.info("JOB [Integrity]: Starting...");
-						var report = adminService.runIntegrityCheck();
+						
+                        IntegrityReport report = adminService.runIntegrityCheck();
 
-						String result = "Scanned " + report.getTotalDbItems() + ", Missing: "
-								+ report.getMissingCount();
+						String result = String.format("Checked %d items. Missing: %d, Corrupt: %d", 
+                                report.getTotalDbItems(), report.getMissingCount(), report.getCorruptCount());
+                        
+                        // 1. Log details to Database (for UI History)
+                        for(IntegrityReport.MissingItem item : report.getMissingItems()) {
+                            job.addLog("ERROR", "Missing: " + item.name + " (" + item.uuid + ")");
+                        }
+                        for(IntegrityReport.CorruptItem item : report.getCorruptItems()) {
+                            job.addLog("ERROR", "Corrupt: " + item.name + " (" + item.uuid + ")");
+                        }
+
+                        // 2. Mark Complete
 						completeJobLog(jobRepo, job, result);
 
-						log.info("JOB [Integrity]: Completed.");
 					} catch (Exception e) {
 						failJobLog(jobRepo, job, e);
 						throw e;
@@ -99,9 +110,7 @@ public class DbSchedulerConfig {
 					try {
 						log.info("JOB [Export]: Starting Archive Export...");
 						adminService.createArchiveExport();
-
 						completeJobLog(jobRepo, job, "Export saved to /export folder");
-						log.info("JOB [Export]: Completed.");
 					} catch (Exception e) {
 						failJobLog(jobRepo, job, e);
 						throw e;
@@ -109,7 +118,7 @@ public class DbSchedulerConfig {
 				});
 	}
 
-	// --- Helper Methods to manage DB History ---
+	// --- Helper Methods ---
 
 	private DBAdminJob createJobLog(AdminJobRepository repo, EJobType type, String info) {
 		DBAdminJob job = new DBAdminJob();
@@ -117,7 +126,11 @@ public class DbSchedulerConfig {
 		job.setStatus(JobStatus.RUNNING);
 		job.setStartTime(LocalDateTime.now());
 		job.setProgressInfo(info);
-		return repo.save(job);
+		
+        // Notify UI: Job Started
+        notifyUi(type, "RUNNING");
+        
+        return repo.save(job);
 	}
 
 	private void completeJobLog(AdminJobRepository repo, DBAdminJob job, String resultInfo) {
@@ -125,13 +138,29 @@ public class DbSchedulerConfig {
 		job.setEndTime(LocalDateTime.now());
 		job.setProgressInfo(resultInfo);
 		repo.save(job);
+        
+        // Notify UI: Job Finished (triggers refresh)
+        notifyUi(job.getType(), "COMPLETED");
 	}
 
 	private void failJobLog(AdminJobRepository repo, DBAdminJob job, Exception e) {
 		job.setStatus(JobStatus.FAILED);
 		job.setEndTime(LocalDateTime.now());
 		job.setProgressInfo("Error: " + e.getMessage());
-		job.addLog("ERROR", e.getMessage()); // Assuming DBAdminJob has this helper
+		job.addLog("ERROR", e.getMessage());
 		repo.save(job);
+        
+        notifyUi(job.getType(), "FAILED");
 	}
+
+    private void notifyUi(EJobType type, String status) {
+        if(messageBus != null) {
+            // We use the "STATUS" type to tell the Frontend to refresh the job list
+            messageBus.sendMessageToGUI(EBroadcastSource.PIPELINE, EBroadcastType.STATUS, 
+                new net.schwehla.matrosdms.service.message.JobMessage(
+                    type.name(), "system", java.time.Instant.now(), 
+                    net.schwehla.matrosdms.domain.admin.EJobStatus.valueOf(status)
+                ));
+        }
+    }
 }

@@ -73,7 +73,7 @@ public class SearchService {
 				.where(f -> buildPredicate(f, rootCriteria))
 				.fetch(offset, limit);
 
-		// Find max score for normalization (Lucene scores are not 0-1)
+		// Find max score for normalization
 		float maxScore = result.hits().stream()
 				.map(hit -> (float) hit.get(6))
 				.max(Float::compare)
@@ -92,7 +92,7 @@ public class SearchService {
 									: null;
 
 							float rawScore = (float) hit.get(6);
-							float normalizedScore = rawScore / normalizer; // 0-1 range
+							float normalizedScore = rawScore / normalizer;
 
 							return new MSearchResult(
 									(String) hit.get(0),
@@ -126,7 +126,7 @@ public class SearchService {
 				}
 			}
 
-			return bool; // IMPORTANT: no .toPredicate()
+			return bool;
 		}
 
 		return buildLeaf(f, node);
@@ -134,50 +134,55 @@ public class SearchService {
 
 	private PredicateFinalStep buildLeaf(SearchPredicateFactory f, SearchCriteria node) {
 
-    // FIX: Handle missing field in JSON to prevent NPE
-    if (node.getField() == null) {
-      return f.matchAll();
-    }
+		// Handle missing field gracefully
+		if (node.getField() == null) {
+			return f.matchAll();
+		}
 
-    String fieldBase = node.getField().getLuceneField();
-    String val = node.getValue();
+		String fieldBase = node.getField().getLuceneField();
+		String val = node.getValue();
 
-    if (val == null) val = "";
+		if (val == null)
+			val = "";
 
-    return switch (node.getOperator()) {
-      case EQ -> {
-        if ("fulltext".equals(fieldBase) || "attr".equals(fieldBase)) {
-          yield f.match().field(fieldBase).matching(val);
-        }
-        yield f.match().field(fieldBase + ".uuid").matching(val);
-      }
+		return switch (node.getOperator()) {
+			case EQ -> {
+                // FIXED: UUID Search Implementation
+                if ("uuid".equals(fieldBase)) {
+                    yield f.match().field("uuid").matching(val);
+                }
+				if ("fulltext".equals(fieldBase) || "attr".equals(fieldBase)) {
+					yield f.match().field(fieldBase).matching(val);
+				}
+				yield f.match().field(fieldBase + ".uuid").matching(val);
+			}
 
-      case CONTAINS -> {
-        if (node.getField() == ESearchDimension.FULLTEXT) {
-          yield f.simpleQueryString()
-              .field("name")
-              .boost(3.0f)
-              .field("filename")
-              .boost(3.0f)
-              .field("description")
-              .boost(2.0f)
-              .field("uuid")
-              .boost(10.0f)
-              .fields("fulltext", "attr.*", "kindList.name", "infoContext.name")
-              .matching(val)
-              .defaultOperator(BooleanOperator.AND);
-        }
-        yield f.match().field(fieldBase).matching(val).fuzzy(1);
-      }
+			case CONTAINS -> {
+				if (node.getField() == ESearchDimension.FULLTEXT) {
+					yield f.simpleQueryString()
+							.field("name")
+							.boost(3.0f)
+							.field("filename")
+							.boost(3.0f)
+							.field("description")
+							.boost(2.0f)
+							.field("uuid")
+							.boost(10.0f)
+							.fields("fulltext", "attr.*", "kindList.name", "infoContext.name")
+							.matching(val)
+							.defaultOperator(BooleanOperator.AND);
+				}
+				yield f.match().field(fieldBase).matching(val).fuzzy(1);
+			}
 
-      case GT -> f.range().field(fieldBase).greaterThan(val);
-      case LT -> f.range().field(fieldBase).lessThan(val);
-      case GTE -> f.range().field(fieldBase).atLeast(val);
-      case LTE -> f.range().field(fieldBase).atMost(val);
+			case GT -> f.range().field(fieldBase).greaterThan(val);
+			case LT -> f.range().field(fieldBase).lessThan(val);
+			case GTE -> f.range().field(fieldBase).atLeast(val);
+			case LTE -> f.range().field(fieldBase).atMost(val);
 
-      default -> f.matchAll();
-    };
-  }
+			default -> f.matchAll();
+		};
+	}
 
 	@Transactional
 	public void reindexAll() {

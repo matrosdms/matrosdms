@@ -10,14 +10,29 @@
     <name>Matrosdms Server</name>
     <properties>
         <start-class>net.schwehla.matrosdms.MatrosSpringbootApplication</start-class>
-        <!--
-        Portable application properties -->
         <app.name>MatrosDMS</app.name>
         <app.vendor>Matrosdms</app.vendor>
         <app.description>Matrosdms Document Management System</app.description>
-        <!--
-        FIX: JPackage requires strictly X.Y.Z format (no text/snapshots) -->
         <jpackage.version>1.0.0</jpackage.version>
+        
+        <!-- Java & Compiler -->
+        <java.version>25</java.version>
+
+        <!-- 3rd Party Dependencies (Not Managed by Spring Boot) -->
+        <hibernate-search.version>7.1.0.Final</hibernate-search.version>
+        <db-scheduler.version>15.0.0</db-scheduler.version>
+        <tika.version>3.1.0</tika.version>
+        <pdfbox.version>3.0.6</pdfbox.version>
+        <jjwt.version>0.12.6</jjwt.version>
+        <bouncycastle.version>1.78.1</bouncycastle.version>
+        <apache-mime4j.version>0.8.13</apache-mime4j.version>
+        <commons-compress.version>1.28.0</commons-compress.version>
+        <xz.version>1.11</xz.version>
+        <java-uuid-generator.version>5.1.0</java-uuid-generator.version>
+        <springdoc.version>2.8.4</springdoc.version>
+        <jakarta-mail.version>2.0.1</jakarta-mail.version>
+        
+        <!-- Note: Caffeine, H2, Flyway, and base Jakarta APIs ARE managed by Spring Boot -->
     </properties>
     <dependencies>
         <!-- Spring Boot Starters -->
@@ -45,8 +60,8 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
-        <!--
-        Database -->
+        
+        <!-- Database -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -61,62 +76,67 @@
             <artifactId>flyway-database-postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
-        <!-- Hibernate Search -->
+        
+        <!-- Hibernate Search (Not managed by Spring Boot) -->
         <dependency>
             <groupId>org.hibernate.search</groupId>
             <artifactId>hibernate-search-mapper-orm</artifactId>
-            <version>7.1.0.Final</version>
+            <version>${hibernate-search.version}</version>
         </dependency>
         <dependency>
             <groupId>org.hibernate.search</groupId>
             <artifactId>hibernate-search-backend-lucene</artifactId>
-            <version>7.1.0.Final</version>
+            <version>${hibernate-search.version}</version>
         </dependency>
-        <!-- Scheduling -->
+        
+        <!-- Scheduling (Not managed by Spring Boot) -->
         <dependency>
             <groupId>com.github.kagkarlsson</groupId>
             <artifactId>db-scheduler-spring-boot-starter</artifactId>
-            <version>15.0.0</version>
+            <version>${db-scheduler.version}</version>
         </dependency>
+        
         <!-- Mail Processing -->
         <dependency>
             <groupId>com.sun.mail</groupId>
             <artifactId>jakarta.mail</artifactId>
-            <version>2.0.1</version>
+            <version>${jakarta-mail.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.james</groupId>
             <artifactId>apache-mime4j-dom</artifactId>
-            <version>0.8.13</version>
+            <version>${apache-mime4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.james</groupId>
             <artifactId>apache-mime4j-core</artifactId>
-            <version>0.8.13</version>
+            <version>${apache-mime4j.version}</version>
         </dependency>
+        
         <!-- Security -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.78.1</version>
+            <version>${bouncycastle.version}</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.12.6</version>
+            <version>${jjwt.version}</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>0.12.6</version>
+            <version>${jjwt.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
-            <version>0.12.6</version>
+            <version>${jjwt.version}</version>
             <scope>runtime</scope>
         </dependency>
+        
         <!-- Jackson -->
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -130,57 +150,59 @@
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
         </dependency>
-        <!--
-        OpenAPI/Swagger -->
+        
+        <!-- OpenAPI/Swagger -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.8.4</version>
+            <version>${springdoc.version}</version>
         </dependency>
+        
         <!-- MapStruct -->
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
             <version>${mapstruct.version}</version>
         </dependency>
-        <!--
-        Utilities -->
+        
+        <!-- Utilities -->
         <dependency>
             <groupId>com.fasterxml.uuid</groupId>
             <artifactId>java-uuid-generator</artifactId>
-            <version>5.1.0</version>
+            <version>${java-uuid-generator.version}</version>
         </dependency>
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
-        <!-- File
-        Processing -->
+        
+        <!-- File Processing -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
-            <version>1.28.0</version>
+            <version>${commons-compress.version}</version>
         </dependency>
         <dependency>
             <groupId>org.tukaani</groupId>
             <artifactId>xz</artifactId>
-            <version>1.11</version>
+            <version>${xz.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-core</artifactId>
-            <version>3.1.0</version>
+            <version>${tika.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-parsers-standard-package</artifactId>
-            <version>3.1.0</version>
+            <version>${tika.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
-            <version>3.0.6</version>
+            <version>${pdfbox.version}</version>
         </dependency>
+        
         <!-- Development Tools -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -198,6 +220,7 @@
             <artifactId>spring-context-indexer</artifactId>
             <optional>true</optional>
         </dependency>
+        
         <!-- Test Dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -229,6 +252,10 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <parameters>true</parameters>
+                    <release>${java.version}</release>
+                    <compilerArgs>
+                        <arg>--enable-preview</arg> 
+                    </compilerArgs>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.mapstruct</groupId>
@@ -248,11 +275,11 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
-            <!--
-            Spring Boot Plugin -->
+            <!-- Spring Boot Plugin -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>${start-class}</mainClass>
                     <excludes>
@@ -275,8 +302,7 @@
                     </execution>
                 </executions>
             </plugin>
-            <!--
-            Copy Frontend Resources -->
+            <!-- Copy Frontend Resources -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -299,8 +325,7 @@
                     </execution>
                 </executions>
             </plugin>
-            <!--
-            Create Plugin API JAR -->
+            <!-- Create Plugin API JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -325,12 +350,10 @@
         </plugins>
     </build>
     <profiles>
-        <!-- Windows Portable Profile (JPackage) - Manual activation only -->
         <profile>
             <id>windows-portable</id>
             <build>
                 <plugins>
-                    <!-- Prepare jpackage input directory -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-resources-plugin</artifactId>
@@ -355,8 +378,6 @@
                             </execution>
                         </executions>
                     </plugin>
-                    <!--
-                    JPackage execution -->
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
@@ -379,9 +400,6 @@
                                         <argument>${app.description}</argument>
                                         <argument>--vendor</argument>
                                         <argument>${app.vendor}</argument>
-                                        <!--
-                                        FIX: Use dedicated input directory to
-                                        avoid recursion -->
                                         <argument>--input</argument>
                                         <argument>${project.build.directory}/jpackage-input</argument>
                                         <argument>--main-jar</argument>
@@ -394,16 +412,14 @@
                                         <argument>-Xmx2048m</argument>
                                         <argument>--java-options</argument>
                                         <argument>-Dspring.profiles.active=prod</argument>
-                                        <!--
-                                        Enable console window for output -->
+                                        <argument>--java-options</argument>
+                                        <argument>--enable-preview</argument>
                                         <argument>--win-console</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
                         </executions>
                     </plugin>
-                    <!--
-                    Create portable ZIP distribution -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-assembly-plugin</artifactId>

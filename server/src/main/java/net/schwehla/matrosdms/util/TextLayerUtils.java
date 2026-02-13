@@ -12,24 +12,27 @@ import java.util.regex.Pattern;
 
 public class TextLayerUtils {
 
-	// Regex to extract content inside CDATA or raw tags
+	// Regex to extract content inside CDATA
+    // Flag DOTALL is critical to capture newlines inside CDATA
 	private static final Pattern CONTENT_PATTERN = Pattern.compile("<!\\[CDATA\\[(.*?)\\]\\]>", Pattern.DOTALL);
 
-	// Fallback if CDATA is missing but tags exist
+	// Fallback: Strip all XML tags
 	private static final Pattern TAG_STRIP_PATTERN = Pattern.compile("<[^>]+>");
 
 	public static String extractCleanText(String xmlTextLayer) {
 		if (xmlTextLayer == null || xmlTextLayer.isEmpty())
 			return "";
 
-		// Reject binary content (e.g. raw PDF bytes stored without text extraction)
+		// SAFETY 1: Reject binary content/raw PDF bytes masquerading as text layer
 		if (isBinaryContent(xmlTextLayer)) {
 			return "";
 		}
 
 		StringBuilder sb = new StringBuilder();
 
-		// 1. Try to extract CDATA content (The standard we implemented)
+		// SAFETY 2: Strict CDATA extraction
+        // This ensures we ONLY index content we explicitly extracted and wrapped.
+        // It ignores attributes like <root source="SCAN"> which shouldn't be indexed as text.
 		Matcher m = CONTENT_PATTERN.matcher(xmlTextLayer);
 		boolean foundCdata = false;
 		while (m.find()) {
@@ -37,19 +40,21 @@ public class TextLayerUtils {
 			foundCdata = true;
 		}
 
-		// 2. If no CDATA found (legacy files?), just strip tags
+		// Fallback for legacy files without CDATA wrapping (if any exist)
 		if (!foundCdata) {
-			String stripped = TAG_STRIP_PATTERN.matcher(xmlTextLayer).replaceAll(" ");
-			return stripped.replaceAll("\\s+", " ").trim();
+            // Only runs if the file looks like XML but has no CDATA
+            if (xmlTextLayer.trim().startsWith("<")) {
+			    String stripped = TAG_STRIP_PATTERN.matcher(xmlTextLayer).replaceAll(" ");
+			    return stripped.replaceAll("\\s+", " ").trim();
+            } else {
+                // It's just plain text
+                return xmlTextLayer;
+            }
 		}
 
 		return sb.toString().trim();
 	}
 
-	/**
-	 * Detect binary/non-text content by checking for non-printable characters.
-	 * A valid text layer is XML or plain text — never raw PDF/image bytes.
-	 */
 	private static boolean isBinaryContent(String content) {
 		// Check the first 512 chars (enough to detect binary headers like %PDF)
 		int checkLen = Math.min(content.length(), 512);
