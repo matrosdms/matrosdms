@@ -44,7 +44,7 @@ jobs:
 
       - name: Build with Maven
         # Maven will now use the cached JDK libs and the cached NPM packages
-        run: mvn -B install -Pwith-frontend
+        run: mvn -B install -Pwindows-portable,with-frontend
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
