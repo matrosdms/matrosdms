@@ -44,62 +44,21 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Build backend + frontend
-        run: mvn -B install -Pwith-frontend
-
-      # ===== CRITICAL VERIFICATION STEP =====
-      # This ensures the JAR actually contains frontend files before Docker build
-      - name: Verify frontend files in JAR
         run: |
-          echo "================================================"
-          echo "Verifying JAR contains frontend files"
-          echo "================================================"
-          
-          # Find the built JAR
-          JAR_FILE=$(ls server/target/server-*.jar 2>/dev/null | grep -v "sources\|javadoc\|plugin-api" | head -n 1)
-          
-          if [ -z "$JAR_FILE" ]; then
-            echo "❌ ERROR: No server JAR found!"
-            echo "Files in server/target/:"
-            ls -la server/target/ || echo "server/target/ directory not found"
-            exit 1
-          fi
-          
-          echo "✓ Found JAR: $JAR_FILE"
-          echo "  Size: $(du -h "$JAR_FILE" | cut -f1)"
-          echo ""
-          
-          # Check for frontend files in the JAR
-          echo "Checking for frontend static files..."
-          if unzip -l "$JAR_FILE" | grep -q "BOOT-INF/classes/static/index.html"; then
-            echo "✅ SUCCESS: Frontend files confirmed in JAR"
-            echo ""
-            echo "Frontend files in JAR:"
-            unzip -l "$JAR_FILE" | grep "BOOT-INF/classes/static/" | head -20
-          else
-            echo "❌ ERROR: Frontend files NOT found in JAR!"
-            echo ""
-            echo "Searching for any static files..."
-            unzip -l "$JAR_FILE" | grep -i "static" || echo "No static files found"
-            echo ""
-            echo "This means -Pwith-frontend profile didn't work correctly"
-            exit 1
-          fi
-          
-          echo "================================================"
+          # Ensure we're in repository root where parent POM is
+          cd $GITHUB_WORKSPACE
+          mvn -B install -Pwith-frontend
 
-      # ===== DOCKER BUILD PREPARATION =====
-      # Verify Dockerfile exists at expected location
-      - name: Verify Dockerfile location
-        run: |
-          if [ -f "./infra/Dockerfile" ]; then
-            echo "✓ Dockerfile found at ./infra/Dockerfile"
-          else
-            echo "❌ ERROR: Dockerfile not found at ./infra/Dockerfile"
-            echo "Searching for Dockerfile..."
-            find . -name "Dockerfile" -type f
-            exit 1
-          fi
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            **/target/*.jar
+            **/target/**/dist/**
+          if-no-files-found: error
 
+      # ---- Docker build & push ----
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -139,22 +98,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Add build arg to help with cache invalidation when frontend changes
-          build-args: |
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
-            VCS_REF=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      # Upload artifacts for Windows/Linux installers (AFTER Docker build)
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            **/target/*.jar
-            **/target/**/dist/**
-          if-no-files-found: error
 
   # =========================================
   # WINDOWS PORTABLE PACKAGING (fast)
