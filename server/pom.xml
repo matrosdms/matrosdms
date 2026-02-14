@@ -351,6 +351,19 @@
     </build>
     <profiles>
         <profile>
+            <id>with-frontend</id>
+            <dependencies>
+                <!-- Only depend on frontend when profile is active -->
+                <dependency>
+                    <groupId>net.schwehla.matrosdms</groupId>
+                    <artifactId>frontend</artifactId>
+                    <version>${project.version}</version>
+                    <type>pom</type>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
             <id>windows-portable</id>
             <build>
                 <plugins>
