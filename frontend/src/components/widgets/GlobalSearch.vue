@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
 import { Search, X, Terminal, Settings, Plus, Moon, Sun, Sparkles, Command, Folder, Box, Tag, Calendar, Clock, Radio } from 'lucide-vue-next'
-import { onClickOutside } from '@vueuse/core'
+import { onClickOutside, useDebounceFn } from '@vueuse/core'
 import { useHotkeys } from '@/composables/useHotkeys'
 import { useListNavigation } from '@/composables/useListNavigation'
 import { useDmsStore } from '@/stores/dms'
@@ -53,7 +53,7 @@ const navigableItems = computed(() => {
     return searchResults.value.map(r => ({ type: 'result', data: r }))
 })
 
-// --- REFACTORED: Use shared navigation logic ---
+// --- NAVIGATION ---
 const navigableLength = computed(() => navigableItems.value.length)
 const suggestionLength = computed(() => suggestions.value.length)
 
@@ -98,9 +98,12 @@ useHotkeys('Escape', () => {
 
 onClickOutside(containerRef, () => showResults.value = false)
 
-const performSearch = async () => {
-  fetchSuggestions()
-  if (currentTrigger.value) return
+// --- SEARCH LOGIC (FIXED & DEBOUNCED) ---
+
+const performSearch = useDebounceFn(async () => {
+  fetchSuggestions() // Helper composable handles its own logic
+  
+  if (currentTrigger.value) return // Don't full-text search while typing a filter (e.g. "date:")
 
   if (activeFilters.value.length === 0 && (!searchQuery.value || searchQuery.value.length < 2)) {
       searchResults.value = []
@@ -114,8 +117,12 @@ const performSearch = async () => {
     const payload = buildQueryPayload()
     const results = await SearchService.search(payload)
     searchResults.value = results
-  } catch (e) { console.error(e) } finally { isSearching.value = false }
-}
+  } catch (e) { 
+      console.error(e) 
+  } finally { 
+      isSearching.value = false 
+  }
+}, 300) // 300ms Delay
 
 const onSelectResult = async (result: any) => {
   if (!result || !result.uuid) return
@@ -134,7 +141,7 @@ const handleKeyNav = (e: KeyboardEvent) => {
     // 1. Special Case: Backspace
     if (e.key === 'Backspace' && !searchQuery.value && activeFilters.value.length > 0) {
         activeFilters.value.pop()
-        performSearch()
+        performSearch() // Trigger immediate re-search
         return
     }
 
@@ -149,10 +156,8 @@ const handleKeyNav = (e: KeyboardEvent) => {
     if (!showResults.value && !currentTrigger.value) return
 
     // 3. Delegate to Composable
-    // Priority: Suggestion Dropdown -> Main List -> Default Enter behavior
     if (suggestions.value.length > 0 && showResults.value) {
         handleSuggestionKey(e)
-        // If the composable handled it (prevented default), stop here
         if (e.defaultPrevented) return
     }
 
@@ -161,14 +166,14 @@ const handleKeyNav = (e: KeyboardEvent) => {
         handleMainListKey(e)
     }
 
-    // Fallback: Default Enter behavior (Search)
+    // Fallback: Default Enter behavior (Search immediately)
     if (e.key === 'Enter' && !e.defaultPrevented) {
         e.preventDefault()
         if (currentTrigger.value) {
             applySuggestion(currentTrigger.value.partial)
             inputRef.value?.focus()
         } else {
-            performSearch()
+            performSearch() // Trigger search
         }
     }
 }
@@ -187,7 +192,7 @@ const clearAndSearch = () => {
 
 <template>
 <div ref="containerRef" class="relative w-full z-30" @keydown="handleKeyNav">
-    <!-- Input Field (Same as before) -->
+    <!-- Input Field -->
     <div 
         class="relative group flex items-center w-full min-h-[40px] px-3 py-1 bg-muted/50 hover:bg-background focus-within:bg-background border border-border rounded-xl transition-all shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary"
         @click="inputRef?.focus()"
@@ -211,11 +216,11 @@ const clearAndSearch = () => {
                 }"
             >
                 <Folder v-if="filter.field === 'CONTEXT'" :size="10" />
-                <Box v-else-if="filter.field === 'STORE'" :size="10" />
-                <Calendar v-else-if="filter.field === 'ISSUE_DATE'" :size="10" />
-                <Clock v-else-if="filter.field === 'CREATED'" :size="10" />
-                <Radio v-else-if="filter.field === 'SOURCE'" :size="10" />
-                <Tag v-else :size="10" />
+                <Box v-if="filter.field === 'STORE'" :size="10" />
+                <Calendar v-if="filter.field === 'ISSUE_DATE'" :size="10" />
+                <Clock v-if="filter.field === 'CREATED'" :size="10" />
+                <Radio v-if="filter.field === 'SOURCE'" :size="10" />
+                <Tag v-else-if="!['CONTEXT', 'STORE', 'ISSUE_DATE', 'CREATED', 'SOURCE'].includes(filter.field)" :size="10" />
                 
                 <span class="truncate max-w-[150px]">{{ filter.label.split(':')[1] }}</span>
                 <button @click.stop="removeFilterAndSearch(idx)" class="hover:text-red-600"><X :size="10" /></button>
