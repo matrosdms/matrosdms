@@ -17,7 +17,10 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.tika.Tika;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.mime.MimeType;
+import org.apache.tika.mime.MimeTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -29,6 +32,7 @@ public class TikaService {
 
 	private static final Logger log = LoggerFactory.getLogger(TikaService.class);
 	private Tika tika;
+	private MimeTypes mimeRepository;
 
 	private Tika getTika() {
 		if (this.tika == null) {
@@ -38,12 +42,44 @@ public class TikaService {
 		return this.tika;
 	}
 
+	private MimeTypes getMimeRepository() {
+		if (this.mimeRepository == null) {
+			this.mimeRepository = TikaConfig.getDefaultConfig().getMimeRepository();
+		}
+		return this.mimeRepository;
+	}
+
 	public String detectMimeType(Path file) {
 		try {
 			return getTika().detect(file);
 		} catch (IOException e) {
 			log.warn("Mime detection failed: {}", e.getMessage());
 			return "application/octet-stream";
+		}
+	}
+
+	public String detectMimeType(byte[] data) {
+		try {
+			return getTika().detect(data);
+		} catch (Exception e) {
+			log.warn("Mime detection failed: {}", e.getMessage());
+			return "application/octet-stream";
+		}
+	}
+
+	/**
+	 * Resolves the preferred file extension for a given MIME type string.
+	 * e.g., "application/pdf" -> ".pdf"
+	 */
+	public String getExtensionForMimeType(String mimeType) {
+		if (mimeType == null || mimeType.isBlank()) return ".bin";
+		try {
+			MimeType type = getMimeRepository().forName(mimeType);
+			String ext = type.getExtension();
+			return (ext == null || ext.isEmpty()) ? ".bin" : ext;
+		} catch (Exception e) {
+			log.warn("Failed to resolve extension for mime: {}", mimeType);
+			return ".bin";
 		}
 	}
 
@@ -62,20 +98,6 @@ public class TikaService {
 		}
 	}
 
-	public String detectMimeType(byte[] data) {
-		try {
-			return getTika().detect(data);
-		} catch (Exception e) {
-			log.warn("Mime detection failed: {}", e.getMessage());
-			return "application/octet-stream";
-		}
-	}
-
-	/**
-	 * EXTRACT TEXT FROM STREAM Required for Email Attachments which are in memory
-	 * (InputStream), not
-	 * files.
-	 */
 	public String extractText(InputStream stream) {
 		try {
 			// Metadata object is required to prevent NPE in some Tika parsers

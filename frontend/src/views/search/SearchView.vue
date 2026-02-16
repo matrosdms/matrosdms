@@ -2,7 +2,7 @@
 import { ref, h, computed, nextTick, type Component } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useDebounceFn, onClickOutside, useStorage } from '@vueuse/core'
-import { Search, Save, Trash2, Star, Terminal, Sparkles, Plus, Folder, Box, Tag, Calendar, Clock, X, Radio, Sun, Moon, Settings, Command, FileText } from 'lucide-vue-next'
+import { Search, Save, Trash2, Star, Terminal, Sparkles, Plus, Folder, Box, Tag, Calendar, Clock, X, Radio, Sun, Moon, Settings, Command, FileText, ExternalLink, Pencil, ArrowRight } from 'lucide-vue-next'
 import { push } from 'notivue'
 import { SearchService } from '@/services/SearchService'
 import { SavedSearchService } from '@/services/SavedSearchService'
@@ -26,6 +26,7 @@ import DocumentPreview from '@/components/ui/DocumentPreview.vue'
 import DateCell from '@/components/ui/cells/DateCell.vue'
 import BadgeCell from '@/components/ui/cells/BadgeCell.vue'
 import SearchResultItem from '@/components/ui/SearchResultItem.vue'
+import ItemEditForm from '@/components/forms/ItemEditForm.vue' // NEW: Import Edit Form
 
 // --- CONSTANTS ---
 const STORAGE_KEY = 'matros-search-layout-v2' as const
@@ -90,7 +91,7 @@ interface CommandItem {
     id: string;
     label: string;
     desc: string;
-    icon: any; // Relaxed to any to prevent strict component type mismatches
+    icon: any; 
     keywords: string[];
     action: () => void;
 }
@@ -133,26 +134,50 @@ const getFilterBadgeClasses = (field: string) => {
     return map[field] || 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
 }
 
-// --- HELPERS ---
+// --- NEW ACTIONS ---
+
+// 1. Jump to Folder
+const jumpToContext = () => {
+    const ctx = dms.selectedItem?.context
+    if (ctx) {
+        dms.setSelectedContext(ctx)
+        dms.setSelectedItem(dms.selectedItem) // Keep item selected in target view
+        ui.setView('dms')
+        ui.setRightPanelView(ViewMode.DETAILS)
+        push.info(`Jumped to folder: ${ctx.name}`)
+    } else {
+        push.warning("Item has no assigned folder")
+    }
+}
+
+// 2. Edit Action
+const startEdit = () => {
+    if (dms.selectedItem) {
+        // This sets ui.rightPanelView to 'editItem', triggering the v-if in the template
+        dms.startItemEditing() 
+    }
+}
+
+// 3. Callback when Edit Form closes
+const onEditClose = () => {
+    // Return to preview mode
+    ui.setRightPanelView(ViewMode.DETAILS)
+}
 
 /** Returns true if the string is mostly printable (not binary garbage). */
 const isReadableText = (text: string | undefined | null): boolean => {
     if (!text) return false
-    // Strip HTML tags for the check (highlight may contain <em>/<b>)
     const plain = text.replace(/<[^>]*>/g, '')
     if (plain.length === 0) return false
-    // Count characters outside the normal printable range (allow common unicode letters too)
     let bad = 0
     for (let i = 0; i < plain.length; i++) {
         const code = plain.charCodeAt(i)
-        // Allow tab, newline, carriage return, and printable range 0x20-0xFFFD
         if (code < 0x20 && code !== 0x09 && code !== 0x0A && code !== 0x0D) bad++
-        else if (code === 0xFFFD) bad++ // replacement character
+        else if (code === 0xFFFD) bad++
     }
-    return bad / plain.length < 0.1 // less than 10% garbage → readable
+    return bad / plain.length < 0.1 
 }
 
-// --- DATA TABLE COLUMNS ---
 const columns = [
     {
         accessorKey: 'name',
@@ -205,20 +230,15 @@ const columns = [
     }
 ]
 
-// --- NAVIGATION & HOTKEYS ---
-
 const onSelectResult = async (result: SearchResult) => {
   if (!result || !result.uuid) return
   try {
     const fullItem = await ItemService.getById(result.uuid)
-    dms.setSelectedContext(fullItem.context || null)
     dms.setSelectedItem(fullItem)
-    ui.setView('dms')
+    // Don't auto-switch view, stay in Search to preserve flow
     ui.setRightPanelView(ViewMode.DETAILS)
-    ui.setZoom(false) 
   } catch (error: any) {
-    const message = error.message || "Could not load document"
-    push.error(message)
+    push.error(error.message || "Could not load document")
   }
   showResults.value = false
 }
@@ -346,7 +366,6 @@ const saveCurrentSearch = async () => {
     }
 }
 
-// FIXED: Explicitly type the argument as 'any' to satisfy strict template checks
 const onRowClick = (item: any) => {
     if (!item.uuid) return
     ItemService.getById(item.uuid).then(fullItem => {
@@ -526,13 +545,47 @@ onClickOutside(containerRef, () => suggestions.value = [])
           </AppPane>
       </template>
       
+      <!-- DETAIL PANE (Preview / Edit) -->
       <template #detail>
-          <div v-if="dms.selectedItem" class="h-full flex flex-col bg-background">
-             <DocumentPreview 
-               :identifier="dms.selectedItem.uuid || ''" 
-               source="item" 
-               :file-name="dms.selectedItem.name"
-             />
+          <div v-if="dms.selectedItem" class="h-full flex flex-col bg-background relative">
+             
+             <!-- 1. EDIT MODE -->
+             <div v-if="ui.rightPanelView === ViewMode.EDIT_ITEM" class="h-full w-full">
+                 <ItemEditForm :initial-data="dms.selectedItem" @close="onEditClose" />
+             </div>
+
+             <!-- 2. PREVIEW MODE -->
+             <div v-else class="h-full flex flex-col">
+                 <!-- Header / Toolbar -->
+                 <div class="px-4 py-2 border-b bg-background flex items-center justify-between shrink-0 h-[45px] shadow-sm z-10">
+                     <div class="flex items-center gap-2 overflow-hidden">
+                         <FileText :size="16" class="text-primary" />
+                         <span class="font-bold text-sm truncate">{{ dms.selectedItem.name }}</span>
+                     </div>
+                     <div class="flex items-center gap-2">
+                         <BaseButton 
+                            v-if="dms.selectedItem.context"
+                            variant="secondary" 
+                            size="sm" 
+                            class="h-7 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                            @click="jumpToContext"
+                            title="Jump to Folder"
+                         >
+                             <Folder :size="14" class="mr-1" /> {{ dms.selectedItem.context.name }} <ArrowRight :size="12" class="ml-1 opacity-50"/>
+                         </BaseButton>
+                         
+                         <BaseButton variant="outline" size="sm" class="h-7" @click="startEdit">
+                             <Pencil :size="14" class="mr-1" /> Edit
+                         </BaseButton>
+                     </div>
+                 </div>
+
+                 <DocumentPreview 
+                   :identifier="dms.selectedItem.uuid || ''" 
+                   source="item" 
+                   :file-name="dms.selectedItem.name"
+                 />
+             </div>
           </div>
           <EmptyState 
             v-else 

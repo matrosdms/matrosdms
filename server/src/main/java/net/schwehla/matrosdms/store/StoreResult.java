@@ -7,24 +7,43 @@
  */
 package net.schwehla.matrosdms.store;
 
+/**
+ * Result of a document storage operation.
+ */
 public class StoreResult {
 
-	String SHA256;
-	String cryptSettings;
+    private String SHA256;
+    private String cryptSettings;
 
-	public String getSHA256() {
-		return SHA256;
-	}
+    public StoreResult() {
+    }
 
-	public void setSHA256(String sHA256) {
-		SHA256 = sHA256;
-	}
+    public StoreResult(String sha256, String cryptSettings) {
+        this.SHA256 = sha256;
+        this.cryptSettings = cryptSettings;
+    }
 
-	public String getCryptSettings() {
-		return cryptSettings;
-	}
+    public String getSHA256() {
+        return SHA256;
+    }
 
-	public void setCryptSettings(String cryptSettings) {
-		this.cryptSettings = cryptSettings;
-	}
+    public void setSHA256(String SHA256) {
+        this.SHA256 = SHA256;
+    }
+
+    public String getCryptSettings() {
+        return cryptSettings;
+    }
+
+    public void setCryptSettings(String cryptSettings) {
+        this.cryptSettings = cryptSettings;
+    }
+
+    @Override
+    public String toString() {
+        return "StoreResult{" +
+                "SHA256='" + SHA256 + '\'' +
+                ", cryptSettings='" + cryptSettings + '\'' +
+                '}';
+    }
 }

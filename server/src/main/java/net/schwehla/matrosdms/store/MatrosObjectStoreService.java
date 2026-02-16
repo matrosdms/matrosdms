@@ -28,9 +28,8 @@ public class MatrosObjectStoreService {
 		return store.loadStream(uuid);
 	}
 
-	// NEW: Direct access to text layer for API/AI
 	public String loadTextLayer(String uuid) {
-		return StoreContext.readTextFile(uuid);
+		return store.loadTextLayer(uuid);
 	}
 
 	public void moveToTrash(String uuid) {

@@ -48,6 +48,7 @@ import org.springframework.web.client.RestClient;
 import net.schwehla.matrosdms.service.TikaService;
 import net.schwehla.matrosdms.service.pipeline.PipelineContext;
 import net.schwehla.matrosdms.service.pipeline.PipelineStep;
+import net.schwehla.matrosdms.store.util.FileExtensionService;
 
 /**
  * Embeds all external resources (images, CSS, fonts) into emails for archival.
@@ -65,6 +66,9 @@ public class EmailEmbeddingStep implements PipelineStep {
 
 	@Autowired
 	TikaService tikaService;
+	
+	@Autowired
+	FileExtensionService extensionService;  
 
 	// Patterns to find external URLs in HTML
 	private static final Pattern IMG_SRC = Pattern.compile(
@@ -196,44 +200,47 @@ public class EmailEmbeddingStep implements PipelineStep {
 	 * Download resources with proper MIME type from HTTP Content-Type header
 	 */
 	private Map<String, ResourceData> downloadResources(Set<String> urls, PipelineContext ctx) {
-		Map<String, ResourceData> resources = new HashMap<>();
+	    Map<String, ResourceData> resources = new HashMap<>();
 
-		for (String url : urls) {
-			try {
-				ResponseEntity<byte[]> response = restClient.get()
-						.uri(URI.create(url))
-						.retrieve()
-						.toEntity(byte[].class);
+	    for (String url : urls) {
+	        try {
+	            ResponseEntity<byte[]> response = restClient.get()
+	                    .uri(URI.create(url))
+	                    .retrieve()
+	                    .toEntity(byte[].class);
 
-				byte[] data = response.getBody();
-				if (data == null || data.length == 0) {
-					continue;
-				}
+	            byte[] data = response.getBody();
+	            if (data == null || data.length == 0) {
+	                continue;
+	            }
 
-				if (data.length > MAX_RESOURCE_SIZE) {
-					ctx.addWarning("Skipping large resource: " + url);
-					continue;
-				}
+	            if (data.length > MAX_RESOURCE_SIZE) {
+	                ctx.addWarning("Skipping large resource: " + url);
+	                continue;
+	            }
 
-				// Use Tika for reliable MIME type detection from content
-				String mimeType = tikaService.detectMimeType(data);
+	            // Use Tika for reliable MIME type detection from content
+	            String mimeType = tikaService.detectMimeType(data);
 
-				// Generate stable content ID from hash
-				String hash = hashBytes(data);
-				String contentId = hash.substring(0, 12);
-				String extension = extensionForMime(mimeType);
-				String filename = "_embed_" + contentId + extension;
+	            // Generate stable content ID from hash
+	            String hash = hashBytes(data);
+	            String contentId = hash.substring(0, 12);
+	            
+	            // ✅ USE FileExtensionService INSTEAD OF HARDCODED SWITCH
+	            String extension = extensionService.getExtensionForMimeType(mimeType);
+	            
+	            String filename = "_embed_" + contentId + extension;
 
-				resources.put(url, new ResourceData(contentId, filename, data, mimeType));
+	            resources.put(url, new ResourceData(contentId, filename, data, mimeType));
 
-				log.debug("Downloaded: {} -> {} ({})", url, filename, mimeType);
+	            log.debug("Downloaded: {} -> {} ({})", url, filename, mimeType);
 
-			} catch (Exception e) {
-				log.warn("Failed to download: {} - {}", url, e.getMessage());
-			}
-		}
+	        } catch (Exception e) {
+	            log.warn("Failed to download: {} - {}", url, e.getMessage());
+	        }
+	    }
 
-		return resources;
+	    return resources;
 	}
 
 	private Message embedResourcesInEmail(
@@ -405,21 +412,7 @@ public class EmailEmbeddingStep implements PipelineStep {
 		return sb.toString();
 	}
 
-	private String extensionForMime(String mime) {
-		return switch (mime) {
-			case "image/png" -> ".png";
-			case "image/jpeg" -> ".jpg";
-			case "image/gif" -> ".gif";
-			case "image/webp" -> ".webp";
-			case "image/svg+xml" -> ".svg";
-			case "text/css" -> ".css";
-			case "font/woff" -> ".woff";
-			case "font/woff2" -> ".woff2";
-			case "font/ttf" -> ".ttf";
-			case "application/vnd.ms-fontobject" -> ".eot";
-			default -> "";
-		};
-	}
+
 
 	private String hashBytes(byte[] data) {
 		try {

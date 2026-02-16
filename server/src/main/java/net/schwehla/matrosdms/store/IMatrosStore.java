@@ -11,17 +11,67 @@ import java.nio.file.Path;
 
 import net.schwehla.matrosdms.domain.content.MDocumentStream;
 
+/**
+ * Interface for document storage operations.
+ * Implementations handle different storage backends (local, S3, Azure, etc.)
+ */
 public interface IMatrosStore {
-	MDocumentStream loadStream(String uuid);
 
-	StoreResult persist(Path pdfFile, Path textFile, String uuid, String originalFilename);
+    /**
+     * Persists a document with optional text layer.
+     * 
+     * @param sourceFile Main document file to store
+     * @param textFile Optional extracted text file
+     * @param uuid Document UUID
+     * @param originalFilename Original filename for metadata
+     * @return Storage result with hash and encryption info
+     */
+    StoreResult persist(Path sourceFile, Path textFile, String uuid, String originalFilename);
 
-	void moveToTrash(String uuid);
+    /**
+     * Loads a document as a stream.
+     * 
+     * @param uuid Document UUID
+     * @return Document stream
+     */
+    MDocumentStream loadStream(String uuid);
 
-	// NEW: Thumbnail Support
-	boolean hasThumbnail(String uuid);
+    /**
+     * Loads the text layer for a document.
+     * 
+     * @param uuid Document UUID
+     * @return Extracted text content
+     */
+    String loadTextLayer(String uuid);
 
-	void storeThumbnail(String uuid, byte[] data);
+    /**
+     * Moves a document to trash.
+     * 
+     * @param uuid Document UUID
+     */
+    void moveToTrash(String uuid);
 
-	byte[] loadThumbnail(String uuid);
+    /**
+     * Checks if a document has a thumbnail.
+     * 
+     * @param uuid Document UUID
+     * @return true if thumbnail exists
+     */
+    boolean hasThumbnail(String uuid);
+
+    /**
+     * Stores a thumbnail for a document.
+     * 
+     * @param uuid Document UUID
+     * @param data Thumbnail image data
+     */
+    void storeThumbnail(String uuid, byte[] data);
+
+    /**
+     * Loads a thumbnail for a document.
+     * 
+     * @param uuid Document UUID
+     * @return Thumbnail data or null
+     */
+    byte[] loadThumbnail(String uuid);
 }

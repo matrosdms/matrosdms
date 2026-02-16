@@ -1,22 +1,10 @@
 <script setup lang="ts">
-/**
- * DocumentPreview — thin dispatcher.
- *
- * Responsibilities:
- *  1. Fetch the document blob (via useQuery)
- *  2. Manage the blob-URL lifecycle (create / revoke)
- *  3. Detect the MIME type
- *  4. Delegate rendering to the correct specialised viewer
- *  5. Provide shared actions (download, open-external)
- *
- * All rendering logic lives in the viewers/ directory.
- * Nothing is downloaded from a CDN — every asset is bundled locally.
- */
 import { ref, watch, onUnmounted, computed } from 'vue'
 import { ItemService } from '@/services/ItemService'
 import { InboxService } from '@/services/InboxService'
-import { Loader2, FileX, Download, ExternalLink, FileText } from 'lucide-vue-next'
+import { Loader2, FileX, Download, ExternalLink, FileText, AlignLeft, Image as ImageIcon } from 'lucide-vue-next'
 import { useQuery } from '@tanstack/vue-query'
+import { push } from 'notivue'
 
 // ── Specialised viewers ──────────────────────────────────────────────────
 import PdfViewer from '@/components/viewers/PdfViewer.vue'
@@ -31,10 +19,13 @@ const props = defineProps<{
   fileName?: string
 }>()
 
-// ── Blob URL ─────────────────────────────────────────────────────────────
+// ── State ────────────────────────────────────────────────────────────────
 const blobUrl = ref<string | null>(null)
+const viewMode = ref<'file' | 'text'>('file')
+const textContent = ref<string | null>(null)
+const isFetchingText = ref(false)
 
-// ── Data query ───────────────────────────────────────────────────────────
+// ── Data query (Binary Content) ──────────────────────────────────────────
 const { data, isLoading, error } = useQuery({
   queryKey: computed(() => ['content', props.source, props.identifier]),
   queryFn: async () => {
@@ -46,6 +37,39 @@ const { data, isLoading, error } = useQuery({
   staleTime: Infinity,
   gcTime: 1000 * 60 * 5,
   retry: 1,
+})
+
+// ── Text Layer Fetching ──────────────────────────────────────────────────
+const toggleViewMode = async () => {
+    if (viewMode.value === 'text') {
+        viewMode.value = 'file'
+        return
+    }
+
+    // Switch to Text
+    viewMode.value = 'text'
+    
+    // Fetch if not already loaded
+    if (!textContent.value && props.source === 'item') {
+        isFetchingText.value = true
+        try {
+            const txt = await ItemService.getRawText(props.identifier)
+            textContent.value = txt || "No text layer found for this document."
+        } catch (e: any) {
+            textContent.value = `Error loading text: ${e.message}`
+            push.error("Could not fetch text layer")
+        } finally {
+            isFetchingText.value = false
+        }
+    } else if (props.source === 'inbox' && !textContent.value) {
+        textContent.value = "Text extraction is only available after import."
+    }
+}
+
+// Reset state when identifier changes
+watch(() => props.identifier, () => {
+    viewMode.value = 'file'
+    textContent.value = null
 })
 
 // ── Blob URL lifecycle ───────────────────────────────────────────────────
@@ -111,9 +135,16 @@ const downloadFile = () => {
       <p class="text-xs text-gray-500 mt-1">{{ (error as Error).message }}</p>
     </div>
 
-    <!-- 3. CONTENT — delegate to specialised viewer -->
-    <template v-else-if="data?.blob && blobUrl">
+    <!-- 3. VIEW MODE: TEXT LAYER -->
+    <div v-else-if="viewMode === 'text'" class="flex-1 overflow-hidden relative">
+        <div v-if="isFetchingText" class="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-black/50 z-10">
+            <Loader2 class="animate-spin text-primary" :size="24" />
+        </div>
+        <TextViewer :text-content="textContent" />
+    </div>
 
+    <!-- 4. VIEW MODE: FILE (Default) -->
+    <template v-else-if="data?.blob && blobUrl">
       <EmailViewer v-if="isEmail" :blob="data.blob" />
       <PdfViewer   v-else-if="isPdf"   :blob-url="blobUrl" />
       <ImageViewer v-else-if="isImage" :blob-url="blobUrl" />
@@ -134,21 +165,34 @@ const downloadFile = () => {
           </button>
         </div>
       </div>
-
-      <!-- Floating actions (shared across all viewers) -->
-      <div class="absolute bottom-6 right-6 z-30 flex gap-2 opacity-0 group-hover/preview:opacity-100 transition-opacity">
-        <button @click="downloadFile" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg backdrop-blur-sm transition-transform hover:scale-105" title="Download">
-          <Download :size="18" />
-        </button>
-        <button @click="openExternal" class="bg-black/75 hover:bg-black text-white p-2 rounded-full shadow-lg backdrop-blur-sm transition-transform hover:scale-105" title="Open in New Tab">
-          <ExternalLink :size="18" />
-        </button>
-      </div>
     </template>
 
-    <!-- 4. EMPTY -->
+    <!-- 5. EMPTY -->
     <div v-else class="flex-1 flex items-center justify-center text-gray-400">
       No Document Selected
+    </div>
+
+    <!-- FLOATING ACTION BAR -->
+    <div v-if="blobUrl || textContent" class="absolute bottom-6 right-6 z-30 flex gap-2 transition-opacity opacity-0 group-hover/preview:opacity-100">
+        
+        <!-- Toggle Text/File -->
+        <button 
+            v-if="source === 'item' && !isEmail" 
+            @click="toggleViewMode" 
+            class="p-2 rounded-full shadow-lg backdrop-blur-sm transition-transform hover:scale-105 border border-white/10"
+            :class="viewMode === 'text' ? 'bg-blue-600 text-white' : 'bg-black/75 hover:bg-black text-white'"
+            :title="viewMode === 'text' ? 'View Original File' : 'View Text Layer'"
+        >
+            <component :is="viewMode === 'text' ? ImageIcon : AlignLeft" :size="18" />
+        </button>
+
+        <button @click="downloadFile" class="bg-black/75 hover:bg-black text-white p-2 rounded-full shadow-lg backdrop-blur-sm transition-transform hover:scale-105" title="Download">
+          <Download :size="18" />
+        </button>
+        
+        <button v-if="viewMode === 'file'" @click="openExternal" class="bg-black/75 hover:bg-black text-white p-2 rounded-full shadow-lg backdrop-blur-sm transition-transform hover:scale-105" title="Open in New Tab">
+          <ExternalLink :size="18" />
+        </button>
     </div>
   </div>
 </template>
