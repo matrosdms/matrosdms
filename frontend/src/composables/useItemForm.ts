@@ -13,6 +13,7 @@ import { formatDateForInput } from '@/lib/utils'
 import { queryKeys } from '@/composables/queries/queryKeys'
 
 export interface ItemFormData {
+    uuid?: string;
     name: string;
     description: string;
     issueDate: string;
@@ -34,6 +35,7 @@ export function useItemForm(isEdit: boolean) {
     const queryClient = useQueryClient()
 
     const form = ref<ItemFormData>({ 
+        uuid: undefined,
         name: '', 
         description: '', 
         issueDate: '', 
@@ -142,6 +144,7 @@ export function useItemForm(isEdit: boolean) {
             const k = item.kindList && item.kindList.length > 0 ? item.kindList[0] : null
             
             form.value = { 
+                uuid: item.uuid,
                 name: item.name || '', 
                 description: item.description || '', 
                 issueDate: formatDateForInput(item.issueDate),

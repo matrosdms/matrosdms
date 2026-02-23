@@ -82,10 +82,22 @@ const ensureActiveIndex = () => {
 
 watch(filteredFiles, ensureActiveIndex, { immediate: true })
 
-const handleFileClick = (file: InboxFile, index?: number) => {
+const handleFileClick = async (file: InboxFile, index?: number) => {
   if (typeof index === 'number') setActiveIndex(index)
   if (file.status === 'DUPLICATE') {
-    if (file.doublette) { ItemService.openDocument(file.doublette); push.info(`Opening existing document...`) } 
+    if (file.doublette) { 
+      try {
+        const fullItem = await ItemService.getById(file.doublette);
+        dms.setSelectedContext(fullItem.context || null);
+        dms.setSelectedItem(fullItem);
+        ui.setView('dms');
+        ui.setRightPanelView(ViewMode.DETAILS);
+        push.info(`Switched to existing document.`);
+      } catch (e) {
+        ItemService.openDocument(file.doublette); 
+        push.info(`Opening existing document...`);
+      }
+    } 
     else push.warning("Duplicate file. Please ignore/delete it.")
     nextTick(focusListContainer); return
   }

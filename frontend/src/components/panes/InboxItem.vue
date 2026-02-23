@@ -7,6 +7,8 @@ import {
 import { useDragDrop } from '@/composables/useDragDrop'
 import { useMatrosData } from '@/composables/useMatrosData'
 import { useDmsStore } from '@/stores/dms'
+import { useQuery } from '@tanstack/vue-query'
+import { ItemService } from '@/services/ItemService'
 import type { InboxFile } from '@/types/events'
 
 interface InboxItemProps {
@@ -63,6 +65,13 @@ const contextName = computed(() => {
 })
 const categoryName = computed(() => prediction.value?.category)
 const duplicateLabel = computed(() => props.file.doublette ? (props.file.doublette.length > 12 ? `${props.file.doublette.slice(0, 12)}…` : props.file.doublette) : '')
+
+const { data: duplicateItem } = useQuery({
+  queryKey: computed(() => ['item-mini', props.file.doublette]),
+  queryFn: () => ItemService.getById(props.file.doublette!),
+  enabled: computed(() => props.isDuplicate && !!props.file.doublette),
+  staleTime: 1000 * 60 * 5
+})
 
 const iconContainerClass = computed(() => {
   if (props.isDuplicate) return ICON_STYLES.duplicate
@@ -146,10 +155,15 @@ const handleIgnore = (event: Event) => { event.stopPropagation(); emit('ignore')
       <div class="flex-1 min-w-0">
         <span class="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug break-words block hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors" :title="displayName">{{ displayName }}</span>
         <div v-if="subTitle && !isProcessing" class="text-xs text-muted-foreground truncate">{{ subTitle }}</div>
-        <div v-if="isProcessing || isDuplicate" class="mt-1 flex items-center gap-2 text-xs font-mono">
-          <span v-if="isProcessing" class="text-blue-600 dark:text-blue-400 flex items-center gap-1.5"><RefreshCw :size="10" class="animate-spin" /> {{ progressLabel }}</span>
-          <span v-else-if="isDuplicate" class="text-orange-600 dark:text-orange-400 font-bold uppercase flex items-center gap-1"><AlertTriangle :size="10" /> Duplicate</span>
-          <span v-if="isDuplicate && file.doublette" class="mt-0.5 text-[10px] text-orange-500/80 dark:text-orange-400/60 font-normal cursor-pointer hover:underline" :title="`Click to open existing document (${file.doublette})`">duplicate of {{ duplicateLabel }}</span>
+        <div v-if="isProcessing || isDuplicate" class="mt-1 flex flex-col gap-1 text-xs">
+          <div class="flex items-center gap-2 font-mono">
+            <span v-if="isProcessing" class="text-blue-600 dark:text-blue-400 flex items-center gap-1.5"><RefreshCw :size="10" class="animate-spin" /> {{ progressLabel }}</span>
+            <span v-else-if="isDuplicate" class="text-orange-600 dark:text-orange-400 font-bold uppercase flex items-center gap-1"><AlertTriangle :size="10" /> Duplicate</span>
+          </div>
+          <div v-if="isDuplicate && file.doublette" class="text-[10px] text-orange-600/80 dark:text-orange-400/80 flex flex-col gap-0.5 ml-0.5">
+            <span class="truncate hover:underline" :title="`ID: ${file.doublette}`">of: <strong>{{ duplicateItem?.name || duplicateLabel }}</strong></span>
+            <span v-if="duplicateItem?.context" class="flex items-center gap-1 truncate opacity-90"><Folder :size="10" class="shrink-0"/> {{ duplicateItem.context.name }}</span>
+          </div>
         </div>
         <div v-else-if="showAIReady" class="mt-1 text-[10px] text-green-600 dark:text-green-400 font-bold flex items-center gap-1"><Sparkles :size="10" /> AI Ready</div>
       </div>

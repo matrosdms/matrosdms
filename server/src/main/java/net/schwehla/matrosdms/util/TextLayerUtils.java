@@ -10,65 +10,70 @@ package net.schwehla.matrosdms.util;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class TextLayerUtils {
 
-	// Regex to extract content inside CDATA
-    // Flag DOTALL is critical to capture newlines inside CDATA
-	private static final Pattern CONTENT_PATTERN = Pattern.compile("<!\\[CDATA\\[(.*?)\\]\\]>", Pattern.DOTALL);
+    private static final Logger log = LoggerFactory.getLogger(TextLayerUtils.class);
 
-	// Fallback: Strip all XML tags
-	private static final Pattern TAG_STRIP_PATTERN = Pattern.compile("<[^>]+>");
+    // Regex to extract content inside CDATA
+    private static final Pattern CONTENT_PATTERN = Pattern.compile("<!\\[CDATA\\[(.*?)\\]\\]>", Pattern.DOTALL);
 
-	public static String extractCleanText(String xmlTextLayer) {
-		if (xmlTextLayer == null || xmlTextLayer.isEmpty())
-			return "";
+    // Fallback: Strip all XML-like tags
+    private static final Pattern TAG_STRIP_PATTERN = Pattern.compile("<[^>]+>");
 
-		// SAFETY 1: Reject binary content/raw PDF bytes masquerading as text layer
-		if (isBinaryContent(xmlTextLayer)) {
-			return "";
-		}
+    public static String extractCleanText(String xmlTextLayer) {
+        if (xmlTextLayer == null || xmlTextLayer.isEmpty())
+            return "";
 
-		StringBuilder sb = new StringBuilder();
+        // SAFETY 1: Reject binary content (PDF bytes masquerading as text)
+        if (isBinaryContent(xmlTextLayer)) {
+            return "";
+        }
 
-		// SAFETY 2: Strict CDATA extraction
-        // This ensures we ONLY index content we explicitly extracted and wrapped.
-        // It ignores attributes like <root source="SCAN"> which shouldn't be indexed as text.
-		Matcher m = CONTENT_PATTERN.matcher(xmlTextLayer);
-		boolean foundCdata = false;
-		while (m.find()) {
-			sb.append(m.group(1).trim()).append("\n\n");
-			foundCdata = true;
-		}
+        StringBuilder sb = new StringBuilder();
 
-		// Fallback for legacy files without CDATA wrapping (if any exist)
-		if (!foundCdata) {
-            // Only runs if the file looks like XML but has no CDATA
-            if (xmlTextLayer.trim().startsWith("<")) {
-			    String stripped = TAG_STRIP_PATTERN.matcher(xmlTextLayer).replaceAll(" ");
-			    return stripped.replaceAll("\\s+", " ").trim();
-            } else {
-                // It's just plain text
-                return xmlTextLayer;
+        // STRATEGY A: Try to find structured CDATA content
+        Matcher m = CONTENT_PATTERN.matcher(xmlTextLayer);
+        boolean foundCdata = false;
+        while (m.find()) {
+            sb.append(m.group(1).trim()).append("\n\n");
+            foundCdata = true;
+        }
+
+        if (foundCdata) {
+            return sb.toString().trim();
+        }
+
+        // STRATEGY B (Fallback): If no CDATA found, it might be raw text or malformed XML.
+        // Just strip any <tags> and return the rest. This ensures we index *something*.
+        try {
+            String stripped = TAG_STRIP_PATTERN.matcher(xmlTextLayer).replaceAll(" ");
+            String clean = stripped.replaceAll("\\s+", " ").trim();
+            
+            if (!clean.isEmpty()) {
+                log.debug("Fallback extraction used (XML tags stripped)");
+                return clean;
             }
-		}
+        } catch (Exception e) {
+            log.warn("Text extraction error", e);
+        }
 
-		return sb.toString().trim();
-	}
+        // STRATEGY C: Return raw (Last resort)
+        return xmlTextLayer.trim();
+    }
 
-	private static boolean isBinaryContent(String content) {
-		// Check the first 512 chars (enough to detect binary headers like %PDF)
-		int checkLen = Math.min(content.length(), 512);
-		int nonPrintable = 0;
-		for (int i = 0; i < checkLen; i++) {
-			char c = content.charAt(i);
-			// Allow tab, newline, carriage return + normal printable range
-			if (c < 0x20 && c != '\t' && c != '\n' && c != '\r') {
-				nonPrintable++;
-			} else if (c == 0xFFFD) { // Unicode replacement character
-				nonPrintable++;
-			}
-		}
-		// More than 5% non-printable → binary garbage
-		return nonPrintable > checkLen * 0.05;
-	}
+    private static boolean isBinaryContent(String content) {
+        // Check first 512 chars for excessive nulls or control chars
+        int checkLen = Math.min(content.length(), 512);
+        int nonPrintable = 0;
+        for (int i = 0; i < checkLen; i++) {
+            char c = content.charAt(i);
+            if (c < 0x09 || (c > 0x0D && c < 0x20)) { // Strict control chars
+                nonPrintable++;
+            }
+        }
+        return nonPrintable > checkLen * 0.10; // >10% garbage = binary
+    }
 }

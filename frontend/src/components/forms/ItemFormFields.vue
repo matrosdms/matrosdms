@@ -287,5 +287,11 @@ onMounted(() => {
              </div>
         </div>
       </div>
+
+      <!-- Document ID (UUID) -->
+      <div v-if="modelValue.uuid" class="mt-1 pt-4 border-t border-border flex items-center justify-between text-[10px] text-muted-foreground font-mono select-all">
+          <span class="uppercase tracking-wider font-bold opacity-70">Document ID (UUID)</span>
+          <span>{{ modelValue.uuid }}</span>
+      </div>
   </div>
 </template>
