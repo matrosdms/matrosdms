@@ -16,9 +16,9 @@ env:
 
 jobs:
 
-  # ============================================================
-  # LINUX: frontend + backend + Linux installer + Docker
-  # ============================================================
+  # ============================
+  # LINUX BUILD (fast, cached)
+  # ============================
   build-linux:
     runs-on: ubuntu-latest
     permissions:
@@ -43,40 +43,27 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Build (frontend + backend + Linux installer)
-        run: mvn -B package "-Pwith-frontend,linux-installer"
+      - name: Build backend + frontend
+        run: |
+          # Ensure we're in repository root where parent POM is
+          cd $GITHUB_WORKSPACE
+          mvn -B install -Pwith-frontend
 
-      # develop: upload server JAR only
-      - name: Upload server JAR
-        if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: server-jar
-          path: server/target/server-*.jar
-          if-no-files-found: error
-          retention-days: 7
-
-      # main/master: upload Linux installer + server JAR
-      - name: Upload Linux installer + server JAR
-        if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-installer
+          name: build-output
           path: |
-            server/target/*.deb
-            server/target/*.rpm
-            server/target/*.tar.gz
-            server/target/server-*.jar
+            **/target/*.jar
+            **/target/**/dist/**
           if-no-files-found: error
-          retention-days: 14
 
-      # Docker: develop → develop tag, main/master → latest tag, schedule → nightly tag
+      # ---- Docker build & push ----
       - name: Set up Docker Buildx
-        if: github.event_name == 'push' || github.event_name == 'schedule'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        if: github.event_name == 'push' || github.event_name == 'schedule'
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -84,14 +71,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        if: github.event_name == 'push' || github.event_name == 'schedule'
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata for Docker
-        if: github.event_name == 'push' || github.event_name == 'schedule'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -105,27 +91,31 @@ jobs:
             type=sha,prefix=
 
       - name: Build and push Docker image
-        if: github.event_name == 'push' || github.event_name == 'schedule'
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./infra/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ============================================================
-  # WINDOWS: frontend + backend + portable
-  # Fully self-contained — builds everything from scratch,
-  # no artifact downloads from the linux job
-  # ============================================================
+  # =========================================
+  # WINDOWS PORTABLE PACKAGING (fast)
+  # =========================================
   build-windows-portable:
     runs-on: windows-latest
+    needs: build-linux
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: build
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
@@ -134,25 +124,93 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Cache NPM dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+      - name: Run portable packaging only
+        run: mvn -B package -Pwindows-portable -DskipTests
 
-      - name: Build (frontend + backend + Windows portable)
-        run: mvn -B package "-Pwith-frontend,windows-portable"
-
-      # main/master only: upload Windows portable
-      - name: Upload Windows portable
-        if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'
+      - name: Upload Windows portable artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-portable
           path: |
-            server/target/*.exe
-            server/target/*portable*.zip
-          if-no-files-found: error
-          retention-days: 14
+            **/target/*.exe
+            **/target/*portable*.zip
+          if-no-files-found: ignore
+
+  # =========================================
+  # LINUX INSTALLER PACKAGING (final step)
+  # =========================================
+  build-linux-installer:
+    runs-on: ubuntu-latest
+    needs: build-linux
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: build
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build Linux installer
+        run: mvn -B package -Plinux-installer -DskipTests
+
+      - name: Upload Linux installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installer
+          path: |
+            **/target/*.deb
+            **/target/*.rpm
+            **/target/*.tar.gz
+          if-no-files-found: ignore
+
+  # =========================================
+  # CREATE GITHUB RELEASE WITH ALL ARTIFACTS
+  # =========================================
+  release:
+    runs-on: ubuntu-latest
+    needs:
+      - build-linux
+      - build-windows-portable
+      - build-linux-installer
+
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download Linux build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: release-assets/linux-build
+
+      - name: Download Windows portable artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-portable
+          path: release-assets/windows
+
+      - name: Download Linux installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-installer
+          path: release-assets/linux-installer
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: "Release v${{ github.run_number }}"
+          draft: false
+          prerelease: false
+          files: |
+            release-assets/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
