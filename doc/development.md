@@ -6,7 +6,7 @@ Welcome to the MatrosDMS developer guide. This project uses a tailored Maven bui
 
 ### Prerequisites
 
-- **JDK 21+** (Required for Virtual Threads & FFM API)
+- **JDK 25+** (Required for Virtual Threads & FFM API)
 - **Maven 3.9+**
 - **Node.js 20+** (Optional - Maven can install a local version)
 
@@ -78,7 +78,7 @@ We use **Spotless** to enforce a bit-perfect code style (Eclipse Formatter). Thi
 ### Windows Portable (`-Pwindows-portable`)
 
 Creates a self-contained folder that runs without an installed JRE.
-- **Tool**: `jpackage` (JDK 21+)
+- **Tool**: `jpackage` (JDK 25+)
 - **Output**: `server/target/portable/`
 - **Command**:
 
@@ -181,7 +181,7 @@ jobs:
       
       - uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'temurin'
           
       - name: Generate Version

@@ -14,7 +14,7 @@
         <app.vendor>Matrosdms</app.vendor>
         <app.description>Matrosdms Document Management System</app.description>
         <jpackage.version>1.0.0</jpackage.version>
-        
+
         <!-- Java & Compiler -->
         <java.version>25</java.version>
 
@@ -30,7 +30,7 @@
         <java-uuid-generator.version>5.1.0</java-uuid-generator.version>
         <springdoc.version>2.8.4</springdoc.version>
         <jakarta-mail.version>2.0.1</jakarta-mail.version>
-        
+
         <!-- Note: Caffeine, H2, Flyway, and base Jakarta APIs ARE managed by Spring Boot -->
     </properties>
     <dependencies>
@@ -59,7 +59,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
-        
+
         <!-- Database -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -75,7 +75,7 @@
             <artifactId>flyway-database-postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
-        
+
         <!-- Hibernate Search (Not managed by Spring Boot) -->
         <dependency>
             <groupId>org.hibernate.search</groupId>
@@ -87,14 +87,14 @@
             <artifactId>hibernate-search-backend-lucene</artifactId>
             <version>${hibernate-search.version}</version>
         </dependency>
-        
+
         <!-- Scheduling (Not managed by Spring Boot) -->
         <dependency>
             <groupId>com.github.kagkarlsson</groupId>
             <artifactId>db-scheduler-spring-boot-starter</artifactId>
             <version>${db-scheduler.version}</version>
         </dependency>
-        
+
         <!-- Mail Processing -->
         <dependency>
             <groupId>com.sun.mail</groupId>
@@ -111,7 +111,7 @@
             <artifactId>apache-mime4j-core</artifactId>
             <version>${apache-mime4j.version}</version>
         </dependency>
-        
+
         <!-- Security -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
@@ -135,7 +135,7 @@
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
         </dependency>
-        
+
         <!-- Jackson -->
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -149,21 +149,21 @@
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
         </dependency>
-        
+
         <!-- OpenAPI/Swagger -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
         </dependency>
-        
+
         <!-- MapStruct -->
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
             <version>${mapstruct.version}</version>
         </dependency>
-        
+
         <!-- Utilities -->
         <dependency>
             <groupId>com.fasterxml.uuid</groupId>
@@ -174,7 +174,7 @@
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
-        
+
         <!-- File Processing -->
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -201,7 +201,7 @@
             <artifactId>pdfbox</artifactId>
             <version>${pdfbox.version}</version>
         </dependency>
-        
+
         <!-- Development Tools -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -219,7 +219,7 @@
             <artifactId>spring-context-indexer</artifactId>
             <optional>true</optional>
         </dependency>
-        
+
         <!-- Test Dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -253,7 +253,7 @@
                     <parameters>true</parameters>
                     <release>${java.version}</release>
                     <compilerArgs>
-                        <arg>--enable-preview</arg> 
+                        <arg>--enable-preview</arg>
                     </compilerArgs>
                     <annotationProcessorPaths>
                         <path>

@@ -17,28 +17,28 @@ import net.schwehla.matrosdms.service.TikaService;
 @Component
 public class TikaOcrProvider implements IOcrProvider {
 
-    @Autowired
-    TikaService tikaService;
+	@Autowired
+	TikaService tikaService;
 
-    @Override
-    public String getId() {
-        return "tika-standard";
-    }
+	@Override
+	public String getId() {
+		return "tika-standard";
+	}
 
-    @Override
-    public boolean isAvailable() {
-        return true; 
-    }
+	@Override
+	public boolean isAvailable() {
+		return true;
+	}
 
-    @Override
-    public int getPriority() {
-        return 100; // Default priority
-    }
+	@Override
+	public int getPriority() {
+		return 100; // Default priority
+	}
 
-    @Override
-    public String extractText(Path file, String mimeType) {
-        // Tika automatically handles OCR if Tesseract is installed on the OS
-        // and handles parsing if it is a standard digital document.
-        return tikaService.extractText(file);
-    }
+	@Override
+	public String extractText(Path file, String mimeType) {
+		// Tika automatically handles OCR if Tesseract is installed on the OS
+		// and handles parsing if it is a standard digital document.
+		return tikaService.extractText(file);
+	}
 }

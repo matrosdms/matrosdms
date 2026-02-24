@@ -39,9 +39,9 @@ public class DbSchedulerConfig {
 	public static final String TASK_INTEGRITY = "integrity-check";
 	public static final String TASK_EXPORT = "export-archive";
 
-    // Inject MessageBus to notify UI when long-running jobs finish
-    @Autowired
-    VUEMessageBus messageBus;
+	// Inject MessageBus to notify UI when long-running jobs finish
+	@Autowired
+	VUEMessageBus messageBus;
 
 	// --- BEAN DEFINITIONS ---
 
@@ -78,21 +78,21 @@ public class DbSchedulerConfig {
 					DBAdminJob job = createJobLog(jobRepo, EJobType.INTEGRITY_CHECK, "Checking Files...");
 					try {
 						log.info("JOB [Integrity]: Starting...");
-						
-                        IntegrityReport report = adminService.runIntegrityCheck();
 
-						String result = String.format("Checked %d items. Missing: %d, Corrupt: %d", 
-                                report.getTotalDbItems(), report.getMissingCount(), report.getCorruptCount());
-                        
-                        // 1. Log details to Database (for UI History)
-                        for(IntegrityReport.MissingItem item : report.getMissingItems()) {
-                            job.addLog("ERROR", "Missing: " + item.name + " (" + item.uuid + ")");
-                        }
-                        for(IntegrityReport.CorruptItem item : report.getCorruptItems()) {
-                            job.addLog("ERROR", "Corrupt: " + item.name + " (" + item.uuid + ")");
-                        }
+						IntegrityReport report = adminService.runIntegrityCheck();
 
-                        // 2. Mark Complete
+						String result = String.format("Checked %d items. Missing: %d, Corrupt: %d",
+								report.getTotalDbItems(), report.getMissingCount(), report.getCorruptCount());
+
+						// 1. Log details to Database (for UI History)
+						for (IntegrityReport.MissingItem item : report.getMissingItems()) {
+							job.addLog("ERROR", "Missing: " + item.name + " (" + item.uuid + ")");
+						}
+						for (IntegrityReport.CorruptItem item : report.getCorruptItems()) {
+							job.addLog("ERROR", "Corrupt: " + item.name + " (" + item.uuid + ")");
+						}
+
+						// 2. Mark Complete
 						completeJobLog(jobRepo, job, result);
 
 					} catch (Exception e) {
@@ -126,11 +126,11 @@ public class DbSchedulerConfig {
 		job.setStatus(JobStatus.RUNNING);
 		job.setStartTime(LocalDateTime.now());
 		job.setProgressInfo(info);
-		
-        // Notify UI: Job Started
-        notifyUi(type, "RUNNING");
-        
-        return repo.save(job);
+
+		// Notify UI: Job Started
+		notifyUi(type, "RUNNING");
+
+		return repo.save(job);
 	}
 
 	private void completeJobLog(AdminJobRepository repo, DBAdminJob job, String resultInfo) {
@@ -138,9 +138,9 @@ public class DbSchedulerConfig {
 		job.setEndTime(LocalDateTime.now());
 		job.setProgressInfo(resultInfo);
 		repo.save(job);
-        
-        // Notify UI: Job Finished (triggers refresh)
-        notifyUi(job.getType(), "COMPLETED");
+
+		// Notify UI: Job Finished (triggers refresh)
+		notifyUi(job.getType(), "COMPLETED");
 	}
 
 	private void failJobLog(AdminJobRepository repo, DBAdminJob job, Exception e) {
@@ -149,18 +149,17 @@ public class DbSchedulerConfig {
 		job.setProgressInfo("Error: " + e.getMessage());
 		job.addLog("ERROR", e.getMessage());
 		repo.save(job);
-        
-        notifyUi(job.getType(), "FAILED");
+
+		notifyUi(job.getType(), "FAILED");
 	}
 
-    private void notifyUi(EJobType type, String status) {
-        if(messageBus != null) {
-            // We use the "STATUS" type to tell the Frontend to refresh the job list
-            messageBus.sendMessageToGUI(EBroadcastSource.PIPELINE, EBroadcastType.STATUS, 
-                new net.schwehla.matrosdms.service.message.JobMessage(
-                    type.name(), "system", java.time.Instant.now(), 
-                    net.schwehla.matrosdms.domain.admin.EJobStatus.valueOf(status)
-                ));
-        }
-    }
+	private void notifyUi(EJobType type, String status) {
+		if (messageBus != null) {
+			// We use the "STATUS" type to tell the Frontend to refresh the job list
+			messageBus.sendMessageToGUI(EBroadcastSource.PIPELINE, EBroadcastType.STATUS,
+					new net.schwehla.matrosdms.service.message.JobMessage(
+							type.name(), "system", java.time.Instant.now(),
+							net.schwehla.matrosdms.domain.admin.EJobStatus.valueOf(status)));
+		}
+	}
 }

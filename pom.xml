@@ -34,7 +34,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <spotless.version>2.43.0</spotless.version>
         <google-java-format.version>1.19.2</google-java-format.version>
-        
+
         <bouncycastle.version>1.78.1</bouncycastle.version>
 
         <!-- Test Config -->

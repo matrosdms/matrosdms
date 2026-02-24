@@ -72,7 +72,8 @@ public class TikaService {
 	 * e.g., "application/pdf" -> ".pdf"
 	 */
 	public String getExtensionForMimeType(String mimeType) {
-		if (mimeType == null || mimeType.isBlank()) return ".bin";
+		if (mimeType == null || mimeType.isBlank())
+			return ".bin";
 		try {
 			MimeType type = getMimeRepository().forName(mimeType);
 			String ext = type.getExtension();

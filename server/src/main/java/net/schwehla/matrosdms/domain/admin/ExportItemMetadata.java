@@ -13,21 +13,21 @@ import java.util.List;
 import java.util.Map;
 
 public class ExportItemMetadata {
-    public String uuid;
-    public String name;
-    public String description;
-    public String originalFilename;
-    public String filename;
-    public String context;
-    public String store;
-    public String dateIssued;
-    public String dateCreated;
-    public List<String> tags = new ArrayList<>();
-    
-    // Human readable attribute map (Key Name -> Value)
-    public Map<String, Object> attributes = new HashMap<>(); 
-    
-    // System fields
-    public String source;
-    public String sha256;
+	public String uuid;
+	public String name;
+	public String description;
+	public String originalFilename;
+	public String filename;
+	public String context;
+	public String store;
+	public String dateIssued;
+	public String dateCreated;
+	public List<String> tags = new ArrayList<>();
+
+	// Human readable attribute map (Key Name -> Value)
+	public Map<String, Object> attributes = new HashMap<>();
+
+	// System fields
+	public String source;
+	public String sha256;
 }

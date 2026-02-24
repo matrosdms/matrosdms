@@ -19,33 +19,33 @@ import org.springframework.stereotype.Service;
 @Service
 public class OcrService {
 
-    private static final Logger log = LoggerFactory.getLogger(OcrService.class);
-    private final List<IOcrProvider> providers;
+	private static final Logger log = LoggerFactory.getLogger(OcrService.class);
+	private final List<IOcrProvider> providers;
 
-    @Autowired
-    public OcrService(List<IOcrProvider> providers) {
-        this.providers = providers.stream()
-                .sorted(Comparator.comparingInt(IOcrProvider::getPriority))
-                .toList();
-        
-        log.info("OCR: Active providers: {}", 
-            providers.stream().map(IOcrProvider::getId).toList());
-    }
+	@Autowired
+	public OcrService(List<IOcrProvider> providers) {
+		this.providers = providers.stream()
+				.sorted(Comparator.comparingInt(IOcrProvider::getPriority))
+				.toList();
 
-    public boolean isOcrAvailable() {
-        return providers.stream().anyMatch(IOcrProvider::isAvailable);
-    }
+		log.info("OCR: Active providers: {}",
+				providers.stream().map(IOcrProvider::getId).toList());
+	}
 
-    public String extractText(Path file, String mimeType) {
-        for (IOcrProvider provider : providers) {
-            if (provider.isAvailable()) {
-                try {
-                    return provider.extractText(file, mimeType);
-                } catch (Exception e) {
-                    log.warn("OCR Provider '{}' failed: {}", provider.getId(), e.getMessage());
-                }
-            }
-        }
-        return "";
-    }
+	public boolean isOcrAvailable() {
+		return providers.stream().anyMatch(IOcrProvider::isAvailable);
+	}
+
+	public String extractText(Path file, String mimeType) {
+		for (IOcrProvider provider : providers) {
+			if (provider.isAvailable()) {
+				try {
+					return provider.extractText(file, mimeType);
+				} catch (Exception e) {
+					log.warn("OCR Provider '{}' failed: {}", provider.getId(), e.getMessage());
+				}
+			}
+		}
+		return "";
+	}
 }

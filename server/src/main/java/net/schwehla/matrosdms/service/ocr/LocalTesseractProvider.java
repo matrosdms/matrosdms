@@ -8,25 +8,34 @@
 package net.schwehla.matrosdms.service.ocr;
 
 import java.nio.file.Path;
+
 import org.springframework.stereotype.Component;
 
 /**
- * Disabled/Placeholder. 
+ * Disabled/Placeholder.
  * OCR is currently handled entirely by TikaOcrProvider.
  * Delete this file if you wish to clean up the project.
  */
 @Component
 public class LocalTesseractProvider implements IOcrProvider {
 
-    @Override
-    public String getId() { return "tesseract-disabled"; }
+	@Override
+	public String getId() {
+		return "tesseract-disabled";
+	}
 
-    @Override
-    public boolean isAvailable() { return false; }
+	@Override
+	public boolean isAvailable() {
+		return false;
+	}
 
-    @Override
-    public int getPriority() { return 999; }
+	@Override
+	public int getPriority() {
+		return 999;
+	}
 
-    @Override
-    public String extractText(Path file, String mimeType) { return ""; }
+	@Override
+	public String extractText(Path file, String mimeType) {
+		return "";
+	}
 }

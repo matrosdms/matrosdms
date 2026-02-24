@@ -19,101 +19,137 @@ import net.schwehla.matrosdms.service.message.DigestResultMessage;
 import net.schwehla.matrosdms.service.pipeline.PipelineEvents.PipelineProgressEvent;
 
 public class PipelineContext {
-    private final String hash;
-    private final Path workingDir;
-    private final Path originalFile;
-    private final ApplicationEventPublisher publisher;
-    private final int totalSteps;
+	private final String hash;
+	private final Path workingDir;
+	private final Path originalFile;
+	private final ApplicationEventPublisher publisher;
+	private final int totalSteps;
 
-    private int currentStepIndex = 0;
-    private InboxFile currentState;
+	private int currentStepIndex = 0;
+	private InboxFile currentState;
 
-    // --- State Cache ---
-    private Path processedFile;
-    private String extractedText;
-    private DigestResultMessage aiResult;
-    private List<String> warnings = new ArrayList<>();
-    
-    // NEW: Optimization Flags
-    private String cachedMimeType;
-    private AnalysisResult pdfAnalysis; // Caches PDF text layer info
+	// --- State Cache ---
+	private Path processedFile;
+	private String extractedText;
+	private DigestResultMessage aiResult;
+	private List<String> warnings = new ArrayList<>();
 
-    public PipelineContext(
-            String hash,
-            Path workingDir,
-            Path originalFile,
-            String originalFilename,
-            ApplicationEventPublisher publisher,
-            int totalSteps) {
-        this.hash = hash;
-        this.workingDir = workingDir;
-        this.originalFile = originalFile;
-        this.publisher = publisher;
-        this.totalSteps = totalSteps;
+	// NEW: Optimization Flags
+	private String cachedMimeType;
+	private AnalysisResult pdfAnalysis; // Caches PDF text layer info
 
-        // Init State
-        this.currentState = new InboxFile();
-        this.currentState.setSha256(hash);
-        this.currentState.getFileInfo().setOriginalFilename(originalFilename);
+	public PipelineContext(
+			String hash,
+			Path workingDir,
+			Path originalFile,
+			String originalFilename,
+			ApplicationEventPublisher publisher,
+			int totalSteps) {
+		this.hash = hash;
+		this.workingDir = workingDir;
+		this.originalFile = originalFile;
+		this.publisher = publisher;
+		this.totalSteps = totalSteps;
 
-        this.aiResult = new DigestResultMessage();
-        // Default to original unless processed
-        this.processedFile = originalFile; 
-    }
+		// Init State
+		this.currentState = new InboxFile();
+		this.currentState.setSha256(hash);
+		this.currentState.getFileInfo().setOriginalFilename(originalFilename);
 
-    public void log(String message) {
-        if (publisher != null) {
-            publisher.publishEvent(
-                    new PipelineProgressEvent(hash, getDisplayFilename(), message, currentStepIndex, totalSteps));
-        }
-    }
+		this.aiResult = new DigestResultMessage();
+		// Default to original unless processed
+		this.processedFile = originalFile;
+	}
 
-    public void addWarning(String warning) {
-        this.warnings.add(warning);
-    }
+	public void log(String message) {
+		if (publisher != null) {
+			publisher.publishEvent(
+					new PipelineProgressEvent(hash, getDisplayFilename(), message, currentStepIndex, totalSteps));
+		}
+	}
 
-    // --- Getters / Setters ---
+	public void addWarning(String warning) {
+		this.warnings.add(warning);
+	}
 
-    public InboxFile getCurrentState() { return currentState; }
-    
-    // Optimized MIME handling
-    public void setMimeType(String mime) {
-        this.cachedMimeType = mime;
-        currentState.getFileInfo().setContentType(mime);
-    }
-    
-    public String getMimeType() {
-        return cachedMimeType; // Returns cached value
-    }
+	// --- Getters / Setters ---
 
-    public void setExtension(String ext) {
-        currentState.getFileInfo().setExtension(ext);
-    }
+	public InboxFile getCurrentState() {
+		return currentState;
+	}
 
-    public String getExtension() {
-        return currentState.getFileInfo().getExtension();
-    }
+	// Optimized MIME handling
+	public void setMimeType(String mime) {
+		this.cachedMimeType = mime;
+		currentState.getFileInfo().setContentType(mime);
+	}
 
-    public String getDisplayFilename() {
-        return currentState.getDisplayName();
-    }
+	public String getMimeType() {
+		return cachedMimeType; // Returns cached value
+	}
 
-    public String getHash() { return hash; }
-    public Path getWorkingDir() { return workingDir; }
-    public Path getOriginalFile() { return originalFile; }
-    public Path getProcessedFile() { return processedFile; }
-    public void setProcessedFile(Path processedFile) { this.processedFile = processedFile; }
-    
-    public String getExtractedText() { return extractedText; }
-    public void setExtractedText(String extractedText) { this.extractedText = extractedText; }
-    
-    public DigestResultMessage getAiResult() { return aiResult; }
-    public List<String> getWarnings() { return warnings; }
-    public ApplicationEventPublisher getPublisher() { return publisher; }
-    
-    public void setCurrentStepIndex(int i) { this.currentStepIndex = i; }
+	public void setExtension(String ext) {
+		currentState.getFileInfo().setExtension(ext);
+	}
 
-    // PDF Optimization
-    public AnalysisResult getPdfAnalysis() { return pdfAnalysis; }
-    public void setPdfAnalysis(AnalysisResult pdfAnalysis) { this.pdfAnalysis = pdfAnalysis; }
+	public String getExtension() {
+		return currentState.getFileInfo().getExtension();
+	}
+
+	public String getDisplayFilename() {
+		return currentState.getDisplayName();
+	}
+
+	public String getHash() {
+		return hash;
+	}
+
+	public Path getWorkingDir() {
+		return workingDir;
+	}
+
+	public Path getOriginalFile() {
+		return originalFile;
+	}
+
+	public Path getProcessedFile() {
+		return processedFile;
+	}
+
+	public void setProcessedFile(Path processedFile) {
+		this.processedFile = processedFile;
+	}
+
+	public String getExtractedText() {
+		return extractedText;
+	}
+
+	public void setExtractedText(String extractedText) {
+		this.extractedText = extractedText;
+	}
+
+	public DigestResultMessage getAiResult() {
+		return aiResult;
+	}
+
+	public List<String> getWarnings() {
+		return warnings;
+	}
+
+	public ApplicationEventPublisher getPublisher() {
+		return publisher;
+	}
+
+	public void setCurrentStepIndex(int i) {
+		this.currentStepIndex = i;
+	}
+
+	// PDF Optimization
+	public AnalysisResult getPdfAnalysis() {
+		return pdfAnalysis;
+	}
+
+	public void setPdfAnalysis(AnalysisResult pdfAnalysis) {
+		this.pdfAnalysis = pdfAnalysis;
+	}
 }

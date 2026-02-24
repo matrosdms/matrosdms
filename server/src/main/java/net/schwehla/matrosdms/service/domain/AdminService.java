@@ -78,7 +78,8 @@ public class AdminService {
 
 		for (DBItem item : allItems) {
 			String uuid = item.getUuid();
-			if (uuid == null) continue;
+			if (uuid == null)
+				continue;
 
 			Path folder = rootPath.resolve(uuid.substring(0, 3));
 			File folderFile = folder.toFile();
@@ -86,11 +87,11 @@ public class AdminService {
 			File foundFile = null;
 			if (folderFile.exists()) {
 				for (File f : folderFile.listFiles()) {
-					if (f.getName().startsWith(uuid) 
-                            && !f.getName().endsWith(".txt") 
-                            && !f.getName().endsWith(".txt.enc") 
-                            && !f.getName().endsWith(".thumb.jpg")
-                            && !f.getName().endsWith(".thumb.jpg.enc")) {
+					if (f.getName().startsWith(uuid)
+							&& !f.getName().endsWith(".txt")
+							&& !f.getName().endsWith(".txt.enc")
+							&& !f.getName().endsWith(".thumb.jpg")
+							&& !f.getName().endsWith(".thumb.jpg.enc")) {
 						foundFile = f;
 						break;
 					}
@@ -100,31 +101,31 @@ public class AdminService {
 			if (foundFile == null) {
 				report.addMissingItem(uuid, item.getName());
 				log.warn("INTEGRITY FAIL: Missing file for item '{}' ({})", item.getName(), uuid);
-                continue;
-			} 
-            
-            if (item.getFile() != null && item.getFile().getSha256Stored() != null) {
-                try {
-                    String actualHash = fileUtils.getSHA256(foundFile.toPath());
-                    String expectedHash = item.getFile().getSha256Stored();
-                    
-                    if (!expectedHash.equalsIgnoreCase(actualHash)) {
-                        report.addCorruptItem(uuid, item.getName(), expectedHash, actualHash);
-                        log.error("CORRUPTION DETECTED: Item '{}' ({}). Expected {}, but disk has {}", 
-                                item.getName(), uuid, expectedHash, actualHash);
-                    }
-                } catch (Exception e) {
-                    log.error("Error hashing file for integrity check: " + uuid, e);
-                }
-            }
+				continue;
+			}
+
+			if (item.getFile() != null && item.getFile().getSha256Stored() != null) {
+				try {
+					String actualHash = fileUtils.getSHA256(foundFile.toPath());
+					String expectedHash = item.getFile().getSha256Stored();
+
+					if (!expectedHash.equalsIgnoreCase(actualHash)) {
+						report.addCorruptItem(uuid, item.getName(), expectedHash, actualHash);
+						log.error("CORRUPTION DETECTED: Item '{}' ({}). Expected {}, but disk has {}",
+								item.getName(), uuid, expectedHash, actualHash);
+					}
+				} catch (Exception e) {
+					log.error("Error hashing file for integrity check: " + uuid, e);
+				}
+			}
 		}
 
 		log.info(
 				"Integrity Check Complete. Scanned {} items. Missing: {}, Corrupt: {}.",
 				report.getTotalDbItems(),
 				report.getMissingCount(),
-                report.getCorruptCount());
-                
+				report.getCorruptCount());
+
 		return report;
 	}
 
@@ -142,7 +143,7 @@ public class AdminService {
 
 			List<DBItem> allItems = itemRepository.findAll();
 			List<ExportItemMetadata> globalManifest = new ArrayList<>();
-			
+
 			int exported = 0;
 			int failed = 0;
 
@@ -225,16 +226,20 @@ public class AdminService {
 		meta.name = item.getName();
 		meta.description = item.getDescription();
 		meta.originalFilename = item.getFile() != null ? item.getFile().getFilename() : null;
-		meta.filename = filename; 
-		
+		meta.filename = filename;
+
 		meta.context = item.getInfoContext() != null ? item.getInfoContext().getName() : null;
 		meta.store = item.getStore() != null ? item.getStore().getShortname() : null;
-		
-		if (item.getIssueDate() != null) meta.dateIssued = item.getIssueDate().toString();
-		if (item.getDateCreated() != null) meta.dateCreated = item.getDateCreated().toString();
-		
-		if (item.getSource() != null) meta.source = item.getSource().name();
-		if (item.getFile() != null) meta.sha256 = item.getFile().getSha256Original();
+
+		if (item.getIssueDate() != null)
+			meta.dateIssued = item.getIssueDate().toString();
+		if (item.getDateCreated() != null)
+			meta.dateCreated = item.getDateCreated().toString();
+
+		if (item.getSource() != null)
+			meta.source = item.getSource().name();
+		if (item.getFile() != null)
+			meta.sha256 = item.getFile().getSha256Original();
 
 		if (item.getKindList() != null) {
 			for (DBCategory cat : item.getKindList()) {
@@ -252,7 +257,7 @@ public class AdminService {
 				}
 			}
 		}
-		
+
 		return meta;
 	}
 

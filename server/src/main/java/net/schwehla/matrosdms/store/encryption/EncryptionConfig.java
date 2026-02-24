@@ -34,142 +34,142 @@ import net.schwehla.matrosdms.domain.storage.EStorageLocation;
 @Component
 public class EncryptionConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(EncryptionConfig.class);
+	private static final Logger log = LoggerFactory.getLogger(EncryptionConfig.class);
 
-    private static final int KEY_LENGTH_BYTES = 32; // AES-256
-    private static final int ARGON2_ITERATIONS = 3;
-    private static final int ARGON2_MEMORY_KB = 65536; // 64 MB
-    private static final int ARGON2_PARALLELISM = 1;
+	private static final int KEY_LENGTH_BYTES = 32; // AES-256
+	private static final int ARGON2_ITERATIONS = 3;
+	private static final int ARGON2_MEMORY_KB = 65536; // 64 MB
+	private static final int ARGON2_PARALLELISM = 1;
 
-    private final AppServerSpringConfig appServerSpringConfig;
+	private final AppServerSpringConfig appServerSpringConfig;
 
-    private volatile boolean encryptionEnabled;
-    private volatile byte[] encryptionKey;
-    private volatile String cryptographyMode;
+	private volatile boolean encryptionEnabled;
+	private volatile byte[] encryptionKey;
+	private volatile String cryptographyMode;
 
-    public EncryptionConfig(AppServerSpringConfig appServerSpringConfig) {
-        this.appServerSpringConfig = appServerSpringConfig;
-    }
+	public EncryptionConfig(AppServerSpringConfig appServerSpringConfig) {
+		this.appServerSpringConfig = appServerSpringConfig;
+	}
 
-    @PostConstruct
-    public void init() {
-        // Register BouncyCastle provider if not already registered
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(new BouncyCastleProvider());
-            log.info("BouncyCastle security provider registered");
-        }
+	@PostConstruct
+	public void init() {
+		// Register BouncyCastle provider if not already registered
+		if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+			Security.addProvider(new BouncyCastleProvider());
+			log.info("BouncyCastle security provider registered");
+		}
 
-        StoreElement storeConfig = appServerSpringConfig.getServer().getStore().stream()
-            .filter(e -> e.getType() == EStorageLocation.LOCAL)
-            .findFirst()
-            .orElseThrow(() -> new IllegalStateException("No LOCAL store configured"));
+		StoreElement storeConfig = appServerSpringConfig.getServer().getStore().stream()
+				.filter(e -> e.getType() == EStorageLocation.LOCAL)
+				.findFirst()
+				.orElseThrow(() -> new IllegalStateException("No LOCAL store configured"));
 
-        String cryptor = storeConfig.getCryptor();
-        this.cryptographyMode = cryptor;
-        this.encryptionEnabled = cryptor != null && 
-            (cryptor.contains("AES") || cryptor.contains("CTR") || cryptor.contains("GCM"));
+		String cryptor = storeConfig.getCryptor();
+		this.cryptographyMode = cryptor;
+		this.encryptionEnabled = cryptor != null &&
+				(cryptor.contains("AES") || cryptor.contains("CTR") || cryptor.contains("GCM"));
 
-        if (encryptionEnabled) {
-            initializeEncryption(storeConfig);
-            log.info("🔐 Store Encryption ENABLED (Mode: {})", cryptographyMode);
-        } else {
-            log.info("🔓 Store Encryption DISABLED");
-        }
-    }
+		if (encryptionEnabled) {
+			initializeEncryption(storeConfig);
+			log.info("🔐 Store Encryption ENABLED (Mode: {})", cryptographyMode);
+		} else {
+			log.info("🔓 Store Encryption DISABLED");
+		}
+	}
 
-    @PreDestroy
-    public void cleanup() {
-        // Zero out encryption key from memory
-        if (encryptionKey != null) {
-            Arrays.fill(encryptionKey, (byte) 0);
-            log.debug("Encryption key wiped from memory");
-        }
-    }
+	@PreDestroy
+	public void cleanup() {
+		// Zero out encryption key from memory
+		if (encryptionKey != null) {
+			Arrays.fill(encryptionKey, (byte) 0);
+			log.debug("Encryption key wiped from memory");
+		}
+	}
 
-    private void initializeEncryption(StoreElement storeConfig) {
-        String password = storeConfig.getPassword();
-        String saltString = storeConfig.getSalt();
+	private void initializeEncryption(StoreElement storeConfig) {
+		String password = storeConfig.getPassword();
+		String saltString = storeConfig.getSalt();
 
-        if (password == null || password.isEmpty()) {
-            throw new IllegalStateException("Encryption enabled but no password configured. " +
-                "Set MATROS_STORE_PASSWORD environment variable.");
-        }
+		if (password == null || password.isEmpty()) {
+			throw new IllegalStateException("Encryption enabled but no password configured. " +
+					"Set MATROS_STORE_PASSWORD environment variable.");
+		}
 
-        if (saltString == null || saltString.isEmpty()) {
-            throw new IllegalStateException("Encryption enabled but no salt configured. " +
-                "Set MATROS_STORE_SALT environment variable.");
-        }
+		if (saltString == null || saltString.isEmpty()) {
+			throw new IllegalStateException("Encryption enabled but no salt configured. " +
+					"Set MATROS_STORE_SALT environment variable.");
+		}
 
-        // Warn about insecure defaults
-        if ("CHANGE-THIS-PASSWORD".equals(password)) {
-            log.warn("⚠️  WARNING: Using default password! Change MATROS_STORE_PASSWORD in production!");
-        }
+		// Warn about insecure defaults
+		if ("CHANGE-THIS-PASSWORD".equals(password)) {
+			log.warn("⚠️  WARNING: Using default password! Change MATROS_STORE_PASSWORD in production!");
+		}
 
-        if ("MATROS_DMS_SALT".equals(saltString)) {
-            log.warn("⚠️  WARNING: Using default salt! Change MATROS_STORE_SALT in production!");
-        }
+		if ("MATROS_DMS_SALT".equals(saltString)) {
+			log.warn("⚠️  WARNING: Using default salt! Change MATROS_STORE_SALT in production!");
+		}
 
-        try {
-            byte[] salt = saltString.getBytes(StandardCharsets.UTF_8);
-            
-            Argon2Parameters.Builder builder = new Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
-                .withVersion(Argon2Parameters.ARGON2_VERSION_13)
-                .withIterations(ARGON2_ITERATIONS)
-                .withMemoryAsKB(ARGON2_MEMORY_KB)
-                .withParallelism(ARGON2_PARALLELISM)
-                .withSalt(salt);
+		try {
+			byte[] salt = saltString.getBytes(StandardCharsets.UTF_8);
 
-            Argon2BytesGenerator generator = new Argon2BytesGenerator();
-            generator.init(builder.build());
+			Argon2Parameters.Builder builder = new Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
+					.withVersion(Argon2Parameters.ARGON2_VERSION_13)
+					.withIterations(ARGON2_ITERATIONS)
+					.withMemoryAsKB(ARGON2_MEMORY_KB)
+					.withParallelism(ARGON2_PARALLELISM)
+					.withSalt(salt);
 
-            this.encryptionKey = new byte[KEY_LENGTH_BYTES];
-            generator.generateBytes(password.toCharArray(), this.encryptionKey);
+			Argon2BytesGenerator generator = new Argon2BytesGenerator();
+			generator.init(builder.build());
 
-            log.debug("Encryption key derived using Argon2id (iterations={}, memory={}KB)", 
-                ARGON2_ITERATIONS, ARGON2_MEMORY_KB);
-                
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to derive encryption key", e);
-        }
-    }
+			this.encryptionKey = new byte[KEY_LENGTH_BYTES];
+			generator.generateBytes(password.toCharArray(), this.encryptionKey);
 
-    /**
-     * Checks if encryption is enabled.
-     * 
-     * @return true if encryption is enabled
-     */
-    public boolean isEncryptionEnabled() {
-        return encryptionEnabled;
-    }
+			log.debug("Encryption key derived using Argon2id (iterations={}, memory={}KB)",
+					ARGON2_ITERATIONS, ARGON2_MEMORY_KB);
 
-    /**
-     * Gets the encryption key.
-     * Returns a copy to prevent modification of the internal key.
-     * 
-     * @return Copy of the encryption key, or null if encryption is disabled
-     */
-    public byte[] getEncryptionKey() {
-        if (!encryptionEnabled || encryptionKey == null) {
-            return null;
-        }
-        return Arrays.copyOf(encryptionKey, encryptionKey.length);
-    }
+		} catch (Exception e) {
+			throw new IllegalStateException("Failed to derive encryption key", e);
+		}
+	}
 
-    /**
-     * Gets the cryptography mode configuration.
-     * 
-     * @return Cryptography mode string (e.g., "AES_CTR", "AES_GCM")
-     */
-    public String getCryptographyMode() {
-        return cryptographyMode;
-    }
+	/**
+	 * Checks if encryption is enabled.
+	 * 
+	 * @return true if encryption is enabled
+	 */
+	public boolean isEncryptionEnabled() {
+		return encryptionEnabled;
+	}
 
-    /**
-     * Gets the file suffix for encrypted files.
-     * 
-     * @return ".enc" if encryption is enabled, "" otherwise
-     */
-    public String getEncryptedFileSuffix() {
-        return encryptionEnabled ? ".enc" : "";
-    }
+	/**
+	 * Gets the encryption key.
+	 * Returns a copy to prevent modification of the internal key.
+	 * 
+	 * @return Copy of the encryption key, or null if encryption is disabled
+	 */
+	public byte[] getEncryptionKey() {
+		if (!encryptionEnabled || encryptionKey == null) {
+			return null;
+		}
+		return Arrays.copyOf(encryptionKey, encryptionKey.length);
+	}
+
+	/**
+	 * Gets the cryptography mode configuration.
+	 * 
+	 * @return Cryptography mode string (e.g., "AES_CTR", "AES_GCM")
+	 */
+	public String getCryptographyMode() {
+		return cryptographyMode;
+	}
+
+	/**
+	 * Gets the file suffix for encrypted files.
+	 * 
+	 * @return ".enc" if encryption is enabled, "" otherwise
+	 */
+	public String getEncryptedFileSuffix() {
+		return encryptionEnabled ? ".enc" : "";
+	}
 }

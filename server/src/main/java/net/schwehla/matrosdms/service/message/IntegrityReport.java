@@ -14,7 +14,7 @@ public class IntegrityReport {
 	private int totalDbItems;
 	private int missingCount;
 	private int corruptCount;
-    
+
 	private List<MissingItem> missingItems = new ArrayList<>();
 	private List<CorruptItem> corruptItems = new ArrayList<>();
 

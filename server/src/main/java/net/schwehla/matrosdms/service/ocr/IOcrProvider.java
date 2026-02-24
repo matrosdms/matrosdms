@@ -10,8 +10,11 @@ package net.schwehla.matrosdms.service.ocr;
 import java.nio.file.Path;
 
 public interface IOcrProvider {
-    String getId();
-    boolean isAvailable();
-    int getPriority();
-    String extractText(Path file, String mimeType);
+	String getId();
+
+	boolean isAvailable();
+
+	int getPriority();
+
+	String extractText(Path file, String mimeType);
 }

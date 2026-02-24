@@ -22,35 +22,36 @@ import net.schwehla.matrosdms.service.pipeline.PipelineStep;
 @Order(1) // Runs VERY early (Phase 1)
 public class SignatureAnalysisStep implements PipelineStep {
 
-    private static final Logger log = LoggerFactory.getLogger(SignatureAnalysisStep.class);
+	private static final Logger log = LoggerFactory.getLogger(SignatureAnalysisStep.class);
 
-    @Autowired
-    FileSignatureService signatureService;
-    
-    @Autowired
-    TikaService tikaService;
+	@Autowired
+	FileSignatureService signatureService;
 
-    @Override
-    public void execute(PipelineContext ctx) throws Exception {
-        ctx.log("Analyzing file signature...");
+	@Autowired
+	TikaService tikaService;
 
-        // 1. Try Magic Bytes (Instant)
-        String mime = signatureService.quickDetect(ctx.getOriginalFile());
+	@Override
+	public void execute(PipelineContext ctx) throws Exception {
+		ctx.log("Analyzing file signature...");
 
-        // 2. Fallback to Tika (Slow but accurate)
-        if (mime == null) {
-            log.debug("Magic bytes ambiguous, falling back to Tika for {}", ctx.getHash());
-            mime = tikaService.detectMimeType(ctx.getOriginalFile());
-        }
+		// 1. Try Magic Bytes (Instant)
+		String mime = signatureService.quickDetect(ctx.getOriginalFile());
 
-        if (mime == null) mime = "application/octet-stream";
+		// 2. Fallback to Tika (Slow but accurate)
+		if (mime == null) {
+			log.debug("Magic bytes ambiguous, falling back to Tika for {}", ctx.getHash());
+			mime = tikaService.detectMimeType(ctx.getOriginalFile());
+		}
 
-        log.info("Detected MIME: {}", mime);
-        ctx.setMimeType(mime);
-        
-        // Normalize Extension based on authoritative MIME
-        if ("application/pdf".equals(mime) && !ctx.getDisplayFilename().toLowerCase().endsWith(".pdf")) {
-            ctx.setExtension(".pdf");
-        }
-    }
+		if (mime == null)
+			mime = "application/octet-stream";
+
+		log.info("Detected MIME: {}", mime);
+		ctx.setMimeType(mime);
+
+		// Normalize Extension based on authoritative MIME
+		if ("application/pdf".equals(mime) && !ctx.getDisplayFilename().toLowerCase().endsWith(".pdf")) {
+			ctx.setExtension(".pdf");
+		}
+	}
 }

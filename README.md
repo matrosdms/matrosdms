@@ -187,43 +187,16 @@ helm install my-dms matrosdms/matrosdms
 git clone https://github.com/matrosdms/matrosdms.git
 cd matrosdms
 
+
 # Complete build (all components + Windows installer)
-mvn install
+|       Goal       |            Command            |                    Description                    |
+|------------------|-------------------------------|---------------------------------------------------|
+| **Backend Loop** | `mvn install`                 | Fastest (15s). Builds backend only. Skips UI/CLI. |
+| **Full Stack**   | `mvn install -Pwith-frontend` | Builds server + frontend. Embeds UI in JAR.       |
+| **Release**      | `mvn install -Prelease`       | Builds everything (Server, UI, CLI).              |
+| **Format Code**  | `mvn spotless:apply -Pformat` | Auto-formats Java code to Eclipse style.          |
 
-# Artifacts created:
-# - server/target/server-0-SNAPSHOT.jar       (Cross-platform JAR)
-# - server/target/portable/MatrosDMS.exe      (Windows portable executable)
-```
-
-For development (backend only, faster):
-
-```bash
-mvn install -DskipFrontend
-```
-
----
-
-## 📦 Build
-
-One command builds everything:
-
-```bash
-# Complete build: Backend + Frontend + Windows installer
-mvn install
-```
-
-This compiles the backend (Java 25), bundles the Vue 3 UI, and creates:
-- `server/target/server-0-SNAPSHOT.jar` — Standalone JAR (cross-platform)
-- `server/target/portable/MatrosDMS.exe` — Windows portable executable (no Java required)
-
-### Custom Builds
-
-|           Command            |                    What it does                    |
-|------------------------------|----------------------------------------------------|
-| `mvn install`                | **Full build** (Backend + Frontend + Windows .exe) |
-| `mvn install -DskipFrontend` | Backend only (fast, ~15s) — for development        |
-| `mvn install -Prelease`      | Full release with CLI tools                        |
-| `mvn clean`                  | Clean build artifacts                              |
+details in the [Development Guide](doc/development.md).
 
 ---
 

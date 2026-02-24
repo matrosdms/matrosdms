@@ -12,7 +12,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDate;
-import java.util.stream.Collectors;
 
 import org.apache.james.mime4j.dom.BinaryBody;
 import org.apache.james.mime4j.dom.Entity;
@@ -35,7 +34,7 @@ import net.schwehla.matrosdms.service.pipeline.PipelineStep;
 import net.schwehla.matrosdms.util.TextLayerBuilder;
 
 @Component
-@Order(4) 
+@Order(4)
 public class TextExtractionStep implements PipelineStep {
 
 	@Autowired
@@ -58,7 +57,7 @@ public class TextExtractionStep implements PipelineStep {
 			finalXml = extractEmailContent(ctx);
 			ctx.setMimeType("message/rfc822");
 			ctx.setExtension(".eml");
-            // For emails, we store the original EML as the primary file
+			// For emails, we store the original EML as the primary file
 			ctx.setProcessedFile(ctx.getOriginalFile());
 		} else {
 			String mime = tikaService.detectMimeType(ctx.getOriginalFile());
@@ -107,29 +106,29 @@ public class TextExtractionStep implements PipelineStep {
 
 	private String extractEmailContent(PipelineContext ctx) throws Exception {
 		TextLayerBuilder xml = new TextLayerBuilder("EMAIL");
-        EmailMetadata meta = ctx.getAiResult().getEmailMetadata();
+		EmailMetadata meta = ctx.getAiResult().getEmailMetadata();
 
-        // 1. Add Structured Meta (for internal use)
+		// 1. Add Structured Meta (for internal use)
 		if (meta != null) {
 			xml.addMeta("subject", meta.getSubject());
 			xml.addMeta("sender", meta.getSender());
 		}
 		xml.closeMeta();
 
-        // 2. Add Human-Readable Header to Body (for Search Index & Snippets)
-        if (meta != null) {
-            StringBuilder header = new StringBuilder();
-            header.append("Subject: ").append(meta.getSubject()).append("\n");
-            header.append("From: ").append(meta.getSender()).append("\n");
-            if (meta.getRecipients() != null && !meta.getRecipients().isEmpty()) {
-                header.append("To: ").append(String.join(", ", meta.getRecipients())).append("\n");
-            }
-            header.append("Date: ").append(meta.getSentDate()).append("\n");
-            header.append("--------------------------------------------------\n");
-            
-            // This ensures "Subject" matches appear in the fulltext highlight
-            xml.addContent(header.toString(), "text/plain");
-        }
+		// 2. Add Human-Readable Header to Body (for Search Index & Snippets)
+		if (meta != null) {
+			StringBuilder header = new StringBuilder();
+			header.append("Subject: ").append(meta.getSubject()).append("\n");
+			header.append("From: ").append(meta.getSender()).append("\n");
+			if (meta.getRecipients() != null && !meta.getRecipients().isEmpty()) {
+				header.append("To: ").append(String.join(", ", meta.getRecipients())).append("\n");
+			}
+			header.append("Date: ").append(meta.getSentDate()).append("\n");
+			header.append("--------------------------------------------------\n");
+
+			// This ensures "Subject" matches appear in the fulltext highlight
+			xml.addContent(header.toString(), "text/plain");
+		}
 
 		DefaultMessageBuilder builder = new DefaultMessageBuilder();
 		try (InputStream is = new FileInputStream(ctx.getOriginalFile().toFile())) {
@@ -149,7 +148,7 @@ public class TextExtractionStep implements PipelineStep {
 				TextBody tb = (TextBody) entity.getBody();
 				String text = new String(tb.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 				if (entity.getMimeType().contains("html")) {
-                    // Simple HTML stripping for index
+					// Simple HTML stripping for index
 					text = text.replaceAll("<[^>]*>", " ").replaceAll("\\s+", " ").trim();
 				}
 				xml.addContent(text, entity.getMimeType());
@@ -158,18 +157,18 @@ public class TextExtractionStep implements PipelineStep {
 				if (fname == null)
 					fname = "attachment";
 
-                // Skip embedded resources (images/css we downloaded earlier)
-                if (fname.startsWith("_embed_")) {
-                    return; 
-                }
+				// Skip embedded resources (images/css we downloaded earlier)
+				if (fname.startsWith("_embed_")) {
+					return;
+				}
 
 				BinaryBody bb = (BinaryBody) entity.getBody();
 				try (InputStream stream = bb.getInputStream()) {
-                    // Extract text from attachment (PDF, Doc, etc)
+					// Extract text from attachment (PDF, Doc, etc)
 					String extracted = tikaService.extractText(stream);
 					if (extracted != null && !extracted.isBlank()) {
 						xml.addAttachment(fname, extracted);
-                    }
+					}
 				} catch (Exception e) {
 					ctx.addWarning("Attachment extraction failed: " + fname);
 				}

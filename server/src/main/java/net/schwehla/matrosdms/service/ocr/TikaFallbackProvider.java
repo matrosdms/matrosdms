@@ -17,27 +17,28 @@ import net.schwehla.matrosdms.service.TikaService;
 @Component
 public class TikaFallbackProvider implements IOcrProvider {
 
-    @Autowired
-    TikaService tikaService;
+	@Autowired
+	TikaService tikaService;
 
-    @Override
-    public String getId() {
-        return "tika-fallback";
-    }
+	@Override
+	public String getId() {
+		return "tika-fallback";
+	}
 
-    @Override
-    public boolean isAvailable() {
-        return true; // Tika is always available as a library
-    }
+	@Override
+	public boolean isAvailable() {
+		return true; // Tika is always available as a library
+	}
 
-    @Override
-    public int getPriority() {
-        return 100; // Lowest priority (Use only if others fail)
-    }
+	@Override
+	public int getPriority() {
+		return 100; // Lowest priority (Use only if others fail)
+	}
 
-    @Override
-    public String extractText(Path file, String mimeType) {
-        // Tika handles everything, but quality for pure images might be lower than Tesseract
-        return tikaService.extractText(file);
-    }
+	@Override
+	public String extractText(Path file, String mimeType) {
+		// Tika handles everything, but quality for pure images might be lower than
+		// Tesseract
+		return tikaService.extractText(file);
+	}
 }

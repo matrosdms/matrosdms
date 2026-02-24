@@ -7,41 +7,43 @@
  */
 package net.schwehla.matrosdms.store;
 
-import org.springframework.stereotype.Component;
-
 import jakarta.annotation.PostConstruct;
 
+import org.springframework.stereotype.Component;
+
 /**
- * Static facade for backward compatibility with Hibernate Search ItemTextBridge.
+ * Static facade for backward compatibility with Hibernate Search
+ * ItemTextBridge.
  * Delegates to the proper IMatrosStore implementation.
  */
 @Component
 public class StoreContext {
 
-    private static IMatrosStore store;
+	private static IMatrosStore store;
 
-    private final IMatrosStore matrosStore;
+	private final IMatrosStore matrosStore;
 
-    public StoreContext(IMatrosStore matrosStore) {
-        this.matrosStore = matrosStore;
-    }
+	public StoreContext(IMatrosStore matrosStore) {
+		this.matrosStore = matrosStore;
+	}
 
-    @PostConstruct
-    public void init() {
-        StoreContext.store = this.matrosStore;
-    }
+	@PostConstruct
+	public void init() {
+		StoreContext.store = this.matrosStore;
+	}
 
-    /**
-     * Reads a text file for the given UUID.
-     * Used by Hibernate Search ItemTextBridge for indexing.
-     * 
-     * @param uuid Document UUID
-     * @return Text content, or empty string if not found
-     */
-    public static String readTextFile(String uuid) {
-        if (store == null) {
-            return "";
-        }
-        return store.loadTextLayer(uuid);
-    }
+	/**
+	 * Reads a text file for the given UUID.
+	 * Used by Hibernate Search ItemTextBridge for indexing.
+	 * 
+	 * @param uuid
+	 *            Document UUID
+	 * @return Text content, or empty string if not found
+	 */
+	public static String readTextFile(String uuid) {
+		if (store == null) {
+			return "";
+		}
+		return store.loadTextLayer(uuid);
+	}
 }
