@@ -4,7 +4,7 @@
 > A privacy-first, open-source Document Management System that combines the familiarity of folders with the power of smart tagging.
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
-[![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/)
+[![Java 25](https://img.shields.io/badge/Java-25-orange.svg)](https://openjdk.org/)
 [![Vue 3](https://img.shields.io/badge/Vue-3-brightgreen.svg)](https://vuejs.org/)
 
 ---
@@ -142,7 +142,7 @@ Modern architecture. No legacy baggage.
 
 |     Layer     |                      Technology                       |
 |---------------|-------------------------------------------------------|
-| **Backend**   | Java 21, Spring Boot 3.5, Hibernate Search 7 (Lucene) |
+| **Backend**   | Java 25, Spring Boot 3.5, Hibernate Search 7 (Lucene) |
 | **Frontend**  | Vue 3, TypeScript, Vite, Tailwind CSS, TanStack Query |
 | **Database**  | Embedded H2 + Flyway migrations                       |
 | **Security**  | Bouncy Castle (AES-256-CTR, Argon2id)                 |
@@ -160,13 +160,13 @@ MatrosDMS can be deployed in multiple ways to fit your environment:
 ### 📦 Portable Desktop App
 
 - **Windows Standalone**: Download `.exe` — no Java installation required
-- **Cross-Platform JAR**: Requires Java 21+
+- **Cross-Platform JAR**: Requires Java 25+
 
 ### 🐳 Container Deployment
 
 ```bash
 # Docker
-docker run -p 8080:8080 -v ./data:/app/data matrosdms/matrosdms
+docker run -p 8080:8080 -v ./data:/app/data mschwehl/matrosdms
 
 # Docker Compose
 docker-compose up -d
@@ -212,7 +212,7 @@ One command builds everything:
 mvn install
 ```
 
-This compiles the backend (Java 21), bundles the Vue 3 UI, and creates:
+This compiles the backend (Java 25), bundles the Vue 3 UI, and creates:
 - `server/target/server-0-SNAPSHOT.jar` — Standalone JAR (cross-platform)
 - `server/target/portable/MatrosDMS.exe` — Windows portable executable (no Java required)
 
