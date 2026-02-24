@@ -44,7 +44,7 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Build (frontend + backend + Linux installer)
-        run: mvn -B package -Pwith-frontend,linux-installer
+        run: mvn -B package "-Pwith-frontend,linux-installer"
 
       # develop: upload server JAR only
       - name: Upload server JAR
@@ -143,7 +143,7 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Build (frontend + backend + Windows portable)
-        run: mvn -B package -Pwith-frontend,windows-portable
+        run: mvn -B package "-Pwith-frontend,windows-portable"
 
       # main/master only: upload Windows portable
       - name: Upload Windows portable
