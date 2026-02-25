@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
@@ -23,9 +24,12 @@ import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+
+import net.schwehla.matrosdms.store.util.FileExtensionService;
 
 @Service
 @Lazy
@@ -42,6 +46,9 @@ public class PdfConversionService {
 
 	private volatile byte[] fontBytes;
 	private final Semaphore conversionSemaphore = new Semaphore(2);
+
+	@Autowired
+	private FileExtensionService extensionService;
 
 	// --- NEW: Rich Result Record ---
 	public record AnalysisResult(
@@ -126,18 +133,50 @@ public class PdfConversionService {
 
 	// Legacy method maintained for compilation, but now delegates logic
 	public Path convertTextToPdf(Path source, Path destination) throws IOException {
-		Files.copy(source, destination); // Stub for safety
+		Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING); // Stub for safety
 		return destination;
 	}
 
-	// NOTE: In a full implementation, you'd keep the normalize() method here for
-	// compatibility
-	// with older steps if they aren't fully replaced yet.
 	public record ConversionResult(Path path, String mimeType, String extension) {
 	}
 
 	public ConversionResult normalize(Path source, Path workingDir, String mimeType) {
-		// Minimal stub to satisfy interface if legacy code calls it
-		return new ConversionResult(source, mimeType, ".pdf");
+		String originalExt = extensionService.getExtensionOrDefault(source);
+		String finalExt = originalExt;
+
+		// Force .pdf if the file is actually a PDF to avoid malicious/accidental wrong extensions
+		if ("application/pdf".equals(mimeType)) {
+			finalExt = ".pdf";
+		} else {
+			String mimeExt = extensionService.getExtensionForMimeType(mimeType);
+			if (mimeExt != null && !mimeExt.isEmpty() && !".bin".equals(mimeExt)) {
+				// For other files, only override the extension if it is entirely missing or generic
+				if (originalExt.equals(".bin") || originalExt.equals(".tmp") || originalExt.isEmpty()) {
+					finalExt = mimeExt;
+				}
+			}
+		}
+		
+		Path finalPath = source;
+		
+		// If the extension has changed, we MUST safely copy the file on disk so the rest
+		// of the pipeline (which looks for hash + new_extension) doesn't crash.
+		if (!originalExt.equalsIgnoreCase(finalExt)) {
+			String filename = source.getFileName().toString();
+			String baseName = extensionService.removeExtension(filename);
+			finalPath = workingDir.resolve(baseName + finalExt);
+			
+			try {
+				if (!Files.exists(finalPath)) {
+					Files.copy(source, finalPath, StandardCopyOption.REPLACE_EXISTING);
+				}
+			} catch (IOException e) {
+				log.error("Failed to apply new extension {} to file {}", finalExt, filename, e);
+				finalPath = source;
+				finalExt = originalExt;
+			}
+		}
+
+		return new ConversionResult(finalPath, mimeType, finalExt);
 	}
 }

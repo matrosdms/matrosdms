@@ -19,6 +19,8 @@ import org.apache.james.mime4j.dom.Message;
 import org.apache.james.mime4j.dom.Multipart;
 import org.apache.james.mime4j.dom.TextBody;
 import org.apache.james.mime4j.message.DefaultMessageBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -36,6 +38,8 @@ import net.schwehla.matrosdms.util.TextLayerBuilder;
 @Component
 @Order(4)
 public class TextExtractionStep implements PipelineStep {
+
+	private static final Logger log = LoggerFactory.getLogger(TextExtractionStep.class);
 
 	@Autowired
 	TikaService tikaService;
@@ -60,7 +64,13 @@ public class TextExtractionStep implements PipelineStep {
 			// For emails, we store the original EML as the primary file
 			ctx.setProcessedFile(ctx.getOriginalFile());
 		} else {
-			String mime = tikaService.detectMimeType(ctx.getOriginalFile());
+			
+			// Detect MIME if it wasn't done earlier
+			String mime = ctx.getMimeType();
+			if (mime == null) {
+				mime = tikaService.detectMimeType(ctx.getOriginalFile());
+			}
+			
 			ConversionResult res = conversionService.normalize(ctx.getOriginalFile(), ctx.getWorkingDir(), mime);
 
 			ctx.setProcessedFile(res.path());
@@ -70,8 +80,9 @@ public class TextExtractionStep implements PipelineStep {
 			String rawText = "";
 			boolean isPdf = "application/pdf".equals(res.mimeType());
 
+			// 1. If it's a PDF, check if it already has digital text
 			if (isPdf && appConfig.getProcessing().isPreferScannerText()) {
-				ctx.log("Checking for existing text layer...");
+				ctx.log("Checking for existing PDF text layer...");
 				String scannerText = pdfTextExtractor.quickExtract(res.path());
 
 				if (scannerText.length() > 50) {
@@ -82,13 +93,18 @@ public class TextExtractionStep implements PipelineStep {
 				}
 			}
 
+			// 2. If no text (or if it's an image like JPEG/PNG), run Tika
+			// Note: Tika will automatically invoke Tesseract OCR for images if installed on the host OS.
 			if (rawText.isBlank()) {
+				ctx.log("Performing text extraction / OCR...");
 				rawText = tikaService.extractText(res.path());
 			}
 
 			if (rawText == null || rawText.isBlank()) {
-				ctx.addWarning("OCR: No text found.");
+				ctx.addWarning("No text or OCR content could be extracted.");
 				rawText = "";
+			} else {
+				log.info("Extracted {} characters from {}", rawText.length(), filename);
 			}
 
 			TextLayerBuilder builder = new TextLayerBuilder("FILE");

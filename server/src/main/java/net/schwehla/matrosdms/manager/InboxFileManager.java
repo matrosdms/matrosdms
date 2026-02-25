@@ -12,6 +12,7 @@ import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import jakarta.annotation.PostConstruct;
@@ -50,6 +51,9 @@ public class InboxFileManager {
 
 	private static final Logger log = LoggerFactory.getLogger(InboxFileManager.class);
 
+	// Ensures concurrent identical uploads don't crash the filesystem
+	private final ConcurrentHashMap<String, Object> uploadLocks = new ConcurrentHashMap<>();
+
 	@PostConstruct
 	public void init() {
 		Path root = Paths.get(config.getServer().getInbox().getPath());
@@ -63,32 +67,52 @@ public class InboxFileManager {
 	}
 
 	public InboxFile uploadFile(MultipartFile file) {
+		Path tempUpload = null;
 		try {
-			Path tempUpload = Files.createTempFile("matros-upload-", ".tmp");
+			// Write safely to a temp file first
+			tempUpload = Files.createTempFile("matros-upload-", ".tmp");
 			file.transferTo(tempUpload);
 
 			String hash = fileUtils.getSHA256(tempUpload);
 			String ext = fileUtils.getExtension(file.getOriginalFilename());
 			Path stagingDir = Paths.get(config.getServer().getTemp().getPath(), hash);
 
-			if (Files.exists(stagingDir)) {
-				Files.delete(tempUpload);
-				return getInboxFileDto(hash);
+			// Prevent race conditions on concurrent identical uploads
+			Object lock = uploadLocks.computeIfAbsent(hash, k -> new Object());
+			
+			synchronized (lock) {
+				try {
+					if (Files.exists(stagingDir)) {
+						log.debug("Duplicate concurrent upload detected and skipped: {}", hash);
+						return getInboxFileDto(hash);
+					}
+
+					Files.createDirectories(stagingDir);
+					Path targetFile = stagingDir.resolve(hash + ext);
+					Files.move(tempUpload, targetFile, StandardCopyOption.REPLACE_EXISTING);
+					tempUpload = null; // Mark as successfully moved so we don't delete it in finally
+
+					SourceMetadata meta = new SourceMetadata(file.getOriginalFilename(), "UPLOAD");
+					objectMapper.writeValue(stagingDir.resolve("source.info").toFile(), meta);
+
+					pipelineService.triggerPipeline(hash);
+
+					return getInboxFileDto(hash);
+				} finally {
+					// Clean up memory
+					uploadLocks.remove(hash);
+				}
 			}
 
-			Files.createDirectories(stagingDir);
-			Path targetFile = stagingDir.resolve(hash + ext);
-			Files.move(tempUpload, targetFile, StandardCopyOption.REPLACE_EXISTING);
-
-			SourceMetadata meta = new SourceMetadata(file.getOriginalFilename(), "UPLOAD");
-			objectMapper.writeValue(stagingDir.resolve("source.info").toFile(), meta);
-
-			pipelineService.triggerPipeline(hash);
-
-			return getInboxFileDto(hash);
-
 		} catch (Exception e) {
-			throw new RuntimeException("Upload failed", e);
+			throw new RuntimeException("Upload failed: " + e.getMessage(), e);
+		} finally {
+			// Guarantee that temporary files in the OS temp folder are deleted if an error occurs
+			if (tempUpload != null) {
+				try {
+					Files.deleteIfExists(tempUpload);
+				} catch (IOException ignored) {}
+			}
 		}
 	}
 
