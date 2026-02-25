@@ -123,6 +123,10 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<ApiErrorResponse> handleMalformedRequest(
 			HttpMessageNotReadableException ex, HttpServletRequest request) {
+		
+		Throwable root = ex.getRootCause(); 
+		log.error("JSON parse error: {}", root != null ? root.getMessage() : ex.getMessage(), ex);
+		
 		return buildErrorResponse(
 				HttpStatus.BAD_REQUEST, EErrorCode.REQ_JSON_MALFORMED, "Invalid JSON format", request);
 	}

@@ -91,7 +91,7 @@ const onParentSelected = (node: CategoryNode) => {
               </BaseButton>
           </div>
           
-          <div v-if="isPickerOpen" class="absolute top-full left-0 w-full mt-1 bg-popover border border-input shadow-xl rounded-md max-h-64 overflow-hidden flex flex-col z-50 animate-in fade-in zoom-in-95 duration-100">
+          <div v-if="isPickerOpen" class="absolute top-full left-0 w-full min-w-[260px] mt-1 bg-popover border border-input shadow-xl rounded-md max-h-64 overflow-hidden flex flex-col z-50 animate-in fade-in zoom-in-95 duration-100">
               <div class="bg-muted/50 p-2 border-b border-input flex justify-between items-center">
                   <span class="text-xs font-bold text-muted-foreground uppercase">Select new Location</span>
                   <button @click="isPickerOpen = false"><X :size="14"/></button>

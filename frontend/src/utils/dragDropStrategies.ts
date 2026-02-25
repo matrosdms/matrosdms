@@ -17,15 +17,11 @@ const moveItemStrategy: DropHandler = async (data, target, { queryClient, dms })
     
     // Direct move, no confirmation needed for single items
     try {
-        const { error } = await client.PUT('/api/items/{uuid}', { 
-            params: { path: { uuid: data.uuid } }, 
-            body: { 
-                ...data, 
-                contextIdentifier: target.uuid
-            } 
-        })
+        if (!data.uuid || !target.uuid) return false;
         
-        if (error) throw new Error((error as any).message || 'Unknown error')
+        // Use batchMove instead of directly PUTting the item.
+        // This avoids mismatches between the MItem representation and UpdateItemMessage payload (e.g. kindList).
+        await ItemService.batchMove([data.uuid], target.uuid)
         
         push.success(`Moved to ${target.name}`)
         

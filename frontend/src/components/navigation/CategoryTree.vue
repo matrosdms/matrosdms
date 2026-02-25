@@ -44,7 +44,7 @@ interface FlatNode {
     node: Category;
 }
 
-const flattenTree = (nodes: any[], level = 0, result: FlatNode[] = []) => {
+const flattenTree = (nodes: any[], level = 0, result: FlatNode[] =[]) => {
     for (const node of nodes) {
         const matchesSearch = !searchQuery.value.trim() || node.label.toLowerCase().includes(searchQuery.value.toLowerCase());
         const hasVisibleChildren = node.children && node.children.length > 0;
@@ -72,7 +72,7 @@ const mapCategory = (cat: Category): any => ({
     id: cat.uuid, 
     label: cat.name, 
     icon: cat.icon, // Map icon
-    children: (cat.children || []).map(mapCategory)
+    children: (cat.children ||[]).map(mapCategory)
 })
 
 // --- Collect all descendant IDs (O(1) lookup via Set) ---
@@ -87,8 +87,8 @@ const collectDescendantIds = (node: any, result: Set<string> = new Set()): Set<s
 }
 
 const visibleNodes = computed(() => {
-    if (!rootCategory.value) return []
-    const rawNodes = (rootCategory.value.children || []).map(mapCategory)
+    if (!rootCategory.value) return[]
+    const rawNodes = (rootCategory.value.children ||[]).map(mapCategory)
     return flattenTree(rawNodes)
 })
 
@@ -366,31 +366,39 @@ const onAddCategory = () => {
     </AppPane>
     
     <!-- Simplified Selection Mode (Flat List for Dropdowns) -->
-    <div v-else class="overflow-auto p-2" tabindex="0" @keydown="onKeyDown">
-       <div 
-            v-for="node in visibleNodes" 
-            :key="node.id"
-            :id="`tree-node-${node.id}`"
-            class="flex items-center py-1.5 cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            :class="[
-                selectedId === node.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-bold' : 'text-gray-700 dark:text-gray-300',
-                focusedNodeId === node.id ? 'ring-1 ring-inset ring-blue-400' : ''
-            ]"
-            :style="{ paddingLeft: (node.level * 12 + 8) + 'px' }"
-            @click="selectNode(node.id, node.label)"
-       >
-           <div @click.stop="toggle(node.id)" class="w-4 mr-1 shrink-0 text-gray-400">
-               <ChevronDown v-if="node.isOpen && node.hasChildren" :size="14"/>
-               <ChevronRight v-else-if="node.hasChildren" :size="14"/>
+    <div v-else class="flex flex-col h-full bg-white dark:bg-gray-800 transition-colors" tabindex="-1">
+       <div class="p-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 shrink-0">
+           <SearchInput v-model="searchQuery" placeholder="Search categories..." />
+       </div>
+       <div class="overflow-auto p-1.5 flex-1 custom-scrollbar" tabindex="0" @keydown="onKeyDown">
+           <div v-if="visibleNodes.length === 0" class="p-4 text-xs text-gray-400 italic text-center">
+               No categories found.
            </div>
-           
-           <!-- Icon in Dropdown -->
-           <div class="mr-2 text-muted-foreground shrink-0">
-                <DynamicIcon v-if="node.node.icon" :name="node.node.icon" :size="14" />
-                <Folder v-else :size="14" />
-           </div>
+           <div 
+                v-for="node in visibleNodes" 
+                :key="node.id"
+                :id="`tree-node-${node.id}`"
+                class="flex items-center py-1.5 px-2 cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                :class="[
+                    selectedId === node.id ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold' : 'text-gray-700 dark:text-gray-300',
+                    focusedNodeId === node.id ? 'ring-1 ring-inset ring-blue-400' : ''
+                ]"
+                :style="{ paddingLeft: (node.level * 12 + 8) + 'px' }"
+                @click="selectNode(node.id, node.label)"
+           >
+               <div @click.stop="toggle(node.id)" class="w-4 mr-1 shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                   <ChevronDown v-if="node.isOpen && node.hasChildren" :size="14"/>
+                   <ChevronRight v-else-if="node.hasChildren" :size="14"/>
+               </div>
+               
+               <!-- Icon in Dropdown -->
+               <div class="mr-2 text-muted-foreground shrink-0">
+                    <DynamicIcon v-if="node.node.icon" :name="node.node.icon" :size="14" />
+                    <Folder v-else :size="14" />
+               </div>
 
-           <span class="text-xs truncate">{{ node.label }}</span>
+               <span class="text-xs truncate flex-1">{{ node.label }}</span>
+           </div>
        </div>
     </div>
   </div>

@@ -45,7 +45,7 @@ const updateField = (key: string, value: any) => {
 
 const updateReminder = (key: string, value: any) => {
     if (!props.reminderState) return
-    const newData = { ...props.reminderState.data, [key]: value }
+    const newData = { ...props.reminderState.data,[key]: value }
     emit('update:reminderState', { active: props.reminderState.active, data: newData })
 }
 
@@ -141,7 +141,7 @@ onMounted(() => {
                         <ChevronDown v-else :size="14" class="opacity-50" />
                     </div>
                     
-                    <div v-if="isTypeDropdownOpen" class="absolute top-full left-0 w-full mt-1 bg-popover border rounded-md shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    <div v-if="isTypeDropdownOpen" class="absolute top-full left-0 w-full min-w-[260px] mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[100] overflow-hidden flex flex-col max-h-[300px] animate-in fade-in zoom-in-95 duration-100">
                         <CategoryTree 
                             :overrideContext="ERootCategory.KIND" 
                             :selectionMode="true" 
@@ -237,7 +237,7 @@ onMounted(() => {
       </div>
 
       <AttributeGroup 
-        :model-value="modelValue.attributes || []" 
+        :model-value="modelValue.attributes ||[]" 
         @update:model-value="updateField('attributes', $event)" 
       />
 
