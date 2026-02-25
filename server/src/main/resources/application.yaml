@@ -70,7 +70,7 @@ app:
     store:
       - id: local
         type: LOCAL 
-        path: "${app.server.repository-path}/documents}"
+        path: "${app.server.repository-path}/documents"
         cryptor: ${MATROS_STORE_CRYPTOR:AES_CTR}
         password: ${MATROS_STORE_PASSWORD:CHANGE-THIS-PASSWORD}
         salt: ${MATROS_STORE_SALT:MATROS_DMS_SALT}

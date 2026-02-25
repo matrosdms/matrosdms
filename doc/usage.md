@@ -268,6 +268,55 @@ Access via sidebar → Settings icon
 
 ---
 
+### Multi Tenancy
+
+create a batch-file startMatros.cmd
+
+```
+@echo off
+cd /d "%~dp0"
+
+rem --- assign data and repository paths ---
+set MATROS_DATA_DIR=%~1
+set MATROS_REPOSITORY_PATH=%~2
+
+rem --- default port ---
+set DEFAULT_PORT=9090
+
+rem --- if third parameter exists, use it; otherwise use default ---
+if "%~3"=="" (
+    set PORT=%DEFAULT_PORT%
+) else (
+    set PORT=%~3
+)
+
+echo Starting MatrosDMS on port %PORT%
+echo MATROS_DATA_DIR=%MATROS_DATA_DIR%
+echo MATROS_REPOSITORY_PATH=%MATROS_REPOSITORY_PATH%
+
+java -jar server-0-SNAPSHOT.jar --server.port=%PORT% --app.start-browser=true
+
+pause
+```
+
+## Using Windows Shortcuts to Launch Tenants
+
+You can now create standard Windows Shortcuts (.lnk) on your desktop to launch specific tenants instantly.
+Right-click on your desktop, select New > Shortcut, and use the following format for the Target:
+
+### EXAMPLE
+D:\cloud\matrosdms\startMatros.cmd d:/matrosdms/demo-invest d:/cloud/matrosdms/repository/demo-invest 9091
+
+This creates the inbox in d:/matrosdms/demo-invest/inbox 
+
+and the repository in d:/cloud/matrosdms/repository/demo-invest
+
+it is important to separate both as we dont to backup a running system. H2 dont like that
+
+#### TrayTools
+you can use a tray-tool https://apps.microsoft.com/detail/9NMR3QLVBSXK?hl=neutral&gl=DE&ocid=pdpshare to launch the shortcut from the system tray
+
+
 ## Version
 
 MatrosDMS v1.0 | © 2026 MatrosDMS Team
