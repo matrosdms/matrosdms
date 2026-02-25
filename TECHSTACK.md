@@ -8,7 +8,7 @@ The backend is a monolithic Spring Boot application designed for high throughput
 
 |         Component         |        Technology        |                              Description                              |
 |---------------------------|--------------------------|-----------------------------------------------------------------------|
-| **Core Framework**        | **Java 21 (LTS)**        | Leveraging Virtual Threads and Foreign Function API.                  |
+| **Core Framework**        | **Java 25 (LTS)**        | Leveraging Virtual Threads and Foreign Function API.                  |
 | **Application Framework** | **Spring Boot 3.5.10**   | DI, Web, Security, Actuator.                                          |
 | **Search Engine**         | **Hibernate Search 7**   | Lucene-based full-text indexing (No external OpenSearch/ES required). |
 | **Database**              | **H2 (Embedded)**        | Lightweight, file-based SQL database. Zero setup.                     |

@@ -41,8 +41,8 @@ public class H2BackupService {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
-	// FIX: Aligned with Repository Structure
-	@Value("${app.base-path}/repository/db-backup")
+	
+	@Value("${app.server.repository-path}/db-backup")
 	private String backupBasePath;
 
 	@Value("${app.backup.on-startup:true}")

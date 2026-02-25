@@ -22,7 +22,7 @@ logging:
 
 app:
   base-path: ${MATROS_DATA_DIR:./data}
-
+  start-browser: false
   security:
     jwt-secret: ${MATROS_JWT_SECRET:bXl0cm9zZG1zU2VjcmV0S2V5Rm9yRGV2ZWxvcG1lbnRPbmx5Q2hhbmdlSW5Qcm9kdWN0aW9u} 
     jwt-expiration-ms: 86400000 
@@ -52,6 +52,7 @@ app:
     concurrency: 2 
     
   server:
+    repository-path: ${MATROS_REPOSITORY_PATH:${app.base-path}/repository}
     inbox:
         path: "${app.base-path}/workspace/inbox"
     temp:
@@ -69,7 +70,7 @@ app:
     store:
       - id: local
         type: LOCAL 
-        path: "${app.base-path}/repository/documents"
+        path: "${app.server.repository-path}/documents}"
         cryptor: ${MATROS_STORE_CRYPTOR:AES_CTR}
         password: ${MATROS_STORE_PASSWORD:CHANGE-THIS-PASSWORD}
         salt: ${MATROS_STORE_SALT:MATROS_DMS_SALT}

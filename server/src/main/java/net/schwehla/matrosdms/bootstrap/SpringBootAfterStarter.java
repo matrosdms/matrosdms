@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.boot.web.context.WebServerApplicationContext;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
 import org.springframework.data.domain.PageRequest;
@@ -41,10 +42,19 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 	private static final Logger log = LoggerFactory.getLogger(SpringBootAfterStarter.class);
 
+	private int serverPort;
+
+	
 	@Autowired
 	private ApplicationContext applicationContext;
-	@Value("${server.port:8080}")
-	private int serverPort;
+	
+	@Autowired private WebServerApplicationContext 
+	webServerAppCtx;
+	
+	@Value("${app.start-browser:false}")
+	private boolean startBrowser;
+
+
 	@Autowired
 	AttributeLookupService attributeLookupService;
 	@Autowired
@@ -74,7 +84,11 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 	@Override
 	public void onApplicationEvent(final ApplicationReadyEvent event) {
-		log.info("🚀 HTTP Server is READY. Starting Background Services...");
+		
+
+		this.serverPort = webServerAppCtx.getWebServer().getPort();
+		
+		log.info("HTTP Server is READY on " + serverPort + " -  Starting Background Services...");
 
 		// 1. Start File Watcher
 		attributeLookupService.refresh();
@@ -83,7 +97,7 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 		// 2. Confirm Mail Servers
 		log.info(
-				"📧 Mail Services Active: SMTP (Port {}) & IMAP (Port {})",
+				"Mail Services Active: SMTP (Port {}) & IMAP (Port {})",
 				2525,
 				1143);
 
@@ -99,10 +113,14 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 			}
 		});
 
+		log.info("Background tasks scheduled.");
+		
 		// 4. Auto-open Browser (development convenience)
-		CompletableFuture.runAsync(this::openBrowser);
+		if (startBrowser) { 
+			CompletableFuture.runAsync(this::openBrowser); 
+		}
+		
 
-		log.info("✅ Background tasks scheduled.");
 	}
 
 	private void warmUpSystem() {
@@ -126,16 +144,11 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 			log.info("app is running in: http://localhost:" + serverPort);
 
-			// Skip browser opening in containerized/headless environments
-			if (isContainerEnvironment()) {
-				log.debug("Container environment detected - skipping browser auto-open");
-				return;
-			}
-
 			log.info("Start Browser");
 			System.setProperty("java.awt.headless", "false");
 
-			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE) 
+					&& startBrowser ) {
 				// Give server a moment to fully start before opening browser
 				Thread.sleep(1000);
 				URI uri = new URI("http://localhost:" + serverPort);
@@ -154,6 +167,6 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 		return java.nio.file.Files.exists(java.nio.file.Paths.get("/.dockerenv"))
 				|| System.getenv("CONTAINER") != null
 				|| System.getenv("KUBERNETES_SERVICE_HOST") != null
-				|| "true".equals(System.getProperty("java.awt.headless"));
+				|| "true".equals(System.getProperty("java.awt.headless")); 
 	}
 }
