@@ -44,16 +44,14 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 	private int serverPort;
 
-	
 	@Autowired
 	private ApplicationContext applicationContext;
-	
-	@Autowired private WebServerApplicationContext 
-	webServerAppCtx;
-	
+
+	@Autowired
+	private WebServerApplicationContext webServerAppCtx;
+
 	@Value("${app.start-browser:false}")
 	private boolean startBrowser;
-
 
 	@Autowired
 	AttributeLookupService attributeLookupService;
@@ -84,10 +82,9 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 	@Override
 	public void onApplicationEvent(final ApplicationReadyEvent event) {
-		
 
 		this.serverPort = webServerAppCtx.getWebServer().getPort();
-		
+
 		log.info("HTTP Server is READY on " + serverPort + " -  Starting Background Services...");
 
 		// 1. Start File Watcher
@@ -114,12 +111,11 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 		});
 
 		log.info("Background tasks scheduled.");
-		
+
 		// 4. Auto-open Browser (development convenience)
-		if (startBrowser) { 
-			CompletableFuture.runAsync(this::openBrowser); 
+		if (startBrowser) {
+			CompletableFuture.runAsync(this::openBrowser);
 		}
-		
 
 	}
 
@@ -147,8 +143,8 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 			log.info("Start Browser");
 			System.setProperty("java.awt.headless", "false");
 
-			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE) 
-					&& startBrowser ) {
+			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)
+					&& startBrowser) {
 				// Give server a moment to fully start before opening browser
 				Thread.sleep(1000);
 				URI uri = new URI("http://localhost:" + serverPort);
@@ -167,6 +163,6 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 		return java.nio.file.Files.exists(java.nio.file.Paths.get("/.dockerenv"))
 				|| System.getenv("CONTAINER") != null
 				|| System.getenv("KUBERNETES_SERVICE_HOST") != null
-				|| "true".equals(System.getProperty("java.awt.headless")); 
+				|| "true".equals(System.getProperty("java.awt.headless"));
 	}
 }

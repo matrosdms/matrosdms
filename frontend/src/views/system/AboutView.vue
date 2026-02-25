@@ -13,7 +13,7 @@ const activeTab = ref<'system' | 'legal' | 'console'>('system')
 // Console Filters
 const filters = ref({ info: true, success: true, error: true, debug: true, warning: true })
 const filteredLogs = computed(() => ui.logs.filter(log => filters.value[log.type]))
-const clearLogs = () => ui.logs = []
+const clearLogs = () => ui.logs =[]
 
 const { data: versionInfo, isLoading } = useQuery({
   queryKey: ['system-version'],
@@ -93,13 +93,13 @@ const goBack = () => {
                                 <span class="font-mono font-medium text-gray-800 dark:text-gray-200">{{ versionInfo?.version || 'Unknown' }}</span>
                             </div>
                              <div class="flex justify-between border-b border-gray-50 dark:border-gray-800 pb-2">
-                                <span class="text-gray-500 dark:text-gray-400 text-sm">Environment</span>
-                                <span class="font-mono font-medium text-gray-800 dark:text-gray-200">{{ versionInfo?.environment || 'Production' }}</span>
+                                <span class="text-gray-500 dark:text-gray-400 text-sm">Tenant</span>
+                                <span class="font-mono font-medium text-gray-800 dark:text-gray-200">{{ versionInfo?.tenant || 'Default' }}</span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-gray-500 dark:text-gray-400 text-sm">Status</span>
                                 <span class="text-green-600 dark:text-green-400 font-bold flex items-center gap-1.5 text-sm">
-                                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Operational
+                                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> {{ versionInfo?.status || 'Operational' }}
                                 </span>
                             </div>
                         </div>

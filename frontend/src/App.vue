@@ -15,7 +15,8 @@ import GlobalSearch from '@/components/widgets/GlobalSearch.vue'
 import UserMenu from '@/components/widgets/UserMenu.vue'
 import { Loader2, Bell } from 'lucide-vue-next'
 import { computed, ref, onMounted } from 'vue'
-import { useIsFetching, useIsMutating } from '@tanstack/vue-query'
+import { useIsFetching, useIsMutating, useQuery } from '@tanstack/vue-query'
+import { SystemService } from '@/services/SystemService'
 import { push } from 'notivue'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
@@ -43,6 +44,12 @@ const aiRef = ref<InstanceType<typeof AiView> | null>(null)
 const isFetching = useIsFetching()
 const isMutating = useIsMutating()
 const isLoading = computed(() => isFetching.value > 0 || isMutating.value > 0)
+
+const { data: systemInfo } = useQuery({
+  queryKey:['system-version'],
+  queryFn: SystemService.getVersion,
+  staleTime: Infinity
+})
 
 bootSystem()
 
@@ -149,8 +156,11 @@ const handleGlobalDrop = async (event: DragEvent) => {
         
         <!-- Left: Brand + Context Filters -->
         <div class="flex items-center gap-4 shrink-0">
-          <div class="font-bold tracking-tight text-xl text-gray-800 dark:text-white flex-shrink-0 flex items-center cursor-pointer group" @click="ui.setView('dms')">
-            <span class="group-hover:text-primary transition-colors">MatrosDMS</span>
+          <div class="flex-shrink-0 flex items-center cursor-pointer group" @click="ui.setView('dms')">
+            <div class="flex flex-col">
+              <span class="font-bold tracking-tight text-xl text-gray-800 dark:text-white group-hover:text-primary transition-colors leading-none mt-1">MatrosDMS</span>
+              <span v-if="systemInfo?.tenant" class="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1 leading-none truncate max-w-[160px]" :title="systemInfo.tenant">{{ systemInfo.tenant }}</span>
+            </div>
             <div class="ml-3 w-8 h-8 flex items-center justify-center">
               <div class="flex items-center justify-center rounded-full p-1 transition-colors duration-300" :class="isLoading ? 'bg-blue-50 text-primary' : 'bg-transparent text-gray-300 dark:text-gray-600'">
                   <Loader2 :size="18" :class="{ 'animate-spin': isLoading }" />

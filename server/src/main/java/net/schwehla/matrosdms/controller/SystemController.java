@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import net.schwehla.matrosdms.domain.api.SystemInfoResponse;
+
 import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
@@ -33,8 +34,7 @@ public class SystemController {
 				appVersion,
 				"MatrosDMS Server",
 				"OK",
-				formatTenantName(repositoryPath)
-		);
+				formatTenantName(repositoryPath));
 		return ResponseEntity.ok(response);
 	}
 
@@ -52,7 +52,7 @@ public class SystemController {
 		if (normalizedPath.endsWith("/")) {
 			normalizedPath = normalizedPath.substring(0, normalizedPath.length() - 1);
 		}
-		
+
 		int lastSlashIndex = normalizedPath.lastIndexOf('/');
 		String rawName = (lastSlashIndex >= 0 && lastSlashIndex < normalizedPath.length() - 1)
 				? normalizedPath.substring(lastSlashIndex + 1)
@@ -61,13 +61,13 @@ public class SystemController {
 		// 2. Format to Title Case (split by hyphen)
 		String[] parts = rawName.split("-");
 		StringBuilder formattedName = new StringBuilder();
-		
+
 		for (int i = 0; i < parts.length; i++) {
 			String part = parts[i];
 			if (!part.isEmpty()) {
 				// Capitalize first letter, lowercase the rest
 				formattedName.append(Character.toUpperCase(part.charAt(0)))
-						     .append(part.substring(1).toLowerCase());
+						.append(part.substring(1).toLowerCase());
 			}
 			if (i < parts.length - 1) {
 				formattedName.append("-");

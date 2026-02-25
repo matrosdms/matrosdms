@@ -274,17 +274,17 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
-			<plugin>
-			<artifactId>maven-clean-plugin</artifactId>
-			<version>3.5.0</version>
-				<configuration>
-				<filesets>
-					<fileset>
-					<directory>${project.build.directory}/portable</directory>
-					</fileset>
-				</filesets>
-				</configuration>
-			</plugin>
+            <plugin>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>${project.build.directory}/portable</directory>
+                        </fileset>
+                    </filesets>
+                </configuration>
+            </plugin>
             <!-- Spring Boot Plugin -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -466,7 +466,7 @@
                 </plugins>
             </build>
         </profile>
-		<profile>
+        <profile>
             <id>linux-installer</id>
             <build>
                 <plugins>
@@ -495,7 +495,7 @@
                             </execution>
                         </executions>
                     </plugin>
-                    
+
                     <!-- 2. Execute jpackage for Linux -->
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
@@ -515,7 +515,7 @@
                                              We cannot use ${app.name} here as "MatrosDMS" will fail the deb/rpm specs. -->
                                         <argument>--name</argument>
                                         <argument>matrosdms</argument>
-                                        
+
                                         <argument>--app-version</argument>
                                         <argument>${jpackage.version}</argument>
                                         <argument>--description</argument>
@@ -528,11 +528,11 @@
                                         <argument>${project.build.finalName}.jar</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.build.directory}/linux-installer</argument>
-                                        
+
                                         <!-- Use 'deb' for Debian/Ubuntu or 'rpm' for RHEL/Fedora -->
                                         <argument>--type</argument>
                                         <argument>deb</argument>
-                                        
+
                                         <!-- JVM Options -->
                                         <argument>--java-options</argument>
                                         <argument>-Xmx2048m</argument>
@@ -540,12 +540,12 @@
                                         <argument>-Dspring.profiles.active=prod</argument>
                                         <argument>--java-options</argument>
                                         <argument>--enable-preview</argument>
-                                        
+
                                         <!-- Linux Specific Integrations -->
                                         <argument>--linux-shortcut</argument>
                                         <argument>--linux-menu-group</argument>
                                         <argument>Office</argument>
-                                        
+
                                         <!-- Required for .deb packages to prevent warnings -->
                                         <argument>--linux-deb-maintainer</argument>
                                         <argument>maintainer@matrosdms.net</argument>

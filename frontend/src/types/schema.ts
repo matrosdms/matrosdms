@@ -611,7 +611,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get API Version information */
+        /** Get API Version and System Information */
         get: operations["getVersion"];
         put?: never;
         post?: never;
@@ -1424,21 +1424,21 @@ export interface components {
             highlight?: string;
         };
         PageMSearchResult: {
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MSearchResult"][];
             /** Format: int32 */
             number?: number;
-            sort?: components["schemas"]["SortObject"];
             /** Format: int32 */
             numberOfElements?: number;
+            sort?: components["schemas"]["SortObject"];
+            pageable?: components["schemas"]["PageableObject"];
             first?: boolean;
             last?: boolean;
-            pageable?: components["schemas"]["PageableObject"];
             empty?: boolean;
         };
         PageableObject: {
@@ -1623,6 +1623,29 @@ export interface components {
             /** @description Languages available for this template */
             availableLanguages?: string[];
         };
+        /** @description System status and version information */
+        SystemInfoResponse: {
+            /**
+             * @description Application Version
+             * @example 1.0.0
+             */
+            version?: string;
+            /**
+             * @description Application Name
+             * @example MatrosDMS Server
+             */
+            name?: string;
+            /**
+             * @description System Status
+             * @example OK
+             */
+            status?: string;
+            /**
+             * @description Current active Tenant based on repository path
+             * @example Family-Richy-Rich
+             */
+            tenant?: string;
+        };
         Pageable: {
             /** Format: int32 */
             page?: number;
@@ -1656,21 +1679,21 @@ export interface components {
             status?: components["schemas"]["EJobStatus"];
         };
         PageJobMessage: {
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["JobMessage"][];
             /** Format: int32 */
             number?: number;
-            sort?: components["schemas"]["SortObject"];
             /** Format: int32 */
             numberOfElements?: number;
+            sort?: components["schemas"]["SortObject"];
+            pageable?: components["schemas"]["PageableObject"];
             first?: boolean;
             last?: boolean;
-            pageable?: components["schemas"]["PageableObject"];
             empty?: boolean;
         };
         /**
@@ -1679,21 +1702,21 @@ export interface components {
          */
         EArchiveFilter: "ALL" | "ACTIVE_ONLY" | "ARCHIVED_ONLY";
         PageMItem: {
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MItem"][];
             /** Format: int32 */
             number?: number;
-            sort?: components["schemas"]["SortObject"];
             /** Format: int32 */
             numberOfElements?: number;
+            sort?: components["schemas"]["SortObject"];
+            pageable?: components["schemas"]["PageableObject"];
             first?: boolean;
             last?: boolean;
-            pageable?: components["schemas"]["PageableObject"];
             empty?: boolean;
         };
         /**
@@ -1717,21 +1740,21 @@ export interface components {
          */
         EBroadcastType: "FILE_ADDED" | "STATUS" | "PROGRESS" | "COMPLETE" | "ERROR";
         PageMAction: {
-            /** Format: int64 */
-            totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+            /** Format: int64 */
+            totalElements?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MAction"][];
             /** Format: int32 */
             number?: number;
-            sort?: components["schemas"]["SortObject"];
             /** Format: int32 */
             numberOfElements?: number;
+            sort?: components["schemas"]["SortObject"];
+            pageable?: components["schemas"]["PageableObject"];
             first?: boolean;
             last?: boolean;
-            pageable?: components["schemas"]["PageableObject"];
             empty?: boolean;
         };
         ApiErrorResponse: {
@@ -5529,9 +5552,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": {
-                        [key: string]: string;
-                    };
+                    "*/*": components["schemas"]["SystemInfoResponse"];
                 };
             };
             /** @description Bad Request */

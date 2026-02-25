@@ -41,7 +41,6 @@ public class H2BackupService {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
-	
 	@Value("${app.server.repository-path}/db-backup")
 	private String backupBasePath;
 
