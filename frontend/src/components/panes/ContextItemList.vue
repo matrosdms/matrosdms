@@ -47,8 +47,8 @@ const selectedContextId = computed(() => dms.selectedContext?.uuid)
 const archiveState = computed(() => dms.archiveViewMode)
 
 const { data: items, isLoading, refetch } = useQuery({
-    queryKey: computed(() => [...queryKeys.items.byContext(selectedContextId.value || 'null'), archiveState.value]),
-    queryFn: async () => { if (!selectedContextId.value) return []; return await ItemService.getByContext(selectedContextId.value, archiveState.value) },
+    queryKey: computed(() =>[...queryKeys.items.byContext(selectedContextId.value || 'null'), archiveState.value]),
+    queryFn: async () => { if (!selectedContextId.value) return[]; return await ItemService.getByContext(selectedContextId.value, archiveState.value) },
     enabled: computed(() => !!selectedContextId.value)
 })
 
@@ -65,13 +65,13 @@ const storeMap = computed(() => {
 })
 
 const displayItems = computed(() => {
-  const raw = items.value || []
+  const raw = items.value ||[]
   const query = searchQuery.value.toLowerCase().trim()
   if (!query) return raw
   return raw.filter(item => (item.name || '').toLowerCase().includes(query))
 })
 
-watch([displayItems, selectedContextId, viewMode], ([list, ctxId, mode], [oldList, oldCtxId, oldMode]) => {
+watch([displayItems, selectedContextId, viewMode], ([list, ctxId, mode],[oldList, oldCtxId, oldMode]) => {
   if (!list || list.length === 0 || !ctxId) return
   if (ctxId !== oldCtxId || mode !== oldMode || ((!oldList || oldList.length === 0) && list.length > 0)) {
     if (!dms.selectedItem) dms.setSelectedItem(list[0])
@@ -160,23 +160,34 @@ const handlePaneKeyDown = (e: KeyboardEvent) => {
 }
 
 const getRowClass = (row: any) => row.stage === 'CLOSED' ? 'table-row-closed' : ''
-const createHeaderIcon = (icon: any, label: string) => h('div', { class: 'flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground font-bold' }, [h(icon, { size: 14, class: 'text-primary' }), h('span', label)])
+const createHeaderIcon = (icon: any, label: string) => h('div', { class: 'flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground font-bold' },[h(icon, { size: 14, class: 'text-primary' }), h('span', label)])
 const createNameCell = (info: any) => {
   const uuid = info.row.original.uuid
   const name = info.getValue()
   const handleClick = (e: Event) => { e.stopPropagation(); openDocument(uuid, name) }
   // Make whole cell clickable and full size
-  return h('div', { class: 'flex items-center gap-2 w-full h-full cursor-pointer group/cell', onClick: handleClick }, [
+  return h('div', { class: 'flex items-center gap-2 w-full h-full cursor-pointer group/cell', onClick: handleClick },[
     h('span', { class: 'font-medium text-foreground hover:underline text-primary truncate' }, name),
     h(Eye, { size: 14, class: 'text-muted-foreground hover:text-primary opacity-0 group-hover/cell:opacity-100' })
   ])
 }
 
-const columns: ColumnDef<any>[] = [
+const columns: ColumnDef<any>[] =[
   { accessorKey: 'issueDate', header: () => createHeaderIcon(Calendar, 'Date'), size: 120, cell: (info) => h('span', { class: 'text-xs text-muted-foreground font-mono' }, parseBackendDate(info.getValue())?.toLocaleDateString() || '-') },
   { accessorKey: 'kindList', header: () => createHeaderIcon(Tag, 'Type'), size: 150, cell: (info) => h('span', { class: 'text-xs truncate' }, (info.getValue() as any[])?.[0]?.name || '-') },
   { accessorKey: 'name', header: () => createHeaderIcon(FileText, 'Name'), size: 300, cell: createNameCell },
-  { accessorKey: 'storeIdentifier', header: () => createHeaderIcon(Box, 'Store'), size: 120, cell: (info) => h('span', { class: 'text-xs text-muted-foreground truncate' }, storeMap.value.get(info.getValue() as string) || '-') },
+  { 
+    accessorKey: 'storeIdentifier', 
+    header: () => createHeaderIcon(Box, 'Store'), 
+    size: 120, 
+    cell: (info) => {
+      const storeName = storeMap.value.get(info.getValue() as string)
+      if (!storeName) return h('span', { class: 'text-xs text-muted-foreground truncate' }, '-')
+      const itemNumber = info.row.original.storeItemNumber
+      const displayText = itemNumber ? `${storeName} ${itemNumber}` : storeName
+      return h('span', { class: 'text-xs text-muted-foreground truncate' }, displayText)
+    } 
+  },
   { accessorKey: 'stage', header: () => createHeaderIcon(Activity, 'Stage'), size: 100, cell: (info) => h('span', { class: 'text-xs' }, String(info.getValue())) }
 ]
 

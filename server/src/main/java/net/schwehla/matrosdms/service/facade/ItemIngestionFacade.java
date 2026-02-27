@@ -137,7 +137,9 @@ public class ItemIngestionFacade {
 			Path textFile = pipelineService.getTextLayerFile(hashOriginal);
 
 			if (Files.exists(textFile) && Files.size(textFile) > 0) {
-				dbItem.setTextParsed(true);
+				String rawXml = Files.readString(textFile, java.nio.charset.StandardCharsets.UTF_8);
+				String cleanText = net.schwehla.matrosdms.util.TextLayerUtils.extractCleanText(rawXml);
+				dbItem.setTextParsed(!cleanText.isBlank());
 			} else {
 				dbItem.setTextParsed(false);
 			}

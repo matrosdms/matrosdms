@@ -305,17 +305,18 @@ You can now create standard Windows Shortcuts (.lnk) on your desktop to launch s
 Right-click on your desktop, select New > Shortcut, and use the following format for the Target:
 
 ### EXAMPLE
+
 D:\cloud\matrosdms\startMatros.cmd d:/matrosdms/demo-invest d:/cloud/matrosdms/repository/demo-invest 9091
 
-This creates the inbox in d:/matrosdms/demo-invest/inbox 
+This creates the inbox in d:/matrosdms/demo-invest/inbox
 
 and the repository in d:/cloud/matrosdms/repository/demo-invest
 
 it is important to separate both as we dont to backup a running system. H2 dont like that
 
 #### TrayTools
-you can use a tray-tool https://apps.microsoft.com/detail/9NMR3QLVBSXK?hl=neutral&gl=DE&ocid=pdpshare to launch the shortcut from the system tray
 
+you can use a tray-tool https://apps.microsoft.com/detail/9NMR3QLVBSXK?hl=neutral&gl=DE&ocid=pdpshare to launch the shortcut from the system tray
 
 ## Version
 

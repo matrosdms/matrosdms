@@ -7,24 +7,18 @@
  */
 package net.schwehla.matrosdms.service.pipeline.steps;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.time.LocalDate;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import net.schwehla.matrosdms.service.PdfConversionService;
-import net.schwehla.matrosdms.service.PdfConversionService.AnalysisResult;
 import net.schwehla.matrosdms.service.TikaService;
 import net.schwehla.matrosdms.service.ocr.OcrService;
 import net.schwehla.matrosdms.service.pipeline.PipelineContext;
 import net.schwehla.matrosdms.service.pipeline.PipelineStep;
-import net.schwehla.matrosdms.util.TextLayerBuilder;
 
 /**
- * DISABLED: This logic has been merged into TextExtractionStep to prevent 
+ * DISABLED: This logic has been merged into TextExtractionStep to prevent
  * redundant processing and overwriting of the text layer.
  * 
  * Removed @Component and @Order annotations.

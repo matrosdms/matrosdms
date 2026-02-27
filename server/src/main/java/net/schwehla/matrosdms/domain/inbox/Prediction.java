@@ -16,8 +16,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "AI Analysis Results")
 public class Prediction implements Serializable {
 
-	@Schema(description = "UUID of the suggested Category")
-	private String category;
+	@Schema(description = "UUID of the suggested Kind")
+	private String kind;
 
 	@Schema(description = "UUID of the suggested Context/Folder")
 	private String context;
@@ -32,12 +32,12 @@ public class Prediction implements Serializable {
 	public Prediction() {
 	}
 
-	public String getCategory() {
-		return category;
+	public String getKind() {
+		return kind;
 	}
 
-	public void setCategory(String category) {
-		this.category = category;
+	public void setKind(String kind) {
+		this.kind = kind;
 	}
 
 	public String getContext() {

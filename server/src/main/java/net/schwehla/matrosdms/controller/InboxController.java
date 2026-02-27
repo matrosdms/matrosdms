@@ -99,18 +99,32 @@ public class InboxController {
 			Resource resource = new UrlResource(path.toUri());
 
 			if (resource.exists() && resource.isReadable()) {
-				String filename = resource.getFilename();
-				String contentType = "application/octet-stream";
-				if (filename.endsWith(".pdf"))
+				InboxFile inboxFile = inboxManager.getInboxFileDto(hash);
+				String filename = (inboxFile != null && inboxFile.getFileInfo() != null
+						&& inboxFile.getFileInfo().getOriginalFilename() != null)
+								? inboxFile.getFileInfo().getOriginalFilename()
+								: resource.getFilename();
+
+				String contentType = (inboxFile != null && inboxFile.getFileInfo() != null
+						&& inboxFile.getFileInfo().getContentType() != null)
+								? inboxFile.getFileInfo().getContentType()
+								: "application/octet-stream";
+
+				if (filename.toLowerCase().endsWith(".pdf"))
 					contentType = "application/pdf";
-				else if (filename.endsWith(".jpg"))
+				else if (filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg"))
 					contentType = "image/jpeg";
-				else if (filename.endsWith(".eml"))
+				else if (filename.toLowerCase().endsWith(".eml"))
 					contentType = "message/rfc822";
+
+				org.springframework.http.ContentDisposition contentDisposition = org.springframework.http.ContentDisposition
+						.builder("inline")
+						.filename(filename, java.nio.charset.StandardCharsets.UTF_8)
+						.build();
 
 				return ResponseEntity.ok()
 						.contentType(MediaType.parseMediaType(contentType))
-						.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+						.header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
 						.body(resource);
 			} else {
 				return new ResponseEntity<>(HttpStatus.NOT_FOUND);

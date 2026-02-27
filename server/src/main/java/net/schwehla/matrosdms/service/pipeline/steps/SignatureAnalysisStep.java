@@ -48,7 +48,8 @@ public class SignatureAnalysisStep implements PipelineStep {
 
 		log.info("Detected MIME: {}", mime);
 		ctx.setMimeType(mime);
-		
-		// Extension fixing is now safely handled downstream in PdfConversionService.normalize()
+
+		// Extension fixing is now safely handled downstream in
+		// PdfConversionService.normalize()
 	}
 }

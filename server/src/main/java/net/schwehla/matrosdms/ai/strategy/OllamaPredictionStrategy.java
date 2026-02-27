@@ -134,7 +134,7 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 
 				Prediction p = result.getPrediction();
 				p.setContext(dto.getContextUuid());
-				p.setCategory(dto.getCategoryUuid());
+				p.setKind(dto.getKindUuid());
 				p.setSummary(dto.getSummary());
 
 				if (dto.getCustomAttributes() != null) {

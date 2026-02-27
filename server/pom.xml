@@ -31,6 +31,9 @@
         <springdoc.version>2.8.4</springdoc.version>
         <jakarta-mail.version>2.0.1</jakarta-mail.version>
 
+        <opennlp.version>2.5.3</opennlp.version>
+        <ahocorasick.version>0.6.3</ahocorasick.version>
+
         <!-- Note: Caffeine, H2, Flyway, and base Jakarta APIs ARE managed by Spring Boot -->
     </properties>
     <dependencies>
@@ -58,6 +61,18 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <!-- TEXT ANALYSIS TOOLS -->
+        <dependency>
+            <groupId>org.apache.opennlp</groupId>
+            <artifactId>opennlp-tools</artifactId>
+            <version>${opennlp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.ahocorasick</groupId>
+            <artifactId>ahocorasick</artifactId>
+            <version>${ahocorasick.version}</version>
         </dependency>
 
         <!-- Database -->

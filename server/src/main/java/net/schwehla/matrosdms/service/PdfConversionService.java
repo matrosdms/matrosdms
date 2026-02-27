@@ -38,9 +38,9 @@ public class PdfConversionService {
 	private static final Logger log = LoggerFactory.getLogger(PdfConversionService.class);
 	private static final String FONT_RESOURCE = "fonts/Roboto-Regular.ttf";
 
-	// Heuristics
-	private static final int MIN_TEXT_CHARS = 50;
-	private static final double MIN_CHARS_PER_PAGE = 30.0;
+	// MUCH STRICTER Heuristics to prevent skipping OCR on bad scans
+	private static final int MIN_TEXT_CHARS = 150;
+	private static final double MIN_CHARS_PER_PAGE = 150.0;
 	private static final Set<String> OCR_PRODUCERS = Set.of(
 			"abbyy", "finereader", "tesseract", "ocrmypdf", "omnipage", "readiris");
 
@@ -50,11 +50,11 @@ public class PdfConversionService {
 	@Autowired
 	private FileExtensionService extensionService;
 
-	// --- NEW: Rich Result Record ---
+	// --- Rich Result Record ---
 	public record AnalysisResult(
-			boolean isDigitalPdf, // True if it has text layer
-			String extractedText, // The text found during analysis (re-use it!)
-			boolean needsOcr, // True if text is sparse/missing
+			boolean isDigitalPdf,
+			String extractedText,
+			boolean needsOcr,
 			int pageCount,
 			String producer) {
 	}
@@ -93,7 +93,7 @@ public class PdfConversionService {
 			// 2. Extract Text (Fast Strip)
 			PDFTextStripper stripper = new PDFTextStripper();
 			stripper.setSortByPosition(true);
-			// Optimization: If > 20 pages, only check first 5 for density decision
+
 			if (pages > 20) {
 				stripper.setEndPage(5);
 			}
@@ -106,13 +106,10 @@ public class PdfConversionService {
 
 			boolean hasGoodTextLayer = (charCount > MIN_TEXT_CHARS && density > MIN_CHARS_PER_PAGE);
 
-			// If it's a known OCR engine AND has text, we trust it absolutely.
-			if (isKnownOcr && charCount > 10) {
+			if (isKnownOcr && charCount > 50) {
 				hasGoodTextLayer = true;
 			}
 
-			// If we only scanned partial pages, we need to extract full text now if layer
-			// is good
 			if (hasGoodTextLayer && pages > 20) {
 				stripper.setEndPage(Integer.MAX_VALUE);
 				text = stripper.getText(doc).trim();
@@ -121,7 +118,7 @@ public class PdfConversionService {
 			return new AnalysisResult(
 					true,
 					text,
-					!hasGoodTextLayer, // Needs OCR if text layer is bad
+					!hasGoodTextLayer, // Needs OCR if text layer is sparse
 					pages,
 					producer);
 
@@ -131,9 +128,8 @@ public class PdfConversionService {
 		}
 	}
 
-	// Legacy method maintained for compilation, but now delegates logic
 	public Path convertTextToPdf(Path source, Path destination) throws IOException {
-		Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING); // Stub for safety
+		Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
 		return destination;
 	}
 
@@ -144,28 +140,24 @@ public class PdfConversionService {
 		String originalExt = extensionService.getExtensionOrDefault(source);
 		String finalExt = originalExt;
 
-		// Force .pdf if the file is actually a PDF to avoid malicious/accidental wrong extensions
 		if ("application/pdf".equals(mimeType)) {
 			finalExt = ".pdf";
 		} else {
 			String mimeExt = extensionService.getExtensionForMimeType(mimeType);
 			if (mimeExt != null && !mimeExt.isEmpty() && !".bin".equals(mimeExt)) {
-				// For other files, only override the extension if it is entirely missing or generic
 				if (originalExt.equals(".bin") || originalExt.equals(".tmp") || originalExt.isEmpty()) {
 					finalExt = mimeExt;
 				}
 			}
 		}
-		
+
 		Path finalPath = source;
-		
-		// If the extension has changed, we MUST safely copy the file on disk so the rest
-		// of the pipeline (which looks for hash + new_extension) doesn't crash.
+
 		if (!originalExt.equalsIgnoreCase(finalExt)) {
 			String filename = source.getFileName().toString();
 			String baseName = extensionService.removeExtension(filename);
 			finalPath = workingDir.resolve(baseName + finalExt);
-			
+
 			try {
 				if (!Files.exists(finalPath)) {
 					Files.copy(source, finalPath, StandardCopyOption.REPLACE_EXISTING);

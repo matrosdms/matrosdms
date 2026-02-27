@@ -39,6 +39,7 @@ import net.schwehla.matrosdms.service.SearchService;
 import net.schwehla.matrosdms.service.mapper.MItemMapper;
 import net.schwehla.matrosdms.service.message.UpdateItemMessage;
 import net.schwehla.matrosdms.store.MatrosObjectStoreService;
+import net.schwehla.matrosdms.store.util.FileExtensionService;
 
 @Service
 @Transactional
@@ -60,6 +61,8 @@ public class ItemService {
 	Task<Long> indexItemTask;
 	@Autowired
 	SearchService searchService;
+	@Autowired
+	FileExtensionService extensionService;
 
 	@Caching(evict = {
 			@CacheEvict(value = "items", key = "#uuid"),
@@ -102,8 +105,20 @@ public class ItemService {
 
 		MDocumentStream stream = storeService.load(uuid);
 		if (dbItem.getFile() != null) {
-			stream.setFilename(dbItem.getFile().getFilename());
-			stream.setContentType(dbItem.getFile().getMimetype());
+			String filename = dbItem.getFile().getFilename();
+			String mimetype = dbItem.getFile().getMimetype();
+
+			// Detect if item is missing extension entirely, add the correct extension based
+			// on mimetype
+			if (filename != null && extensionService.getExtension(filename).isEmpty()) {
+				String ext = extensionService.getExtensionForMimeType(mimetype);
+				if (ext != null && !ext.isEmpty() && !".bin".equals(ext)) {
+					filename += ext;
+				}
+			}
+
+			stream.setFilename(filename);
+			stream.setContentType(mimetype);
 		}
 		return stream;
 	}
@@ -115,7 +130,6 @@ public class ItemService {
 		return itemMapper.entityToModel(dbItem);
 	}
 
-	// --- FIX: Consistently handle the 3 disjoint states ---
 	@Transactional(readOnly = true)
 	public Page<MItem> loadItemPage(
 			String contextIdentifier, String query, EArchiveFilter archiveState, Pageable pageable) {
@@ -135,11 +149,10 @@ public class ItemService {
 				.map(itemMapper::entityToModel);
 	}
 
-	// --- ARCHIVE LOGIC (Soft Delete) ---
 	@Caching(evict = {
 			@CacheEvict(value = "itemList", allEntries = true),
 			@CacheEvict(value = "items", key = "#uuid"),
-			@CacheEvict(value = "contextList", allEntries = true) // Count changes!
+			@CacheEvict(value = "contextList", allEntries = true)
 	})
 	public void archiveItem(String uuid) {
 		DBItem item = itemRepository.findByUuid(uuid)
@@ -148,11 +161,9 @@ public class ItemService {
 		item.setDateArchived(LocalDateTime.now());
 		itemRepository.save(item);
 
-		// Remove from search index immediately
 		searchService.indexSingleItem(item.getId());
 	}
 
-	// --- RESTORE LOGIC ---
 	@Caching(evict = {
 			@CacheEvict(value = "itemList", allEntries = true),
 			@CacheEvict(value = "items", key = "#uuid"),
@@ -168,7 +179,6 @@ public class ItemService {
 		searchService.indexSingleItem(item.getId());
 	}
 
-	// --- HARD DELETE ---
 	@Caching(evict = {
 			@CacheEvict(value = "itemList", allEntries = true),
 			@CacheEvict(value = "items", key = "#uuid"),

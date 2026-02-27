@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AiClassificationResult {
 	private String contextUuid;
-	private String categoryUuid;
+	private String kindUuid;
 	private String date;
 	private String summary;
 	private Map<String, Object> customAttributes;
@@ -27,12 +27,12 @@ public class AiClassificationResult {
 		this.contextUuid = contextUuid;
 	}
 
-	public String getCategoryUuid() {
-		return categoryUuid;
+	public String getKindUuid() {
+		return kindUuid;
 	}
 
-	public void setCategoryUuid(String categoryUuid) {
-		this.categoryUuid = categoryUuid;
+	public void setKindUuid(String kindUuid) {
+		this.kindUuid = kindUuid;
 	}
 
 	public String getDate() {

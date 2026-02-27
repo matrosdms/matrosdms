@@ -79,7 +79,7 @@ public class InboxFileManager {
 
 			// Prevent race conditions on concurrent identical uploads
 			Object lock = uploadLocks.computeIfAbsent(hash, k -> new Object());
-			
+
 			synchronized (lock) {
 				try {
 					if (Files.exists(stagingDir)) {
@@ -107,11 +107,13 @@ public class InboxFileManager {
 		} catch (Exception e) {
 			throw new RuntimeException("Upload failed: " + e.getMessage(), e);
 		} finally {
-			// Guarantee that temporary files in the OS temp folder are deleted if an error occurs
+			// Guarantee that temporary files in the OS temp folder are deleted if an error
+			// occurs
 			if (tempUpload != null) {
 				try {
 					Files.deleteIfExists(tempUpload);
-				} catch (IOException ignored) {}
+				} catch (IOException ignored) {
+				}
 			}
 		}
 	}
@@ -156,6 +158,7 @@ public class InboxFileManager {
 	}
 
 	public void ignoreFile(String hash) {
+		log.info("User ignored file from inbox: {}", hash);
 		deleteRecursively(Paths.get(config.getServer().getTemp().getPath(), hash));
 	}
 

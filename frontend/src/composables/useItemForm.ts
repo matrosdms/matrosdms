@@ -46,7 +46,7 @@ export function useItemForm(isEdit: boolean) {
         storeItemNumber: '',
         icon: '',
         stage: EStage.ACTIVE, 
-        attributes: [], 
+        attributes:[], 
         version: 0 
     })
 
@@ -67,7 +67,14 @@ export function useItemForm(isEdit: boolean) {
     const touched = ref(false)
     const isLoading = ref(false)
 
-    const file = computed(() => dms.pendingInboxFile)
+    const file = computed(() => {
+        const f = dms.pendingInboxFile
+        if (f && f.sha256 && workflow.liveInboxFiles[f.sha256]) {
+            return { ...f, ...workflow.liveInboxFiles[f.sha256] }
+        }
+        return f
+    })
+    
     const context = computed(() => isEdit ? dms.selectedContext : dms.targetContextForDrop)
     
     const rawPrediction = computed(() => {
@@ -84,24 +91,33 @@ export function useItemForm(isEdit: boolean) {
         if (!p) return
 
         // 1. Standard Fields
-        if (p.predictedDescription && !form.value.name) {
-            form.value.name = p.predictedDescription
+        const desc = p.summary || p.predictedDescription
+        if (desc && !form.value.name) {
+            form.value.name = desc
             aiHighlights.value.name = true
         }
-        if (p.predictedDate && !form.value.issueDate) {
-            form.value.issueDate = p.predictedDate
+        
+        const date = p.documentDate || p.predictedDate
+        if (date && !form.value.issueDate) {
+            form.value.issueDate = date
             aiHighlights.value.date = true
         }
-        if (p.predictedCategory && !form.value.kindId) {
-            form.value.kindId = p.predictedCategory
+        
+        const cat = p.category || p.predictedCategory
+        if (cat && !form.value.kindId) {
+            form.value.kindId = cat
             form.value.kindName = 'AI Suggested' 
             aiHighlights.value.category = true
         }
-        if (p.predictedContext) {
+        
+        const ctx = p.context || p.predictedContext
+        if (ctx) {
             aiHighlights.value.context = true
         }
-        if (p.predictedStore && !form.value.storeId) {
-            form.value.storeId = p.predictedStore
+        
+        const store = p.store || p.predictedStore
+        if (store && !form.value.storeId) {
+            form.value.storeId = store
             aiHighlights.value.store = true
         }
         
@@ -168,14 +184,15 @@ export function useItemForm(isEdit: boolean) {
                          name: attr.name,
                          value: rawValue || '' 
                      }
-                }) : []
+                }) :[]
             }
         } else {
-            // FIX: Safely handle null file reference
             const f = file.value
             if (f) {
-                // Prefer AI Description -> then DisplayName (Backend) -> then Original Filename
-                if (!form.value.name) form.value.name = f.displayName || f.fileInfo?.originalFilename || ''
+                // STRICT TYPE ADHERENCE: Only use properties defined in the InboxFile schema
+                if (!form.value.name) {
+                    form.value.name = f.displayName || f.fileInfo?.originalFilename || ''
+                }
                 if (f.prediction) applyPrediction(f.prediction)
             }
         }

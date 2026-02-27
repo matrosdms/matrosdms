@@ -28,6 +28,7 @@ import org.springframework.stereotype.Component;
 import net.schwehla.matrosdms.config.model.AppServerSpringConfig;
 import net.schwehla.matrosdms.domain.inbox.EmailMetadata;
 import net.schwehla.matrosdms.service.PdfConversionService;
+import net.schwehla.matrosdms.service.PdfConversionService.AnalysisResult;
 import net.schwehla.matrosdms.service.PdfConversionService.ConversionResult;
 import net.schwehla.matrosdms.service.PdfTextExtractor;
 import net.schwehla.matrosdms.service.TikaService;
@@ -54,23 +55,26 @@ public class TextExtractionStep implements PipelineStep {
 	public void execute(PipelineContext ctx) throws Exception {
 		ctx.log("Extracting Content/Text...");
 
-		String filename = ctx.getOriginalFile().getFileName().toString().toLowerCase();
+		String originalFilename = ctx.getCurrentState().getFileInfo().getOriginalFilename();
+		if (originalFilename == null || originalFilename.isBlank()) {
+			originalFilename = ctx.getOriginalFile().getFileName().toString();
+		}
+
+		String extension = ctx.getExtension() != null ? ctx.getExtension().toLowerCase() : "";
 		String finalXml = "";
 
-		if (filename.endsWith(".eml")) {
-			finalXml = extractEmailContent(ctx);
+		if (originalFilename.toLowerCase().endsWith(".eml") || ".eml".equals(extension)) {
+			finalXml = extractEmailContent(ctx, originalFilename);
 			ctx.setMimeType("message/rfc822");
 			ctx.setExtension(".eml");
-			// For emails, we store the original EML as the primary file
 			ctx.setProcessedFile(ctx.getOriginalFile());
 		} else {
-			
-			// Detect MIME if it wasn't done earlier
+
 			String mime = ctx.getMimeType();
 			if (mime == null) {
 				mime = tikaService.detectMimeType(ctx.getOriginalFile());
 			}
-			
+
 			ConversionResult res = conversionService.normalize(ctx.getOriginalFile(), ctx.getWorkingDir(), mime);
 
 			ctx.setProcessedFile(res.path());
@@ -80,23 +84,33 @@ public class TextExtractionStep implements PipelineStep {
 			String rawText = "";
 			boolean isPdf = "application/pdf".equals(res.mimeType());
 
-			// 1. If it's a PDF, check if it already has digital text
+			// 1. Smart PDF Inspection (Replaces the dumb > 50 chars shortcut)
 			if (isPdf && appConfig.getProcessing().isPreferScannerText()) {
-				ctx.log("Checking for existing PDF text layer...");
-				String scannerText = pdfTextExtractor.quickExtract(res.path());
+				ctx.log("Inspecting PDF text layer density...");
+				AnalysisResult analysis = conversionService.inspectPdf(res.path());
 
-				if (scannerText.length() > 50) {
-					rawText = scannerText;
-					ctx.log("Text layer found (" + scannerText.length() + " chars). Skipping OCR.");
+				if (!analysis.needsOcr()) {
+					rawText = analysis.extractedText();
+					ctx.log(String.format("Good text layer found (%d chars, %d pages). Skipping OCR.",
+							rawText.length(), analysis.pageCount()));
 				} else {
-					ctx.log("Insufficient text layer. Fallback to Tika/OCR.");
+					ctx.log(String.format("Insufficient text layer (%d chars, %d pages). Forcing Tika/OCR.",
+							analysis.extractedText().length(), analysis.pageCount()));
 				}
 			}
 
-			// 2. If no text (or if it's an image like JPEG/PNG), run Tika
-			// Note: Tika will automatically invoke Tesseract OCR for images if installed on the host OS.
-			if (rawText.isBlank()) {
-				ctx.log("Performing text extraction / OCR...");
+			if ("text/plain".equals(res.mimeType())) {
+				ctx.log("Reading plain text file directly...");
+				try {
+					rawText = Files.readString(res.path(), StandardCharsets.UTF_8);
+				} catch (Exception e) {
+					log.warn("Failed to read text file as UTF-8, falling back to Tika");
+				}
+			}
+
+			// 2. Fallback to full Tika OCR if the smart inspector flagged needsOcr = true
+			if (rawText == null || rawText.isBlank()) {
+				ctx.log("Performing full text extraction / OCR...");
 				rawText = tikaService.extractText(res.path());
 			}
 
@@ -104,11 +118,11 @@ public class TextExtractionStep implements PipelineStep {
 				ctx.addWarning("No text or OCR content could be extracted.");
 				rawText = "";
 			} else {
-				log.info("Extracted {} characters from {}", rawText.length(), filename);
+				log.info("Extracted {} characters from {}", rawText.length(), originalFilename);
 			}
 
 			TextLayerBuilder builder = new TextLayerBuilder("FILE");
-			builder.addMeta("filename", filename);
+			builder.addMeta("filename", originalFilename);
 			builder.addMeta("processed_date", LocalDate.now().toString());
 			builder.closeMeta();
 			builder.addContent(rawText, res.mimeType());
@@ -120,18 +134,18 @@ public class TextExtractionStep implements PipelineStep {
 				ctx.getWorkingDir().resolve("textlayer.txt"), finalXml, StandardCharsets.UTF_8);
 	}
 
-	private String extractEmailContent(PipelineContext ctx) throws Exception {
+	private String extractEmailContent(PipelineContext ctx, String originalFilename) throws Exception {
 		TextLayerBuilder xml = new TextLayerBuilder("EMAIL");
 		EmailMetadata meta = ctx.getAiResult().getEmailMetadata();
 
-		// 1. Add Structured Meta (for internal use)
+		xml.addMeta("filename", originalFilename);
+		xml.addMeta("processed_date", LocalDate.now().toString());
 		if (meta != null) {
 			xml.addMeta("subject", meta.getSubject());
 			xml.addMeta("sender", meta.getSender());
 		}
 		xml.closeMeta();
 
-		// 2. Add Human-Readable Header to Body (for Search Index & Snippets)
 		if (meta != null) {
 			StringBuilder header = new StringBuilder();
 			header.append("Subject: ").append(meta.getSubject()).append("\n");
@@ -141,8 +155,6 @@ public class TextExtractionStep implements PipelineStep {
 			}
 			header.append("Date: ").append(meta.getSentDate()).append("\n");
 			header.append("--------------------------------------------------\n");
-
-			// This ensures "Subject" matches appear in the fulltext highlight
 			xml.addContent(header.toString(), "text/plain");
 		}
 
@@ -164,7 +176,6 @@ public class TextExtractionStep implements PipelineStep {
 				TextBody tb = (TextBody) entity.getBody();
 				String text = new String(tb.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 				if (entity.getMimeType().contains("html")) {
-					// Simple HTML stripping for index
 					text = text.replaceAll("<[^>]*>", " ").replaceAll("\\s+", " ").trim();
 				}
 				xml.addContent(text, entity.getMimeType());
@@ -173,14 +184,12 @@ public class TextExtractionStep implements PipelineStep {
 				if (fname == null)
 					fname = "attachment";
 
-				// Skip embedded resources (images/css we downloaded earlier)
 				if (fname.startsWith("_embed_")) {
 					return;
 				}
 
 				BinaryBody bb = (BinaryBody) entity.getBody();
 				try (InputStream stream = bb.getInputStream()) {
-					// Extract text from attachment (PDF, Doc, etc)
 					String extracted = tikaService.extractText(stream);
 					if (extracted != null && !extracted.isBlank()) {
 						xml.addAttachment(fname, extracted);

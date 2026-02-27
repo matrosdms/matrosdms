@@ -122,13 +122,15 @@ public class ItemController {
 
 		MDocumentStream streamHolder = itemService.loadItemContentStream(uuid);
 		InputStreamResource resource = new InputStreamResource(streamHolder.getInputStream());
-		String disposition = download ? "attachment" : "inline";
+
+		org.springframework.http.ContentDisposition contentDisposition = org.springframework.http.ContentDisposition
+				.builder(download ? "attachment" : "inline")
+				.filename(streamHolder.getFilename(), java.nio.charset.StandardCharsets.UTF_8)
+				.build();
 
 		return ResponseEntity.ok()
 				.contentLength(streamHolder.getLength())
-				.header(
-						HttpHeaders.CONTENT_DISPOSITION,
-						disposition + "; filename=\"" + streamHolder.getFilename() + "\"")
+				.header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
 				.contentType(MediaType.parseMediaType(streamHolder.getContentType()))
 				.body(resource);
 	}

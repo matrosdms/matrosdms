@@ -21,6 +21,11 @@ import org.apache.tika.config.TikaConfig;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypes;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.ocr.TesseractOCRConfig;
+import org.apache.tika.parser.pdf.PDFParserConfig;
+import org.apache.tika.sax.BodyContentHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -101,8 +106,24 @@ public class TikaService {
 
 	public String extractText(InputStream stream) {
 		try {
-			// Metadata object is required to prevent NPE in some Tika parsers
-			return getTika().parseToString(stream, new Metadata()).trim();
+			AutoDetectParser parser = new AutoDetectParser();
+			BodyContentHandler handler = new BodyContentHandler(-1); // -1 disables the 100k length limit
+			Metadata metadata = new Metadata();
+			ParseContext context = new ParseContext();
+
+			// 1. Configure PDF OCR Strategy (Crucial for scanned PDFs)
+			PDFParserConfig pdfConfig = new PDFParserConfig();
+			pdfConfig.setExtractInlineImages(true);
+			pdfConfig.setOcrStrategy(PDFParserConfig.OCR_STRATEGY.OCR_AND_TEXT_EXTRACTION);
+			context.set(PDFParserConfig.class, pdfConfig);
+
+			// 2. Configure Tesseract to use standard languages (German + English)
+			TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
+			ocrConfig.setLanguage("deu+eng");
+			context.set(TesseractOCRConfig.class, ocrConfig);
+
+			parser.parse(stream, handler, metadata, context);
+			return handler.toString().trim();
 		} catch (Exception e) {
 			log.warn("In-memory extraction failed: {}", e.getMessage());
 			return "";
