@@ -14,7 +14,10 @@ import { useSearch } from '@/composables/useSearch'
 import { useListNavigation } from '@/composables/useListNavigation'
 import { useHotkeys } from '@/composables/useHotkeys'
 import { ViewMode } from '@/enums'
-import type { SearchResult } from '@/types/models'
+import type { components } from '@/types/schema'
+
+// Use generated type directly — no more manual SearchResult type
+type MSearchResult = components['schemas']['MSearchResult']
 
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -25,7 +28,6 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import DocumentPreview from '@/components/ui/DocumentPreview.vue'
 import DateCell from '@/components/ui/cells/DateCell.vue'
 import BadgeCell from '@/components/ui/cells/BadgeCell.vue'
-import SearchResultItem from '@/components/ui/SearchResultItem.vue'
 import ItemEditForm from '@/components/forms/ItemEditForm.vue'
 
 // --- CONSTANTS ---
@@ -77,8 +79,7 @@ defineExpose({ toggleSidebar })
 // --- STATE ---
 const containerRef = ref<HTMLElement | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
-// Strict typing for results
-const searchResults = ref<SearchResult[]>([])
+const searchResults = ref<MSearchResult[]>([])
 const activeIndex = ref(-1)
 const activeSuggestionIndex = ref(-1)
 const isSearching = ref(false)
@@ -234,12 +235,11 @@ const columns =[
     }
 ]
 
-const onSelectResult = async (result: SearchResult) => {
+const onSelectResult = async (result: MSearchResult) => {
   if (!result || !result.uuid) return
   try {
     const fullItem = await ItemService.getById(result.uuid)
     dms.setSelectedItem(fullItem)
-    // Don't auto-switch view, stay in Search to preserve flow
     ui.setRightPanelView(ViewMode.DETAILS)
   } catch (error: any) {
     push.error(error.message || "Could not load document")
@@ -261,7 +261,7 @@ const { handleKey: handleMainListKey } = useListNavigation({
             inputRef.value?.focus()
         }
         else if (item.type === 'command') { (item.data as CommandItem).action(); showResults.value = false; }
-        else if (item.type === 'result') onSelectResult(item.data as SearchResult)
+        else if (item.type === 'result') onSelectResult(item.data as MSearchResult)
     }
 })
 
@@ -299,7 +299,8 @@ const performSearch = async () => {
     try {
         const payload = buildQueryPayload()
         const results = await SearchService.search(payload)
-        searchResults.value = results as unknown as SearchResult[]
+        // No more `as unknown as SearchResult[]` cast needed — types align directly
+        searchResults.value = results
     } catch (error: any) {
         const message = error instanceof Error ? error.message : "Search failed"
         push.error(message)
@@ -475,7 +476,6 @@ onClickOutside(containerRef, () => suggestions.value =[])
                                             :class="activeIndex === idx ? 'bg-primary/10' : 'hover:bg-muted/50'"
                                         >
                                             <div class="p-1.5 rounded transition-colors" :class="activeIndex === idx ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'">
-                                                <!-- Fixed: explicit casting -->
                                                 <component :is="(cmd.icon as any)" :size="16" />
                                             </div>
                                             <div class="flex-1 min-w-0">
@@ -499,34 +499,23 @@ onClickOutside(containerRef, () => suggestions.value =[])
                   </div>
               </template>
 
-              <div class="h-full bg-background">
-                  <div v-if="searchResults.length === 0" class="h-full flex flex-col items-center justify-center text-muted-foreground">
-                      <div v-if="!hasSearched" class="text-center opacity-60">
+              <div class="h-full bg-background flex flex-col">
+                  <div v-if="!hasSearched" class="h-full flex flex-col items-center justify-center text-muted-foreground">
+                      <div class="text-center opacity-60">
                           <Search :size="48" class="mx-auto mb-4 opacity-20" />
                           <p class="text-sm">Enter a query to begin.</p>
                       </div>
-                      <div v-else class="text-center opacity-60">
-                          <Terminal :size="48" class="mx-auto mb-4 opacity-20" />
-                          <p class="text-sm">No documents found.</p>
-                      </div>
                   </div>
 
-                  <div v-else class="overflow-y-auto custom-scrollbar bg-background h-full">
-                    <SearchResultItem 
-                        v-for="(res, idx) in searchResults" 
-                        :key="res.uuid"
-                        :active="activeIndex === idx"
-                        :title="res.name"
-                        :subtitle="res.highlight || res.description"
-                        :score="res.score"
-                        :date="res.issueDate"
-                        :uuid="res.uuid"
-                        :context="res.contextName"
-                        :store="res.storeName"
-                        :store-item-number="res.storeItemNumber"
-                        @click="onSelectResult(res)"
-                    />
-                  </div>
+                  <DataTable
+                      v-else
+                      :data="searchResults"
+                      :columns="columns"
+                      :selected-id="dms.selectedItem?.uuid"
+                      @row-click="onSelectResult"
+                      @row-enter="onSelectResult"
+                      class="h-full"
+                  />
               </div>
           </AppPane>
       </template>

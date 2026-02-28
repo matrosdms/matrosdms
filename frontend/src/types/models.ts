@@ -16,18 +16,8 @@ export type AttributeType = components['schemas']['MAttributeType'];
 // Data Transfer Objects
 export type InboxFile = components['schemas']['InboxFile'];
 
-// Enhanced Search Result DTO
-export interface SearchResult {
-    uuid: string;
-    name: string;
-    description?: string;
-    contextName?: string;
-    storeName?: string;
-    tags?: string[];
-    issueDate?: string;
-    score?: number;
-    highlight?: string;
-}
+// Search
+export type SearchResult = components['schemas']['MSearchResult'];
 
 // Union for Generic Components (like DetailPane)
 export type AnyEntity = Item | User | Store | AttributeType;
