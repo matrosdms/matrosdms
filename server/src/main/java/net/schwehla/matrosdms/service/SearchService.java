@@ -64,10 +64,16 @@ public class SearchService {
 						f -> f.composite(
 								f.field("uuid", String.class),
 								f.field("name", String.class),
+								f.field("description", String.class),
 								f.field("infoContext.name", String.class),
+								f.field("infoContext.uuid", String.class),
 								f.field("store.shortname", String.class),
+								f.field("store.uuid", String.class),
+								f.field("storageItemIdentifier", String.class),
 								f.field("kindList.name", String.class).multi(),
 								f.field("issueDate", LocalDate.class),
+								f.field("stage", String.class),
+								f.field("filename", String.class),
 								f.score(),
 								f.highlight("fulltext")))
 				.where(f -> buildPredicate(f, rootCriteria))
@@ -75,7 +81,7 @@ public class SearchService {
 
 		// Find max score for normalization
 		float maxScore = result.hits().stream()
-				.map(hit -> (float) hit.get(6))
+				.map(hit -> (float) hit.get(12)) // Score is at index 12
 				.max(Float::compare)
 				.orElse(1f);
 		if (maxScore <= 0)
@@ -86,12 +92,15 @@ public class SearchService {
 		List<MSearchResult> dtos = result.hits().stream()
 				.map(
 						hit -> {
-							List<String> fragments = (List<String>) hit.get(7);
+							// 0:uuid, 1:name, 2:desc, 3:ctxName, 4:ctxUuid, 5:storeName, 6:storeUuid,
+							// 7:storeNum, 8:tags, 9:date, 10:stage, 11:filename, 12:score, 13:highlight
+
+							List<String> fragments = (List<String>) hit.get(13);
 							String highlight = (fragments != null && !fragments.isEmpty())
 									? String.join("...", fragments)
 									: null;
 
-							float rawScore = (float) hit.get(6);
+							float rawScore = (float) hit.get(12);
 							float normalizedScore = rawScore / normalizer;
 
 							return new MSearchResult(
@@ -99,8 +108,14 @@ public class SearchService {
 									(String) hit.get(1),
 									(String) hit.get(2),
 									(String) hit.get(3),
-									(List<String>) hit.get(4),
-									(LocalDate) hit.get(5),
+									(String) hit.get(4),
+									(String) hit.get(5),
+									(String) hit.get(6),
+									(String) hit.get(7),
+									(List<String>) hit.get(8),
+									(LocalDate) hit.get(9),
+									(String) hit.get(10),
+									(String) hit.get(11),
 									normalizedScore,
 									highlight);
 						})
@@ -147,10 +162,10 @@ public class SearchService {
 
 		return switch (node.getOperator()) {
 			case EQ -> {
-                // FIXED: UUID Search Implementation
-                if ("uuid".equals(fieldBase)) {
-                    yield f.match().field("uuid").matching(val);
-                }
+				// FIXED: UUID Search Implementation
+				if ("uuid".equals(fieldBase)) {
+					yield f.match().field("uuid").matching(val);
+				}
 				if ("fulltext".equals(fieldBase) || "attr".equals(fieldBase)) {
 					yield f.match().field(fieldBase).matching(val);
 				}

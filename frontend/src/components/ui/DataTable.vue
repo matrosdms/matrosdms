@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useVueTable, getCoreRowModel, FlexRender, type ColumnDef } from '@tanstack/vue-table'
+import { useVueTable, getCoreRowModel, getSortedRowModel, FlexRender, type ColumnDef, type SortingState } from '@tanstack/vue-table'
 import { watch, nextTick, ref, computed } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import TableHeader from '@/components/ui/TableHeader.vue'
@@ -49,16 +49,29 @@ const KEYBOARD_ACTIONS = {
 // TABLE CONFIGURATION
 // ============================================================================
 
+const sorting = ref<SortingState>([])
+
 const table = useVueTable({
   get data() { return props.data },
   get columns() { return props.columns },
   getCoreRowModel: getCoreRowModel(),
+  getSortedRowModel: getSortedRowModel(), // Client-side sorting enabled
   enableColumnResizing: true,
   columnResizeMode: 'onChange',
   defaultColumn: {
     minSize: 60,
     maxSize: 800,
   },
+  state: {
+    get sorting() { return sorting.value }
+  },
+  onSortingChange: (updater) => {
+    if (typeof updater === 'function') {
+      sorting.value = updater(sorting.value)
+    } else {
+      sorting.value = updater
+    }
+  }
 })
 
 // ============================================================================

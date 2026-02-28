@@ -60,6 +60,14 @@ public class ItemTextBridge implements TypeBridge<DBItem> {
 			target.addValue("source", item.getSource().name());
 		}
 
+		// NEW: Stage & Physical ID
+		if (item.getStage() != null) {
+			target.addValue("stage", item.getStage().name());
+		}
+		if (item.getStorageItemIdentifier() != null) {
+			target.addValue("storageItemIdentifier", item.getStorageItemIdentifier());
+		}
+
 		target.addValue("textParsed", String.valueOf(item.isTextParsed()));
 
 		// 2. Fulltext Content (The critical part)

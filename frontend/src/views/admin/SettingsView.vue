@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Database, Users, Box, Plus, RefreshCw, List, UploadCloud, Activity } from 'lucide-vue-next'
+import { Database, Users, Box, Plus, RefreshCw, List, UploadCloud, Activity, Download } from 'lucide-vue-next'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useStorage } from '@vueuse/core'
 import { push } from 'notivue'
@@ -8,19 +8,22 @@ import { push } from 'notivue'
 import DataTable from '@/components/ui/DataTable.vue'
 import AppPane from '@/components/ui/BasePane.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseSpinner from '@/components/ui/BaseSpinner.vue'
 import MasterDetailLayout from '@/components/layout/MasterDetailLayout.vue'
 import { SETTINGS_TABS } from '@/config/settingsTabs'
+import { ReportService } from '@/services/ReportService'
 
 const activeTab = ref('stores') 
 const selectedId = ref(null)
 const isCreating = ref(false)
 const isEditing = ref(false)
+const isDownloadingCsv = ref(false)
 const queryClient = useQueryClient()
 const customFilter = ref('')
 
 // Layout State (Standardized)
 const STORAGE_KEY = 'matros-settings-layout-v2'
-const defaultState = { sidebar: [20, 80], workspace: [40, 60] }
+const defaultState = { sidebar: [20, 80], workspace:[40, 60] }
 const layoutStorage = useStorage(STORAGE_KEY, defaultState)
 
 // Safety Init
@@ -43,7 +46,7 @@ const handleLayoutUpdate = ({ key, sizes }) => {
 // Actions
 const toggleSidebar = () => {
   if (layoutStorage.value.sidebar[0] > 2) layoutStorage.value.sidebar = [0, 100]
-  else layoutStorage.value.sidebar = [20, 80]
+  else layoutStorage.value.sidebar =[20, 80]
 }
 
 const saveLayout = () => {
@@ -56,6 +59,18 @@ const resetLayout = () => {
     push.info('Layout reset')
 }
 
+const downloadCsv = async () => {
+    isDownloadingCsv.value = true
+    try {
+        await ReportService.downloadInventoryCsv()
+        push.success("CSV Download completed")
+    } catch(e) {
+        push.error("Download failed: " + e.message)
+    } finally {
+        isDownloadingCsv.value = false
+    }
+}
+
 defineExpose({ toggleSidebar, saveLayout, resetLayout })
 
 // --- Data Logic ---
@@ -66,7 +81,7 @@ const queryDefinition = computed(() => {
     if (currentConfig.value?.queryResolver) {
         return currentConfig.value.queryResolver(customFilter.value)
     }
-    return currentConfig.value?.query || { queryKey: ['static', activeTab.value], queryFn: async () => currentConfig.value?.staticData || [] }
+    return currentConfig.value?.query || { queryKey: ['static', activeTab.value], queryFn: async () => currentConfig.value?.staticData ||[] }
 })
 
 const { data: apiData, isLoading: isQueryLoading, refetch } = useQuery({
@@ -77,7 +92,7 @@ const { data: apiData, isLoading: isQueryLoading, refetch } = useQuery({
   staleTime: 5 * 60 * 1000
 })
 
-const listData = computed(() => apiData.value || [])
+const listData = computed(() => apiData.value ||[])
 const selectedItem = computed(() => listData.value.find(i => (i.uuid || i.id) === selectedId.value))
 
 const currentViewComponent = computed(() => {
@@ -169,6 +184,14 @@ const getRowClass = (row) => (row.uuid === selectedId.value || row.id === select
           <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'bg-primary/10 text-primary': activeTab === 'jobs' }" @click="onTabChange('jobs')">
              <Activity :size="18" class="mr-2"/> System Jobs
           </BaseButton>
+
+          <div class="my-2 border-t border-border"></div>
+
+          <BaseButton variant="ghost" class="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/30" @click="downloadCsv" :disabled="isDownloadingCsv">
+             <BaseSpinner v-if="isDownloadingCsv" :size="18" class="mr-2" />
+             <Download v-else :size="18" class="mr-2"/>
+             Export Inventory CSV
+          </BaseButton>
         </div>
       </template>
 
@@ -196,7 +219,7 @@ const getRowClass = (row) => (row.uuid === selectedId.value || row.id === select
           </template>
 
           <div class="h-full !bg-background">
-             <DataTable :key="activeTab" :data="listData" :columns="currentConfig?.columns || []" :row-class-name="getRowClass" :selected-id="selectedId" @row-click="(item) => { selectedId = item.uuid || item.id; isCreating = false; isEditing = false }" />
+             <DataTable :key="activeTab" :data="listData" :columns="currentConfig?.columns ||[]" :row-class-name="getRowClass" :selected-id="selectedId" @row-click="(item) => { selectedId = item.uuid || item.id; isCreating = false; isEditing = false }" />
           </div>
         </AppPane>
       </template>

@@ -26,7 +26,7 @@ import DocumentPreview from '@/components/ui/DocumentPreview.vue'
 import DateCell from '@/components/ui/cells/DateCell.vue'
 import BadgeCell from '@/components/ui/cells/BadgeCell.vue'
 import SearchResultItem from '@/components/ui/SearchResultItem.vue'
-import ItemEditForm from '@/components/forms/ItemEditForm.vue' // NEW: Import Edit Form
+import ItemEditForm from '@/components/forms/ItemEditForm.vue'
 
 // --- CONSTANTS ---
 const STORAGE_KEY = 'matros-search-layout-v2' as const
@@ -44,7 +44,7 @@ const {
 } = useSearch()
 
 // --- LAYOUT ---
-const defaultLayout = { sidebar: [20, 80], workspace: [35, 65] }
+const defaultLayout = { sidebar:[20, 80], workspace: [35, 65] }
 const layoutStorage = useStorage(STORAGE_KEY, defaultLayout)
 
 // Defensive layout initialization
@@ -68,7 +68,7 @@ const toggleSidebar = () => {
     if (layoutStorage.value.sidebar[0] > MIN_SIDEBAR_WIDTH) {
         layoutStorage.value.sidebar = [0, 100]
     } else {
-        layoutStorage.value.sidebar = [DEFAULT_SIDEBAR_WIDTH, 100 - DEFAULT_SIDEBAR_WIDTH]
+        layoutStorage.value.sidebar =[DEFAULT_SIDEBAR_WIDTH, 100 - DEFAULT_SIDEBAR_WIDTH]
     }
 }
 
@@ -96,7 +96,7 @@ interface CommandItem {
     action: () => void;
 }
 
-const COMMANDS: CommandItem[] = [
+const COMMANDS: CommandItem[] =[
   { id: 'new-ctx', label: 'Create Context', desc: 'Start a new folder/context', icon: Plus, keywords: ['new', 'create', 'context', 'folder'], action: () => dms.startContextCreation() },
   { id: 'new-cat', label: 'Create Category', desc: 'Add a new category node', icon: Plus, keywords: ['new', 'create', 'category', 'tag'], action: () => dms.startCategoryCreation(dms.selectedCategoryId || '') },
   { id: 'toggle-theme', label: 'Toggle Dark Mode', desc: 'Switch visual theme', icon: prefs.isDarkMode ? Sun : Moon, keywords: ['dark', 'light', 'theme', 'mode'], action: () => prefs.toggleDarkMode() },
@@ -122,7 +122,7 @@ const navigableItems = computed(() => {
     return searchResults.value.map(r => ({ type: 'result', data: r }))
 })
 
-// --- HELPERS (Extracted Logic) ---
+// --- HELPERS ---
 const getFilterBadgeClasses = (field: string) => {
     const map: Record<string, string> = {
         'CONTEXT': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
@@ -134,14 +134,11 @@ const getFilterBadgeClasses = (field: string) => {
     return map[field] || 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
 }
 
-// --- NEW ACTIONS ---
-
-// 1. Jump to Folder
 const jumpToContext = () => {
     const ctx = dms.selectedItem?.context
     if (ctx) {
         dms.setSelectedContext(ctx)
-        dms.setSelectedItem(dms.selectedItem) // Keep item selected in target view
+        dms.setSelectedItem(dms.selectedItem)
         ui.setView('dms')
         ui.setRightPanelView(ViewMode.DETAILS)
         push.info(`Jumped to folder: ${ctx.name}`)
@@ -150,21 +147,14 @@ const jumpToContext = () => {
     }
 }
 
-// 2. Edit Action
 const startEdit = () => {
-    if (dms.selectedItem) {
-        // This sets ui.rightPanelView to 'editItem', triggering the v-if in the template
-        dms.startItemEditing() 
-    }
+    if (dms.selectedItem) dms.startItemEditing() 
 }
 
-// 3. Callback when Edit Form closes
 const onEditClose = () => {
-    // Return to preview mode
     ui.setRightPanelView(ViewMode.DETAILS)
 }
 
-/** Returns true if the string is mostly printable (not binary garbage). */
 const isReadableText = (text: string | undefined | null): boolean => {
     if (!text) return false
     const plain = text.replace(/<[^>]*>/g, '')
@@ -178,18 +168,19 @@ const isReadableText = (text: string | undefined | null): boolean => {
     return bad / plain.length < 0.1 
 }
 
-const columns = [
+// --- COLUMNS ---
+const columns =[
     {
         accessorKey: 'name',
         header: 'Document Name',
-        size: 300,
+        size: 280,
         cell: (info: any) => {
             const val = info.getValue()
             const rawHighlight = info.row.original.highlight
             const rawDesc = info.row.original.description
             const highlight = isReadableText(rawHighlight) ? rawHighlight : null
             const description = isReadableText(rawDesc) ? rawDesc : null
-            return h('div', { class: 'flex flex-col' }, [
+            return h('div', { class: 'flex flex-col' },[
                 h('span', { class: 'font-medium text-sm text-foreground truncate', innerHTML: highlight || val }),
                 description ? h('span', { class: 'text-[10px] text-muted-foreground truncate' }, description) : null
             ])
@@ -205,12 +196,25 @@ const columns = [
             let color = 'bg-gray-200 dark:bg-gray-700'
             if (pct > 80) color = 'bg-green-500'
             else if (pct > 50) color = 'bg-blue-500'
-            return h('div', { class: 'flex items-center gap-2' }, [
-                h('div', { class: 'h-1.5 w-12 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden' }, [
+            return h('div', { class: 'flex items-center gap-2' },[
+                h('div', { class: 'h-1.5 w-12 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden' },[
                     h('div', { class: `h-full ${color}`, style: { width: `${pct}%` } })
                 ]),
                 h('span', { class: 'text-[10px] text-muted-foreground font-mono' }, `${pct}%`)
             ])
+        }
+    },
+    {
+        accessorKey: 'storeName',
+        header: () => h('div', { class: 'flex items-center gap-2' },[h(Box, { size: 14, class: 'text-orange-500' }), 'Store']),
+        size: 140,
+        cell: (info: any) => {
+            const val = info.getValue()
+            const itemNo = info.row.original.storeItemNumber
+            if (!val) return h('span', { class: 'text-muted-foreground text-xs opacity-50' }, '-')
+            
+            const display = itemNo ? `${val} #${itemNo}` : val
+            return h(BadgeCell, { value: display, defaultColor: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800' })
         }
     },
     {
@@ -243,6 +247,7 @@ const onSelectResult = async (result: SearchResult) => {
   showResults.value = false
 }
 
+// ... Navigation and Search Logic ...
 const navigableLength = computed(() => navigableItems.value.length)
 const suggestionLength = computed(() => suggestions.value.length)
 
@@ -284,7 +289,7 @@ useHotkeys('Escape', () => {
 })
 
 const performSearch = async () => {
-    suggestions.value = []
+    suggestions.value =[]
     if (!searchQuery.value && activeFilters.value.length === 0) return
     
     isSearching.value = true
@@ -309,23 +314,19 @@ const handleKeyNav = (e: KeyboardEvent) => {
         performSearch()
         return
     }
-
     if (e.ctrlKey && e.code === 'Space') {
         e.preventDefault()
         fetchSuggestions(true) 
         showResults.value = true
         return
     }
-
     if (suggestions.value.length > 0 && showResults.value) {
         handleSuggestionKey(e)
         if (e.defaultPrevented) return
     }
-
     if (showResults.value) {
         handleMainListKey(e)
     }
-
     if (e.key === 'Enter' && !e.defaultPrevented) {
         e.preventDefault()
         if (currentTrigger.value) {
@@ -337,54 +338,29 @@ const handleKeyNav = (e: KeyboardEvent) => {
     }
 }
 
-const loadSavedSearch = (query: string) => {
-    searchQuery.value = query
-    performSearch()
-}
-
+const loadSavedSearch = (query: string) => { searchQuery.value = query; performSearch() }
 const deleteSavedSearch = async (name: string) => {
     if (!confirm(`Delete saved search '${name}'?`)) return
     try {
         await SavedSearchService.delete(name)
         queryClient.invalidateQueries({ queryKey: ['saved-searches'] })
         push.success("Search deleted")
-    } catch (e: any) {
-        push.error(e.message)
-    }
+    } catch (e: any) { push.error(e.message) }
 }
-
 const saveCurrentSearch = async () => {
     if (!saveName.value || !searchQuery.value) return
     try {
         await SavedSearchService.create(saveName.value, searchQuery.value)
         queryClient.invalidateQueries({ queryKey: ['saved-searches'] })
         push.success("Search saved")
-        isSaveMode.value = false
-        saveName.value = ''
-    } catch (e: any) {
-        push.error(e.message)
-    }
+        isSaveMode.value = false; saveName.value = ''
+    } catch (e: any) { push.error(e.message) }
 }
+const onRowClick = (item: any) => { if (item.uuid) ItemService.getById(item.uuid).then(fullItem => dms.setSelectedItem(fullItem)) }
+const removeFilterAndSearch = (idx: number) => { removeFilter(idx); performSearch() }
+const clearAndSearch = () => { clearSearch(); searchResults.value =[]; hasSearched.value = false }
 
-const onRowClick = (item: any) => {
-    if (!item.uuid) return
-    ItemService.getById(item.uuid).then(fullItem => {
-        dms.setSelectedItem(fullItem)
-    })
-}
-
-const removeFilterAndSearch = (idx: number) => {
-    removeFilter(idx)
-    performSearch()
-}
-
-const clearAndSearch = () => {
-    clearSearch()
-    searchResults.value = []
-    hasSearched.value = false
-}
-
-onClickOutside(containerRef, () => suggestions.value = [])
+onClickOutside(containerRef, () => suggestions.value =[])
 </script>
 
 <template>
@@ -462,6 +438,7 @@ onClickOutside(containerRef, () => suggestions.value = [])
                                     @focus="showResults = true"
                                     placeholder="Enter MQL Query..." 
                                     class="flex-1 bg-transparent border-none outline-none text-sm h-full font-mono text-foreground min-w-[80px]"
+                                    :class="isCommandMode ? 'font-mono text-primary' : ''"
                                     autocomplete="off"
                                   />
                                   <button v-if="searchQuery || activeFilters.length" @click="clearAndSearch" class="text-muted-foreground hover:text-foreground"><X :size="14"/></button>
@@ -534,13 +511,22 @@ onClickOutside(containerRef, () => suggestions.value = [])
                       </div>
                   </div>
 
-                  <DataTable 
-                    v-else 
-                    :data="searchResults" 
-                    :columns="columns" 
-                    :selected-id="dms.selectedItem?.uuid"
-                    @row-click="(item: any) => onRowClick(item)" 
-                  />
+                  <div v-else class="overflow-y-auto custom-scrollbar bg-background h-full">
+                    <SearchResultItem 
+                        v-for="(res, idx) in searchResults" 
+                        :key="res.uuid"
+                        :active="activeIndex === idx"
+                        :title="res.name"
+                        :subtitle="res.highlight || res.description"
+                        :score="res.score"
+                        :date="res.issueDate"
+                        :uuid="res.uuid"
+                        :context="res.contextName"
+                        :store="res.storeName"
+                        :store-item-number="res.storeItemNumber"
+                        @click="onSelectResult(res)"
+                    />
+                  </div>
               </div>
           </AppPane>
       </template>

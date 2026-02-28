@@ -21,6 +21,10 @@
     ],
     "tags": [
         {
+            "name": "Reports",
+            "description": "Export data for external use"
+        },
+        {
             "name": "AI",
             "description": "Artificial Intelligence features (Chat/RAG)"
         },
@@ -5417,6 +5421,78 @@
                 }
             }
         },
+        "/api/report/items.csv": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Download complete inventory as CSV",
+                "operationId": "getItemReport",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "byte"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/jobs": {
             "get": {
                 "tags": [
@@ -7998,9 +8074,9 @@
                 "type": "object",
                 "description": "AI Analysis Results",
                 "properties": {
-                    "category": {
+                    "kind": {
                         "type": "string",
-                        "description": "UUID of the suggested Category"
+                        "description": "UUID of the suggested Kind"
                     },
                     "context": {
                         "type": "string",
@@ -8106,7 +8182,16 @@
                     "contextName": {
                         "type": "string"
                     },
+                    "contextUuid": {
+                        "type": "string"
+                    },
                     "storeName": {
+                        "type": "string"
+                    },
+                    "storeIdentifier": {
+                        "type": "string"
+                    },
+                    "storeItemNumber": {
                         "type": "string"
                     },
                     "tags": {
@@ -8118,6 +8203,12 @@
                     "issueDate": {
                         "type": "string",
                         "format": "date"
+                    },
+                    "stage": {
+                        "type": "string"
+                    },
+                    "filename": {
+                        "type": "string"
                     },
                     "score": {
                         "type": "number",
@@ -8131,13 +8222,13 @@
             "PageMSearchResult": {
                 "type": "object",
                 "properties": {
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
                     "totalElements": {
                         "type": "integer",
                         "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "size": {
                         "type": "integer",
@@ -8181,17 +8272,17 @@
                         "type": "integer",
                         "format": "int64"
                     },
-                    "sort": {
-                        "$ref": "#/components/schemas/SortObject"
-                    },
                     "paged": {
                         "type": "boolean"
                     },
-                    "pageSize": {
+                    "sort": {
+                        "$ref": "#/components/schemas/SortObject"
+                    },
+                    "pageNumber": {
                         "type": "integer",
                         "format": "int32"
                     },
-                    "pageNumber": {
+                    "pageSize": {
                         "type": "integer",
                         "format": "int32"
                     },
@@ -8735,13 +8826,13 @@
             "PageJobMessage": {
                 "type": "object",
                 "properties": {
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
                     "totalElements": {
                         "type": "integer",
                         "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "size": {
                         "type": "integer",
@@ -8790,13 +8881,13 @@
             "PageMItem": {
                 "type": "object",
                 "properties": {
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
                     "totalElements": {
                         "type": "integer",
                         "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "size": {
                         "type": "integer",
@@ -8878,13 +8969,13 @@
             "PageMAction": {
                 "type": "object",
                 "properties": {
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
                     "totalElements": {
                         "type": "integer",
                         "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "size": {
                         "type": "integer",

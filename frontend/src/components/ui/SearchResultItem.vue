@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, ArrowRight, Folder } from 'lucide-vue-next'
+import { FileText, ArrowRight, Folder, Box } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{
   active?: boolean
@@ -9,6 +9,8 @@ const props = withDefaults(defineProps<{
   date?: string
   uuid?: string
   context?: string
+  store?: string
+  storeItemNumber?: string
 }>(), {
   title: 'Untitled Document'
 })
@@ -45,6 +47,10 @@ const props = withDefaults(defineProps<{
             
             <span v-if="context" class="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-900 font-medium max-w-[120px] truncate">
                 <Folder :size="10" /> {{ context }}
+            </span>
+
+            <span v-if="store" class="flex items-center gap-1 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded border border-orange-100 dark:border-orange-900 font-medium max-w-[120px] truncate">
+                <Box :size="10" /> {{ store }}{{ storeItemNumber ? ` #${storeItemNumber}` : '' }}
             </span>
             
             <span v-if="uuid" class="text-[9px] text-gray-300 dark:text-gray-600 font-mono select-all ml-auto">

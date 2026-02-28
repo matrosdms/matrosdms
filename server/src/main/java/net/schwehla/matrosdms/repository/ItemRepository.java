@@ -33,6 +33,13 @@ public interface ItemRepository extends JpaRepository<DBItem, Long> {
 
 	// --- MAIN API QUERIES ---
 
+	@Query("SELECT i FROM DBItem i " +
+			"LEFT JOIN FETCH i.infoContext c " +
+			"LEFT JOIN FETCH i.store s " +
+			"LEFT JOIN FETCH i.file f " +
+			"ORDER BY c.name ASC, i.id ASC, s.shortname ASC, i.storageItemIdentifier ASC")
+	List<DBItem> findAllForReport();
+
 	// 1. ACTIVE ONLY
 	@Query("SELECT i FROM DBItem i WHERE "
 			+ "i.infoContext.uuid = :contextUuid AND "

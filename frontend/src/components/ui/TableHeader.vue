@@ -1,5 +1,6 @@
 <script setup>
 import { FlexRender } from '@tanstack/vue-table'
+import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-vue-next'
 
 defineProps({
   headerGroups: { type: Array, required: true }
@@ -12,11 +13,22 @@ defineProps({
       <div 
         v-for="header in headerGroup.headers" 
         :key="header.id" 
-        class="relative px-3 py-2 text-left overflow-hidden whitespace-nowrap flex items-center gap-2 group hover:bg-muted transition-colors cursor-default"
-        :class="{'pl-[calc(0.75rem+4px)]': header.index === 0}"
+        class="relative px-3 py-2 text-left overflow-hidden whitespace-nowrap flex items-center gap-2 group hover:bg-muted transition-colors"
+        :class="[
+            {'pl-[calc(0.75rem+4px)]': header.index === 0},
+            header.column.getCanSort() ? 'cursor-pointer hover:text-foreground' : 'cursor-default'
+        ]"
         :style="{ width: header.getSize() + 'px' }"
+        @click="header.column.getToggleSortingHandler()?.($event)"
       >
         <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
+        
+        <!-- Sort Icon -->
+        <span v-if="header.column.getCanSort()" class="ml-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center" :class="{ 'opacity-100 text-primary': header.column.getIsSorted() }">
+            <ArrowUp v-if="header.column.getIsSorted() === 'asc'" :size="12" />
+            <ArrowDown v-else-if="header.column.getIsSorted() === 'desc'" :size="12" />
+            <ArrowUpDown v-else :size="12" class="opacity-50" />
+        </span>
         
         <div 
           @mousedown.stop="header.getResizeHandler()($event)" 
