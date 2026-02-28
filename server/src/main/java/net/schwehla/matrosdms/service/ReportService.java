@@ -27,6 +27,7 @@ public class ReportService {
 
 	private static final String SEP = ";";
 	private static final String LINE_END = "\n";
+
 	// German/ISO date format for Excel compatibility
 	private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -54,34 +55,31 @@ public class ReportService {
 		// 3. Data Rows
 		for (DBItem item : items) {
 			csv.append(escape(item.getId())).append(SEP);
-
 			String context = item.getInfoContext() != null ? item.getInfoContext().getName() : "";
 			csv.append(escape(context)).append(SEP);
-
 			csv.append(escape(item.getName())).append(SEP);
 			csv.append(escape(item.getDescription())).append(SEP);
-
 			String date = item.getIssueDate() != null ? item.getIssueDate().format(DATE_FMT) : "";
 			csv.append(date).append(SEP);
-
 			String store = item.getStore() != null ? item.getStore().getShortname() : "";
 			csv.append(escape(store)).append(SEP);
-
 			csv.append(escape(item.getStorageItemIdentifier())).append(SEP);
-
-			// Join tags with comma
 			String tags = item.getKindList().stream()
 					.map(DBCategory::getName)
 					.collect(Collectors.joining(", "));
 			csv.append(escape(tags)).append(SEP);
-
 			csv.append(item.getUuid()).append(SEP);
-
 			String filename = item.getFile() != null ? item.getFile().getFilename() : "";
 			csv.append(escape(filename)).append(LINE_END);
 		}
 
 		return csv.toString();
+	}
+
+	@Transactional(readOnly = true)
+	public String generateHtmlReport() {
+		List<DBItem> items = itemRepository.findAllForReport();
+		return new HtmlReportExporter().export(items);
 	}
 
 	/**
@@ -93,7 +91,6 @@ public class ReportService {
 		if (raw == null)
 			return "";
 		String val = String.valueOf(raw);
-
 		if (val.contains(SEP) || val.contains("\"") || val.contains("\n") || val.contains("\r")) {
 			val = val.replace("\"", "\"\"");
 			return "\"" + val + "\"";

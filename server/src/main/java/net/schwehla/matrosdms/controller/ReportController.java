@@ -7,43 +7,48 @@
  */
 package net.schwehla.matrosdms.controller;
 
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import net.schwehla.matrosdms.service.ReportService;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@RequestMapping("/report")
-@Tag(name = "Reports", description = "Export data for external use")
 public class ReportController {
 
 	@Autowired
 	ReportService reportService;
 
-	@GetMapping(value = "/items.csv")
-	@Operation(summary = "Download complete inventory as CSV")
-	public ResponseEntity<byte[]> getItemReport() {
+	/**
+	 * GET /api/report → CSV (default)
+	 * GET /api/report?format=csv → CSV download
+	 * GET /api/report?format=html → HTML in browser
+	 */
+	@GetMapping("/report")
+	@Operation(summary = "ReportController")
+	public ResponseEntity<String> report(
+			@RequestParam(name = "format", defaultValue = "html") String format) {
 
-		String csvContent = reportService.generateCsvReport();
-		byte[] csvBytes = csvContent.getBytes(StandardCharsets.UTF_8);
+		return switch (format.toLowerCase()) {
+			case "html" -> ResponseEntity.ok()
+					.contentType(new MediaType("text", "html",
+							java.nio.charset.StandardCharsets.UTF_8))
+					.header(HttpHeaders.CONTENT_DISPOSITION,
+							"attachment; filename=\"report.html\"")
+					.body(reportService.generateHtmlReport());
 
-		String filename = "matros_inventory_" + LocalDate.now() + ".csv";
-
-		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-				.contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
-				.contentLength(csvBytes.length)
-				.body(csvBytes);
+			default -> ResponseEntity.ok()
+					.contentType(new MediaType("text", "csv",
+							java.nio.charset.StandardCharsets.UTF_8))
+					.header(HttpHeaders.CONTENT_DISPOSITION,
+							"attachment; filename=\"report.csv\"")
+					.body(reportService.generateCsvReport());
+		};
 	}
 }

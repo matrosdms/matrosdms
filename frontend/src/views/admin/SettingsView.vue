@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Database, Users, Box, Plus, RefreshCw, List, UploadCloud, Activity, Download } from 'lucide-vue-next'
+import { Database, Users, Box, Plus, RefreshCw, List, UploadCloud, Activity, Download, ChevronDown } from 'lucide-vue-next'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useStorage } from '@vueuse/core'
 import { push } from 'notivue'
@@ -17,7 +17,8 @@ const activeTab = ref('stores')
 const selectedId = ref(null)
 const isCreating = ref(false)
 const isEditing = ref(false)
-const isDownloadingCsv = ref(false)
+const isDownloading = ref(false)
+const showExportMenu = ref(false)
 const queryClient = useQueryClient()
 const customFilter = ref('')
 
@@ -59,15 +60,21 @@ const resetLayout = () => {
     push.info('Layout reset')
 }
 
-const downloadCsv = async () => {
-    isDownloadingCsv.value = true
+const downloadReport = async (format) => {
+    showExportMenu.value = false
+    isDownloading.value = true
     try {
-        await ReportService.downloadInventoryCsv()
-        push.success("CSV Download completed")
+        if (format === 'csv') {
+            await ReportService.downloadInventoryCsv()
+            push.success('CSV download completed')
+        } else {
+            await ReportService.downloadInventoryHtml()
+            push.success('HTML download completed')
+        }
     } catch(e) {
-        push.error("Download failed: " + e.message)
+        push.error('Download failed: ' + e.message)
     } finally {
-        isDownloadingCsv.value = false
+        isDownloading.value = false
     }
 }
 
@@ -187,11 +194,44 @@ const getRowClass = (row) => (row.uuid === selectedId.value || row.id === select
 
           <div class="my-2 border-t border-border"></div>
 
-          <BaseButton variant="ghost" class="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/30" @click="downloadCsv" :disabled="isDownloadingCsv">
-             <BaseSpinner v-if="isDownloadingCsv" :size="18" class="mr-2" />
-             <Download v-else :size="18" class="mr-2"/>
-             Export Inventory CSV
-          </BaseButton>
+          <!-- Export dropdown -->
+          <div class="relative">
+            <BaseButton
+              variant="ghost"
+              class="w-full justify-start"
+              :disabled="isDownloading"
+              @click="downloadReport('csv')"
+            >
+              <BaseSpinner v-if="isDownloading" :size="18" class="mr-2" />
+              <Download v-else :size="18" class="mr-2" />
+              Export Inventory
+              <ChevronDown
+                :size="14"
+                class="ml-auto"
+                @click.stop="showExportMenu = !showExportMenu"
+              />
+            </BaseButton>
+
+            <div
+              v-if="showExportMenu"
+              class="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border rounded shadow-md text-sm overflow-hidden"
+              @mouseleave="showExportMenu = false"
+            >
+              <button
+                class="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
+                @click="downloadReport('csv')"
+              >
+                <Download :size="13" /> CSV
+              </button>
+              <button
+                class="w-full text-left px-3 py-2 hover:bg-muted flex items-center gap-2"
+                @click="downloadReport('html')"
+              >
+                <Download :size="13" /> HTML
+              </button>
+            </div>
+          </div>
+
         </div>
       </template>
 

@@ -58,7 +58,14 @@ import net.schwehla.matrosdms.search.ItemTextBinder;
 		@Index(columnList = "dateArchived", name = "idx_item_dateArchived"),
 		@Index(columnList = "source", name = "idx_item_source"),
 		@Index(columnList = "CONTEXT_ID", name = "idx_item_context"),
-}, uniqueConstraints = @UniqueConstraint(columnNames = { "ITEM_ID" }, name = "UNIQUE_ID"))
+}, uniqueConstraints = {
+		// existing unique constraint
+		@UniqueConstraint(name = "UNIQUE_ID", columnNames = { "ITEM_ID" }),
+
+		// new composite unique constraint
+		@UniqueConstraint(name = "UK_ITEM_STORE_STORAGE_IDENTIFIER", columnNames = { "STORE_ID",
+				"STORAGE_ITEM_IDENTIFIER" })
+})
 @NamedEntityGraph(name = "Item.detail", attributeNodes = {
 		@NamedAttributeNode("infoContext"),
 		@NamedAttributeNode("user"),
@@ -126,6 +133,7 @@ public class DBItem extends AbstractDBInfoBaseEntity {
 	@Column
 	private EStage stage;
 
+	@Column(name = "STORAGE_ITEM_IDENTIFIER", nullable = false)
 	private String storageItemIdentifier;
 
 	public Long getId() {
