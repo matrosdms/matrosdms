@@ -116,6 +116,18 @@ export const ItemService = {
   },
   
   /**
+   * Get the file metadata (hashes, mimetype, filesize, source) for an item.
+   * Maps to GET /api/items/{uuid}/metadata
+   */
+  async getMetadata(uuid: string): Promise<components['schemas']['MFileMetadata']> {
+      const { data, error } = await (client as any).GET('/api/items/{uuid}/metadata', {
+          params: { path: { uuid } }
+      })
+      if (error) throwWithCode(error)
+      return data as components['schemas']['MFileMetadata']
+  },
+
+  /**
    * Get the extracted text layer (OCR) for an item.
    */
   async getRawText(uuid: string): Promise<string> {

@@ -34,8 +34,8 @@ const {
     enabled: computed(() => !!selectedRepoId.value)
 })
 
-const loadTemplate = async (templateId: string, templateName: string, explicitLang?: string) => {
-    if (!selectedRepoId.value) return
+const loadTemplate = async (templateId: string | undefined, templateName: string | undefined, explicitLang?: string) => {
+    if (!selectedRepoId.value || !templateId) return
     isOpen.value = false
     
     try {
@@ -49,7 +49,7 @@ const loadTemplate = async (templateId: string, templateName: string, explicitLa
             }
         }
 
-        push.info(`Fetching template '${templateName}' (${lang})...`)
+        push.info(`Fetching template '${templateName || 'Unknown'}' (${lang})...`)
         const rawYaml = await TemplateService.getPreview(selectedRepoId.value, templateId, lang)
         
         // Pass to the editor via shared state

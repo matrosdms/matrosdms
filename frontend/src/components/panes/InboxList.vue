@@ -55,10 +55,10 @@ const effectiveFiles = computed(() => {
 const filteredFiles = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
   if (!query) return effectiveFiles.value
-  return effectiveFiles.value.filter(file => (file.emailInfo?.subject || file.fileInfo.originalFilename || '').toLowerCase().includes(query))
+  return effectiveFiles.value.filter(file => (file.emailInfo?.subject || file.fileInfo?.originalFilename || '').toLowerCase().includes(query))
 })
 
-const processableFiles = computed(() => filteredFiles.value.filter(file => !PROCESSABLE_STATUSES.has(file.status)))
+const processableFiles = computed(() => filteredFiles.value.filter(file => !file.status || !PROCESSABLE_STATUSES.has(file.status)))
 
 // Scrolls active item into view and ensures container focus
 const scrollActiveIntoView = () => {
@@ -107,7 +107,7 @@ const handleFileClick = async (file: InboxFile, index?: number) => {
   if (file.prediction?.context) targetContext = contexts.value.find((c: any) => c.uuid === file.prediction?.context)
   if (!targetContext) targetContext = dms.selectedContext
   
-  if (targetContext) dms.startItemCreation(targetContext, { sha256: file.sha256, name: file.emailInfo?.subject || file.fileInfo.originalFilename || "Untitled", prediction: file.prediction || null })
+  if (targetContext) dms.startItemCreation(targetContext, { sha256: file.sha256, name: file.emailInfo?.subject || file.fileInfo?.originalFilename || "Untitled", prediction: file.prediction || null })
   else openPreview(file)
   nextTick(focusListContainer)
 }
@@ -194,12 +194,13 @@ const analyzeAll = async () => {
 
 const openPreview = (file: InboxFile) => {
   if (!file.sha256) return
-  ui.setRightPanel(ViewMode.PREVIEW, { id: file.sha256, name: file.emailInfo?.subject || file.fileInfo.originalFilename, source: 'inbox' })
+  ui.setRightPanel(ViewMode.PREVIEW, { id: file.sha256, name: file.emailInfo?.subject || file.fileInfo?.originalFilename, source: 'inbox' })
   nextTick(focusListContainer)
 }
 
 const handlePreviewClick = (file: InboxFile, index: number) => { setActiveIndex(index); openPreview(file) }
-const assignContextToFile = (hash: string, contextId: string) => {
+const assignContextToFile = (hash: string | undefined, contextId: string) => {
+  if (!hash) return
   workflow.upsertLiveFile({ sha256: hash, prediction: { context: contextId, manuallyAssigned: true } })
   const ctx = contexts.value.find((c: any) => c.uuid === contextId)
   if (ctx) push.success(`Linked to ${ctx.name}`)

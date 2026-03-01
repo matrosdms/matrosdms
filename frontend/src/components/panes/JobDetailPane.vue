@@ -3,9 +3,11 @@ import { computed } from 'vue'
 import { Terminal, CheckCircle2, XCircle, Clock, Play, Timer, CalendarClock, AlertOctagon } from 'lucide-vue-next'
 import { parseBackendDate } from '@/lib/utils'
 import { EJobStatus } from '@/enums'
+import type { components } from '@/types/schema'
 
 const props = defineProps<{
-  item: any 
+  // Allow UI appended logs while preserving strict core types
+  item: components['schemas']['JobMessage'] & { logs?: any[] }
 }>()
 
 const statusColor = computed(() => {
@@ -17,7 +19,7 @@ const statusColor = computed(() => {
     }
 })
 
-const logs = computed(() => props.item?.logs || [])
+const logs = computed(() => props.item?.logs ||[])
 const startDate = computed(() => parseBackendDate(props.item?.executionTime)?.toLocaleString() || '-')
 </script>
 

@@ -7,7 +7,7 @@ import { useDmsStore } from '@/stores/dms'
 import { useWorkflowStore } from '@/stores/workflow'
 import { useItemForm } from '@/composables/useItemForm'
 import { useHotkeys } from '@/composables/useHotkeys'
-import { Sparkles, FileText, Eye, Columns, Folder, Bug, Wand2, Code, X, Link } from 'lucide-vue-next'
+import { Sparkles, FileText, Eye, Columns, Folder, Bug, Wand2, Code, X, Link, Hash } from 'lucide-vue-next'
 import { push } from 'notivue'
 
 const dms = useDmsStore()
@@ -71,6 +71,16 @@ useHotkeys('Escape', () => {
       <div class="bg-background border-b border-border h-[45px] flex items-center justify-between px-4 shrink-0 shadow-sm">
           <div class="flex items-center gap-3 overflow-hidden">
               <div class="font-bold text-foreground text-sm whitespace-nowrap">Add Document</div>
+
+              <!-- Source filename chip -->
+              <div
+                v-if="file?.fileInfo?.originalFilename || file?.displayName"
+                class="flex items-center gap-1 px-2 py-0.5 rounded border border-border bg-muted/40 text-muted-foreground text-xs font-mono max-w-[220px] truncate"
+                :title="file?.fileInfo?.originalFilename || file?.displayName"
+              >
+                <FileText :size="11" class="shrink-0" />
+                <span class="truncate">{{ file?.fileInfo?.originalFilename || file?.displayName }}</span>
+              </div>
               
               <div 
                 class="flex items-center gap-1.5 px-2 py-0.5 rounded-full border transition-all duration-200 cursor-default"

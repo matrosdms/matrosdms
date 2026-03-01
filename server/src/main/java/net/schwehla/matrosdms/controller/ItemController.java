@@ -35,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import net.schwehla.matrosdms.domain.content.MDocumentStream;
 import net.schwehla.matrosdms.domain.core.EArchiveFilter;
+import net.schwehla.matrosdms.domain.core.MFileMetadata;
 import net.schwehla.matrosdms.domain.core.MItem;
 import net.schwehla.matrosdms.entity.management.DBUser;
 import net.schwehla.matrosdms.service.domain.ItemService;
@@ -110,9 +111,19 @@ public class ItemController {
 
 	@GetMapping("/{uuid}")
 	@Operation(summary = "Get item by id")
-	public ResponseEntity<MItem> loadInfoItemByIdentifier(@PathVariable("uuid") String uuid) {
+	public ResponseEntity<MItem> loadItemByIdentifier(@PathVariable("uuid") String uuid) {
 		MItem item = itemService.loadItem(uuid);
 		return new ResponseEntity<>(item, HttpStatus.OK);
+	}
+
+	@GetMapping("/{uuid}/metadata")
+	@Operation(summary = "Get file metadata for an item (hashes, mimetype, filesize, source)")
+	public ResponseEntity<MFileMetadata> loadItemMetadata(@PathVariable("uuid") String uuid) {
+		MItem item = itemService.loadItem(uuid);
+		MFileMetadata meta = item.getMetadata();
+		if (meta == null)
+			return ResponseEntity.notFound().build();
+		return ResponseEntity.ok(meta);
 	}
 
 	@GetMapping("/{uuid}/content")

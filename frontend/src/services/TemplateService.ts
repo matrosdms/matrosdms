@@ -1,8 +1,9 @@
 import { client } from '@/api/client'
 import { getErrorMessage } from '@/lib/utils'
+import type { components } from '@/types/schema'
 
 export interface TemplateRepo { id: string; name: string; }
-export interface TemplateProposal { id: string; name: string; description?: string; availableLanguages?: string[]; }
+export type TemplateProposal = components['schemas']['TemplateProposal'];
 
 export const TemplateService = {
   async getRepositories() {
@@ -14,7 +15,7 @@ export const TemplateService = {
   async getProposals(repoId: string) {
     const { data, error } = await client.GET("/api/templates" as any, {})
     if (error) throw new Error(getErrorMessage(error))
-    return ((data as any) || []) as TemplateProposal[]
+    return ((data as any) ||[]) as TemplateProposal[]
   },
 
   /**
@@ -40,6 +41,4 @@ export const TemplateService = {
     if (error) throw new Error(getErrorMessage(error))
     return data as string
   }
-
-  // FIX: Removed 'apply' method as the endpoint /api/templates/apply does not exist in the backend schema.
 }

@@ -50,7 +50,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get item by id */
-        get: operations["loadInfoItemByIdentifier"];
+        get: operations["loadItemByIdentifier"];
         /** Update item by id */
         put: operations["updateItem"];
         post?: never;
@@ -763,6 +763,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/{uuid}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get file metadata for an item (hashes, mimetype, filesize, source) */
+        get: operations["loadItemMetadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/items/{uuid}/content": {
         parameters: {
             query?: never;
@@ -1455,23 +1472,23 @@ export interface components {
             content?: components["schemas"]["MSearchResult"][];
             /** Format: int32 */
             number?: number;
-            first?: boolean;
-            last?: boolean;
             /** Format: int32 */
             numberOfElements?: number;
-            sort?: components["schemas"]["SortObject"];
             pageable?: components["schemas"]["PageableObject"];
+            sort?: components["schemas"]["SortObject"];
+            first?: boolean;
+            last?: boolean;
             empty?: boolean;
         };
         PageableObject: {
             /** Format: int64 */
             offset?: number;
-            sort?: components["schemas"]["SortObject"];
             paged?: boolean;
             /** Format: int32 */
-            pageSize?: number;
-            /** Format: int32 */
             pageNumber?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            sort?: components["schemas"]["SortObject"];
             unpaged?: boolean;
         };
         SortObject: {
@@ -1710,12 +1727,12 @@ export interface components {
             content?: components["schemas"]["JobMessage"][];
             /** Format: int32 */
             number?: number;
-            first?: boolean;
-            last?: boolean;
             /** Format: int32 */
             numberOfElements?: number;
-            sort?: components["schemas"]["SortObject"];
             pageable?: components["schemas"]["PageableObject"];
+            sort?: components["schemas"]["SortObject"];
+            first?: boolean;
+            last?: boolean;
             empty?: boolean;
         };
         /**
@@ -1733,12 +1750,12 @@ export interface components {
             content?: components["schemas"]["MItem"][];
             /** Format: int32 */
             number?: number;
-            first?: boolean;
-            last?: boolean;
             /** Format: int32 */
             numberOfElements?: number;
-            sort?: components["schemas"]["SortObject"];
             pageable?: components["schemas"]["PageableObject"];
+            sort?: components["schemas"]["SortObject"];
+            first?: boolean;
+            last?: boolean;
             empty?: boolean;
         };
         /**
@@ -1771,12 +1788,12 @@ export interface components {
             content?: components["schemas"]["MAction"][];
             /** Format: int32 */
             number?: number;
-            first?: boolean;
-            last?: boolean;
             /** Format: int32 */
             numberOfElements?: number;
-            sort?: components["schemas"]["SortObject"];
             pageable?: components["schemas"]["PageableObject"];
+            sort?: components["schemas"]["SortObject"];
+            first?: boolean;
+            last?: boolean;
             empty?: boolean;
         };
         ApiErrorResponse: {
@@ -2213,7 +2230,7 @@ export interface operations {
             };
         };
     };
-    loadInfoItemByIdentifier: {
+    loadItemByIdentifier: {
         parameters: {
             query?: never;
             header?: never;
@@ -6116,6 +6133,73 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    loadItemMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MFileMetadata"];
                 };
             };
             /** @description Bad Request */

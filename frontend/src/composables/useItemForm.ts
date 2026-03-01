@@ -74,7 +74,7 @@ export function useItemForm(isEdit: boolean) {
         }
         return f
     })
-    
+
     const context = computed(() => isEdit ? dms.selectedContext : dms.targetContextForDrop)
     
     const rawPrediction = computed(() => {
@@ -154,6 +154,17 @@ export function useItemForm(isEdit: boolean) {
         }
     })
 
+    // Reactively fill form from file as soon as it is available (or when live data arrives).
+    // AI prediction has priority; original filename is the fallback.
+    watch(file, (f) => {
+        if (!isEdit && f && !form.value.name) {
+            if (f.prediction) applyPrediction(f.prediction)
+            if (!form.value.name) {
+                form.value.name = f.fileInfo?.originalFilename || f.displayName || ''
+            }
+        }
+    }, { immediate: true })
+
     onMounted(() => {
         if (isEdit && dms.selectedItem) {
             const item = dms.selectedItem
@@ -185,15 +196,6 @@ export function useItemForm(isEdit: boolean) {
                          value: rawValue || '' 
                      }
                 }) :[]
-            }
-        } else {
-            const f = file.value
-            if (f) {
-                // STRICT TYPE ADHERENCE: Only use properties defined in the InboxFile schema
-                if (!form.value.name) {
-                    form.value.name = f.displayName || f.fileInfo?.originalFilename || ''
-                }
-                if (f.prediction) applyPrediction(f.prediction)
             }
         }
     })

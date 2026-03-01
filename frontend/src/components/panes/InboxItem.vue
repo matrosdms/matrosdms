@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import {
   FileText, GripVertical, Loader2, Ban, AlertTriangle, Folder,
-  Calendar, Tag, Mail, RefreshCw, Sparkles, ArrowRight, Link2
+  Calendar, Tag, Mail, RefreshCw, Sparkles, ArrowRight, Link2, Info, FileType
 } from 'lucide-vue-next'
 import { useDragDrop } from '@/composables/useDragDrop'
 import { useMatrosData } from '@/composables/useMatrosData'
@@ -50,10 +50,20 @@ const CONTAINER_STYLES = {
 const inboxItemRef = ref<HTMLElement | null>(null)
 const isDragOver = ref(false)
 const lastDropTime = ref(0)
+const showInfo = ref(false)
 
-const displayName = computed(() => props.file.displayName || props.file.emailInfo?.subject || props.file.fileInfo.originalFilename || 'Unknown')
+const toggleInfo = (event: Event) => { event.stopPropagation(); showInfo.value = !showInfo.value }
+
+const formattedSize = computed(() => {
+  const bytes = props.file.fileInfo?.sizeBytes
+  if (!bytes) return null
+  const kb = bytes / 1024
+  return kb > 1024 ? (kb / 1024).toFixed(2) + ' MB' : kb.toFixed(2) + ' KB'
+})
+
+const displayName = computed(() => props.file.displayName || props.file.emailInfo?.subject || props.file.fileInfo?.originalFilename || 'Unknown')
 const subTitle = computed(() => props.file.emailInfo?.sender ? `From: ${props.file.emailInfo.sender}` : '')
-const isEmail = computed(() => props.file.source === 'EMAIL' || props.file.fileInfo.extension === '.eml')
+const isEmail = computed(() => props.file.source === 'EMAIL' || props.file.fileInfo?.extension === '.eml')
 const progressLabel = computed(() => props.file.progressMessage || 'Processing...')
 
 const prediction = computed(() => props.file.prediction)
@@ -133,10 +143,17 @@ const handleIgnore = (event: Event) => { event.stopPropagation(); emit('ignore')
       <div class="flex items-center gap-2">
         <span v-if="isEmail" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 uppercase tracking-wide flex items-center gap-1"><Mail :size="10" /> Email</span>
         <span v-else class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 uppercase tracking-wide flex items-center gap-1"><GripVertical :size="10" /> Inbox</span>
+        <span v-if="file.sha256" class="font-mono text-[9px] text-muted-foreground/45 select-all leading-none" :title="'SHA-256: ' + file.sha256">{{ file.sha256.slice(0, 10) }}&hellip;</span>
       </div>
       <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <template v-if="!isDuplicate">
           <button v-if="!isProcessing" class="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 rounded-md transition-colors" title="Re-run AI Analysis" @click="handleAnalyze"><Sparkles :size="16" /></button>
+          <button
+            class="p-1.5 rounded-md transition-colors"
+            :class="showInfo ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'hover:bg-blue-50 text-gray-400 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400'"
+            title="File Info"
+            @click="toggleInfo"
+          ><Info :size="16" /></button>
           <button class="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 rounded-md transition-colors" title="Ignore" @click="handleIgnore"><Ban :size="16" /></button>
         </template>
         <button v-else class="p-1.5 hover:bg-orange-50 text-orange-500 hover:text-orange-700 dark:hover:bg-orange-900/30 dark:text-orange-400 rounded-md transition-colors" title="Remove duplicate" @click="handleIgnore"><Ban :size="16" /></button>
@@ -167,6 +184,82 @@ const handleIgnore = (event: Event) => { event.stopPropagation(); emit('ignore')
         </div>
         <div v-else-if="showAIReady" class="mt-1 text-[10px] text-green-600 dark:text-green-400 font-bold flex items-center gap-1"><Sparkles :size="10" /> AI Ready</div>
       </div>
+    </div>
+
+    <!-- INFO PANEL -->
+    <div v-if="showInfo" class="mx-3 mb-3 rounded-lg border border-border bg-muted/30 dark:bg-gray-900/60 text-xs overflow-hidden" @click.stop>
+
+      <!-- File Info -->
+      <div class="px-3 py-2 border-b border-border/60 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <FileType :size="10" /> File
+      </div>
+      <div class="px-3 py-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+        <span class="text-muted-foreground whitespace-nowrap">Name</span>
+        <span class="font-mono truncate text-foreground" :title="file.fileInfo?.originalFilename">{{ file.fileInfo?.originalFilename || '—' }}</span>
+
+        <span v-if="file.fileInfo?.extension" class="text-muted-foreground">Type</span>
+        <span v-if="file.fileInfo?.extension" class="font-mono text-foreground">{{ file.fileInfo.extension }}{{ file.fileInfo.contentType ? ' · ' + file.fileInfo.contentType : '' }}</span>
+
+        <span v-if="formattedSize" class="text-muted-foreground">Size</span>
+        <span v-if="formattedSize" class="font-mono text-foreground">{{ formattedSize }}</span>
+
+        <span v-if="file.source" class="text-muted-foreground">Source</span>
+        <span v-if="file.source" class="font-mono text-foreground capitalize">{{ file.source.toLowerCase() }}</span>
+
+        <span v-if="file.sha256" class="text-muted-foreground">SHA-256</span>
+        <span v-if="file.sha256" class="font-mono text-[10px] text-muted-foreground/80 break-all select-all leading-relaxed">{{ file.sha256 }}</span>
+      </div>
+
+      <!-- Email Info -->
+      <template v-if="file.emailInfo">
+        <div class="px-3 py-2 border-t border-border/60 border-b border-border/60 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <Mail :size="10" /> Email
+        </div>
+        <div class="px-3 py-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+          <span v-if="file.emailInfo.sender" class="text-muted-foreground">From</span>
+          <span v-if="file.emailInfo.sender" class="font-mono truncate text-foreground">{{ file.emailInfo.sender }}</span>
+
+          <span v-if="file.emailInfo.subject" class="text-muted-foreground">Subject</span>
+          <span v-if="file.emailInfo.subject" class="truncate text-foreground">{{ file.emailInfo.subject }}</span>
+
+          <span v-if="file.emailInfo.recipients?.length" class="text-muted-foreground">To</span>
+          <span v-if="file.emailInfo.recipients?.length" class="font-mono truncate text-foreground">{{ file.emailInfo.recipients.join(', ') }}</span>
+        </div>
+      </template>
+
+      <!-- AI Prediction -->
+      <template v-if="prediction">
+        <div class="px-3 py-2 border-t border-border/60 border-b border-border/60 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+          <Sparkles :size="10" /> AI Prediction
+        </div>
+        <div class="px-3 py-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+          <span v-if="contextName" class="text-muted-foreground">Context</span>
+          <span v-if="contextName" class="truncate text-foreground">{{ contextName }}</span>
+
+          <span v-if="categoryName" class="text-muted-foreground">Category</span>
+          <span v-if="categoryName" class="truncate text-foreground">{{ categoryName }}</span>
+
+          <span v-if="prediction.documentDate" class="text-muted-foreground">Doc Date</span>
+          <span v-if="prediction.documentDate" class="font-mono text-foreground">{{ prediction.documentDate }}</span>
+
+          <span v-if="prediction.summary" class="text-muted-foreground">Summary</span>
+          <span v-if="prediction.summary" class="text-foreground leading-relaxed col-span-1">{{ prediction.summary }}</span>
+
+          <span v-if="prediction.confidence != null" class="text-muted-foreground">Confidence</span>
+          <span v-if="prediction.confidence != null" class="font-mono text-foreground">{{ Math.round((prediction.confidence ?? 0) * 100) }}%</span>
+        </div>
+
+        <!-- AI extracted attributes -->
+        <template v-if="prediction.attributes && Object.keys(prediction.attributes).length">
+          <div class="px-3 py-2 border-t border-border/60 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+            <template v-for="(val, key) in prediction.attributes" :key="key">
+              <span class="text-muted-foreground font-sans capitalize">{{ String(key).replace(/_/g, ' ').toLowerCase() }}</span>
+              <span class="font-mono text-foreground truncate">{{ val }}</span>
+            </template>
+          </div>
+        </template>
+      </template>
+
     </div>
 
     <div v-if="hasPrediction" class="px-4 pb-4 mt-2">

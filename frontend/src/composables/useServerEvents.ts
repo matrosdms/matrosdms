@@ -134,7 +134,7 @@ export function useServerEvents() {
                     workflow.upsertLiveFile(statusMsg.fileState);
                     
                     // Show Toasts based on result
-                    const fname = statusMsg.fileState.fileInfo?.originalFilename || statusMsg.originalFilename || 'File';
+                    const fname = statusMsg.fileState.fileInfo?.originalFilename || statusMsg.fileState.displayName || statusMsg.sha256 || 'File';
                     
                     if (statusMsg.status === 'READY') {
                         ui.addLog(`Ready: ${statusMsg.fileState.emailInfo?.subject || fname}`, 'success');

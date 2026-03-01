@@ -6,9 +6,10 @@ import { EActionPriority } from '@/enums'
 import { useMatrosData } from '@/composables/useMatrosData'
 import { ItemService } from '@/services/ItemService'
 import { useQuery } from '@tanstack/vue-query'
+import type { components } from '@/types/schema'
 
 const props = defineProps<{
-  action: any
+  action: components['schemas']['MAction']
 }>()
 
 defineEmits(['toggle', 'click'])
@@ -99,7 +100,7 @@ const itemName = computed(() => itemData.value?.name || 'Document')
             </span>
             
             <span v-if="action.assignee" class="flex items-center gap-1 text-[10px] text-gray-600 dark:text-gray-400">
-                <User :size="10" /> {{ action.assignee.firstname || action.assignee.name }}
+                <User :size="10" /> {{ action.assignee?.firstname || action.assignee?.name }}
             </span>
         </div>
     </div>
