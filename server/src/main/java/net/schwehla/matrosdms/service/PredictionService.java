@@ -27,6 +27,7 @@ import net.schwehla.matrosdms.repository.CategoryRepository;
 import net.schwehla.matrosdms.service.domain.AttributeLookupService;
 import net.schwehla.matrosdms.service.domain.ContextService;
 import net.schwehla.matrosdms.service.message.DigestResultMessage;
+import net.schwehla.matrosdms.service.CategoryLookupService;
 
 @Service
 public class PredictionService {
@@ -41,6 +42,9 @@ public class PredictionService {
 
 	@Autowired
 	ContextService contextService; // <--- Changed from Repository to Service (Cached)
+
+	@Autowired
+	CategoryLookupService categoryLookupService;
 
 	@Autowired
 	AttributeLookupService attributeLookupService;
@@ -66,14 +70,14 @@ public class PredictionService {
 				.map(c -> new Candidate(c.getUuid(), c.getName(), c.getDescription()))
 				.collect(Collectors.toList());
 
-		// Categories are usually few (<100), direct DB access is fast enough
-		// (and likely in Hibernate L1/L2 cache)
-		List<Candidate> categories = categoryRepository.findAll().stream()
+		// Kinds: only entries under ROOT_KIND (document type classification)
+		List<Candidate> kinds = categoryRepository.findAll().stream()
+				.filter(c -> "ROOT_KIND".equals(categoryLookupService.getRootFor(c.getUuid())))
 				.map(c -> new Candidate(c.getUuid(), c.getName(), c.getDescription()))
 				.collect(Collectors.toList());
 
 		// 3. Analyze
-		ClassificationCandidates candidates = new ClassificationCandidates(contexts, categories);
+		ClassificationCandidates candidates = new ClassificationCandidates(contexts, kinds);
 		strategy.analyze(fullText, filename, candidates, result);
 	}
 

@@ -3,7 +3,11 @@ import { useWorkflowStore } from '@/stores/workflow'
 import { useUIStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useQueryClient } from '@tanstack/vue-query'
+import { push } from 'notivue'
 import type { BroadcastMessage, InboxFile, ProgressMessage, PipelineStatusMessage } from '@/types/events'
+import type { components } from '@/types/schema'
+
+type JobMessage = components['schemas']['JobMessage']
 
 export function useServerEvents() {
     const workflow = useWorkflowStore()
@@ -127,11 +131,27 @@ export function useServerEvents() {
 
             // 2B. STATUS / COMPLETE
             if (type === 'STATUS' || type === 'COMPLETE' || type === 'ERROR') {
-                const statusMsg = message as PipelineStatusMessage;
-                
-                if (statusMsg.fileState) {
-                    // Update the full file state (Metadata snap or Final Result)
-                    workflow.upsertLiveFile(statusMsg.fileState);
+
+            // ── System Job completion (JobMessage has `taskName`, not `fileState`) ──
+            const jobMsg = message as JobMessage
+            if (jobMsg.taskName) {
+                // Invalidate all job history queries so the System Jobs table refreshes
+                queryClient.invalidateQueries({ queryKey: ['jobs'] })
+
+                const label = jobMsg.taskName.replace(/_/g, ' ')
+                if (jobMsg.status === 'COMPLETED') {
+                    push.success({ title: 'Job completed', message: label })
+                } else if (jobMsg.status === 'FAILED') {
+                    push.error({ title: 'Job failed', message: label })
+                }
+                return
+            }
+
+            // ── Pipeline file status ──
+            const statusMsg = message as PipelineStatusMessage
+            if (statusMsg.fileState) {
+                // Update the full file state (Metadata snap or Final Result)
+                workflow.upsertLiveFile(statusMsg.fileState)
                     
                     // Show Toasts based on result
                     const fname = statusMsg.fileState.fileInfo?.originalFilename || statusMsg.fileState.displayName || statusMsg.sha256 || 'File';

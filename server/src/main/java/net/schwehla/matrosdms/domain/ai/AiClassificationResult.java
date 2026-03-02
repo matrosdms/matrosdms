@@ -18,6 +18,8 @@ public class AiClassificationResult {
 	private String date;
 	private String summary;
 	private Map<String, Object> customAttributes;
+	/** Optional confidence 0.0-1.0 as returned by the LLM in its JSON response */
+	private Double confidence;
 
 	public String getContextUuid() {
 		return contextUuid;
@@ -57,5 +59,13 @@ public class AiClassificationResult {
 
 	public void setCustomAttributes(Map<String, Object> customAttributes) {
 		this.customAttributes = customAttributes;
+	}
+
+	public Double getConfidence() {
+		return confidence;
+	}
+
+	public void setConfidence(Double confidence) {
+		this.confidence = confidence;
 	}
 }

@@ -24,7 +24,7 @@ const showDebug = ref(false)
 const isDragOver = ref(false)
 
 const { 
-    form, aiHighlights, touched, isLoading, save, file, hasReminder, reminderForm,
+    form, aiHighlights, aiProposal, touched, isLoading, save, file, hasReminder, reminderForm,
     applyPrediction, rawPrediction
 } = useItemForm(false)
 
@@ -144,12 +144,13 @@ useHotkeys('Escape', () => {
                   </div>
                   <div class="w-5/12 h-full bg-background overflow-y-auto custom-scrollbar p-6">
                       <div class="max-w-xl mx-auto space-y-4">
-                          <ItemFormFields 
+                      <ItemFormFields 
                             v-model="form" 
                             :touched="touched" 
                             :reminder-state="{ active: hasReminder, data: reminderForm }" 
                             @update:reminder-state="onUpdateReminderState" 
                             :ai-highlights="aiHighlights" 
+                            :ai-proposal="aiProposal"
                           />
                           <!-- Inline Buttons (Split View) -->
                           <div class="pt-6 flex justify-between items-center border-t border-dashed border-border mt-4">
@@ -182,6 +183,7 @@ useHotkeys('Escape', () => {
                         :reminder-state="{ active: hasReminder, data: reminderForm }" 
                         @update:reminder-state="onUpdateReminderState"
                         :ai-highlights="aiHighlights" 
+                        :ai-proposal="aiProposal"
                       />
                       <!-- Inline Buttons (Full Form View) -->
                       <div class="pt-6 flex justify-between items-center border-t border-dashed border-border mt-4">

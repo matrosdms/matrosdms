@@ -7669,14 +7669,14 @@
                                 "empty": {
                                     "type": "boolean"
                                 },
-                                "allTransitiveChildren": {
+                                "selfAndTransitiveParents": {
                                     "type": "array",
                                     "items": {
                                         "$ref": "#/components/schemas/MCategory"
                                     },
                                     "uniqueItems": true
                                 },
-                                "selfAndTransitiveParents": {
+                                "allTransitiveChildren": {
                                     "type": "array",
                                     "items": {
                                         "$ref": "#/components/schemas/MCategory"
@@ -7782,14 +7782,14 @@
                             "empty": {
                                 "type": "boolean"
                             },
-                            "allTransitiveChildren": {
+                            "selfAndTransitiveParents": {
                                 "type": "array",
                                 "items": {
                                     "$ref": "#/components/schemas/MCategory"
                                 },
                                 "uniqueItems": true
                             },
-                            "selfAndTransitiveParents": {
+                            "allTransitiveChildren": {
                                 "type": "array",
                                 "items": {
                                     "$ref": "#/components/schemas/MCategory"
@@ -8247,7 +8247,7 @@
                 "properties": {
                     "kind": {
                         "type": "string",
-                        "description": "UUID of the suggested Kind"
+                        "description": "UUID of the suggested Kind (document category)"
                     },
                     "context": {
                         "type": "string",
@@ -8262,7 +8262,24 @@
                     },
                     "confidence": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "description": "Overall confidence score 0.0-1.0 for the entire prediction"
+                    },
+                    "fieldConfidences": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "description": "Per-field confidence scores: keys are field names (context, kind, documentDate, summary), values 0.0-1.0"
+                    },
+                    "strategyId": {
+                        "type": "string",
+                        "description": "ID of the strategy that produced this prediction: 'ollama', 'heuristic'"
+                    },
+                    "manuallyAssigned": {
+                        "type": "boolean",
+                        "description": "True when the user manually set at least one field, overriding the AI suggestion"
                     },
                     "attributes": {
                         "type": "object",
@@ -8393,13 +8410,13 @@
             "PageMSearchResult": {
                 "type": "object",
                 "properties": {
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
                     "totalElements": {
                         "type": "integer",
                         "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "size": {
                         "type": "integer",
@@ -8419,11 +8436,11 @@
                         "type": "integer",
                         "format": "int32"
                     },
-                    "sort": {
-                        "$ref": "#/components/schemas/SortObject"
-                    },
                     "pageable": {
                         "$ref": "#/components/schemas/PageableObject"
+                    },
+                    "sort": {
+                        "$ref": "#/components/schemas/SortObject"
                     },
                     "first": {
                         "type": "boolean"
@@ -8443,19 +8460,19 @@
                         "type": "integer",
                         "format": "int64"
                     },
-                    "sort": {
-                        "$ref": "#/components/schemas/SortObject"
+                    "pageNumber": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "pageSize": {
                         "type": "integer",
                         "format": "int32"
                     },
-                    "pageNumber": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
                     "paged": {
                         "type": "boolean"
+                    },
+                    "sort": {
+                        "$ref": "#/components/schemas/SortObject"
                     },
                     "unpaged": {
                         "type": "boolean"
@@ -8997,13 +9014,13 @@
             "PageJobMessage": {
                 "type": "object",
                 "properties": {
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
                     "totalElements": {
                         "type": "integer",
                         "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "size": {
                         "type": "integer",
@@ -9023,11 +9040,11 @@
                         "type": "integer",
                         "format": "int32"
                     },
-                    "sort": {
-                        "$ref": "#/components/schemas/SortObject"
-                    },
                     "pageable": {
                         "$ref": "#/components/schemas/PageableObject"
+                    },
+                    "sort": {
+                        "$ref": "#/components/schemas/SortObject"
                     },
                     "first": {
                         "type": "boolean"
@@ -9052,13 +9069,13 @@
             "PageMItem": {
                 "type": "object",
                 "properties": {
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
                     "totalElements": {
                         "type": "integer",
                         "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "size": {
                         "type": "integer",
@@ -9078,11 +9095,11 @@
                         "type": "integer",
                         "format": "int32"
                     },
-                    "sort": {
-                        "$ref": "#/components/schemas/SortObject"
-                    },
                     "pageable": {
                         "$ref": "#/components/schemas/PageableObject"
+                    },
+                    "sort": {
+                        "$ref": "#/components/schemas/SortObject"
                     },
                     "first": {
                         "type": "boolean"
@@ -9140,13 +9157,13 @@
             "PageMAction": {
                 "type": "object",
                 "properties": {
-                    "totalPages": {
-                        "type": "integer",
-                        "format": "int32"
-                    },
                     "totalElements": {
                         "type": "integer",
                         "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "size": {
                         "type": "integer",
@@ -9166,11 +9183,11 @@
                         "type": "integer",
                         "format": "int32"
                     },
-                    "sort": {
-                        "$ref": "#/components/schemas/SortObject"
-                    },
                     "pageable": {
                         "$ref": "#/components/schemas/PageableObject"
+                    },
+                    "sort": {
+                        "$ref": "#/components/schemas/SortObject"
                     },
                     "first": {
                         "type": "boolean"

@@ -36,6 +36,8 @@ import net.schwehla.matrosdms.domain.ai.OllamaRequest;
 import net.schwehla.matrosdms.domain.ai.OllamaResponse;
 import net.schwehla.matrosdms.domain.inbox.Prediction;
 import net.schwehla.matrosdms.service.message.DigestResultMessage;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Component
 public class OllamaPredictionStrategy implements IPredictionStrategy {
@@ -136,6 +138,7 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 				p.setContext(dto.getContextUuid());
 				p.setKind(dto.getKindUuid());
 				p.setSummary(dto.getSummary());
+				p.setStrategyId("ollama");
 
 				if (dto.getCustomAttributes() != null) {
 					p.setAttributes(dto.getCustomAttributes());
@@ -147,6 +150,16 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 					} catch (Exception ignored) {
 					}
 				}
+
+				// Build per-field confidences; use LLM-supplied overall or default 0.80
+				double overallConf = dto.getConfidence() != null ? dto.getConfidence() : 0.80;
+				p.setConfidence(overallConf);
+				Map<String, Double> fieldConf = new LinkedHashMap<>();
+				if (dto.getContextUuid() != null) fieldConf.put("context", overallConf);
+				if (dto.getKindUuid()    != null) fieldConf.put("kind",    overallConf);
+				if (dto.getDate()        != null) fieldConf.put("documentDate", overallConf);
+				if (dto.getSummary()     != null) fieldConf.put("summary", overallConf);
+				p.setFieldConfidences(fieldConf);
 			}
 		} catch (JsonProcessingException e) {
 			log.warn("AI: Failed to parse JSON response. Raw: {}", json);
@@ -156,8 +169,8 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 	private String buildPrompt(String text, String filename, ClassificationCandidates candidates) {
 		String safeText = text.length() > 6000 ? text.substring(0, 6000) : text;
 		String contextList = formatList(candidates.contexts());
-		String categoryList = formatList(candidates.categories());
-		return promptTemplate.formatted(contextList, categoryList, filename, safeText);
+		String kindList = formatList(candidates.kinds());
+		return promptTemplate.formatted(contextList, kindList, filename, safeText);
 	}
 
 	private String formatList(java.util.List<Candidate> list) {

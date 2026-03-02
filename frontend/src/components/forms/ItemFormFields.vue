@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import AiFieldHint from '@/components/ui/AiFieldHint.vue'
 import AttributeGroup from '@/components/forms/AttributeGroup.vue'
 import CategoryTree from '@/components/navigation/CategoryTree.vue' 
 import IconPicker from '@/components/ui/IconPicker.vue'
@@ -10,6 +11,7 @@ import { ChevronDown, Check, Target, Bell, Sparkles } from 'lucide-vue-next'
 import { useDmsStore } from '@/stores/dms'
 import { useUIStore } from '@/stores/ui'
 import { EStageList, EStageLabels, ERootCategory } from '@/enums'
+import type { AiProposalSnapshot } from '@/composables/useItemForm'
 
 const props = defineProps<{
   modelValue: any;
@@ -24,7 +26,9 @@ const props = defineProps<{
       category?: boolean;
       context?: boolean;
       store?: boolean;
-  }
+  };
+  /** Full AI proposal snapshot for per-field diff hints */
+  aiProposal?: AiProposalSnapshot;
 }>()
 
 const emit = defineEmits(['update:modelValue', 'update:reminderState'])
@@ -42,6 +46,26 @@ const autoStoreNumber = ref(false)
 const updateField = (key: string, value: any) => {
     emit('update:modelValue', { ...props.modelValue, [key]: value })
 }
+
+// ─── AI proposal hint state ────────────────────────────────────────────────
+const dismissedAiFields = ref<Set<string>>(new Set())
+
+// Reset dismissed hints whenever a fresh proposal arrives
+watch(() => props.aiProposal, () => { dismissedAiFields.value = new Set() }, { deep: false })
+
+/** Accept the AI value — sets the form field back to the AI-proposed value */
+const acceptAiField = (key: 'name' | 'date' | 'kind') => {
+  const p = props.aiProposal
+  if (!p) return
+  if (key === 'name' && p.name) updateField('name', p.name.value)
+  else if (key === 'date' && p.date) updateField('issueDate', p.date.value)
+  else if (key === 'kind' && p.kind) {
+    emit('update:modelValue', { ...props.modelValue, kindId: p.kind.value, kindName: p.kind.displayValue ?? p.kind.value })
+  }
+}
+
+/** Dismiss the AI hint for a field */
+const dismissAiField = (key: string) => { dismissedAiFields.value = new Set([...dismissedAiFields.value, key]) }
 
 const updateReminder = (key: string, value: any) => {
     if (!props.reminderState) return
@@ -100,14 +124,24 @@ onMounted(() => {
   <div class="flex flex-col gap-4 relative" @click="isTypeDropdownOpen = false">
       
       <!-- Filename (Smart Highlight) -->
-      <BaseInput 
-          :model-value="modelValue.name" 
-          @update:model-value="updateField('name', $event)"
-          label="Filename" 
-          :error="touched && !modelValue.name ? 'Name is required' : ''"
-          :suggestion="aiHighlights?.name"
-          autofocus 
-      />
+      <div>
+        <BaseInput 
+            :model-value="modelValue.name" 
+            @update:model-value="updateField('name', $event)"
+            label="Filename" 
+            :error="touched && !modelValue.name ? 'Name is required' : ''"
+            :suggestion="aiHighlights?.name"
+            autofocus 
+        />
+        <AiFieldHint
+          v-if="aiProposal?.name && !dismissedAiFields.has('name')"
+          :proposal="aiProposal.name"
+          :current-value="modelValue.name"
+          :is-overridden="modelValue.name !== aiProposal.name.value"
+          @accept="acceptAiField('name')"
+          @dismiss="dismissAiField('name')"
+        />
+      </div>
 
       <!-- Icon & Type & Stage -->
       <div class="flex gap-4 items-end">
@@ -155,6 +189,14 @@ onMounted(() => {
                     <Target :size="16" />
                 </button>
              </div>
+             <AiFieldHint
+               v-if="aiProposal?.kind && !dismissedAiFields.has('kind')"
+               :proposal="aiProposal.kind"
+               :current-value="modelValue.kindName"
+               :is-overridden="modelValue.kindId !== aiProposal.kind.value"
+               @accept="acceptAiField('kind')"
+               @dismiss="dismissAiField('kind')"
+             />
           </div>
 
           <div class="w-1/3">
@@ -214,6 +256,14 @@ onMounted(() => {
                 label="Issue Date" 
                 type="date" 
                 :suggestion="aiHighlights?.date"
+            />
+            <AiFieldHint
+              v-if="aiProposal?.date && !dismissedAiFields.has('date')"
+              :proposal="aiProposal.date"
+              :current-value="modelValue.issueDate"
+              :is-overridden="modelValue.issueDate !== aiProposal.date.value"
+              @accept="acceptAiField('date')"
+              @dismiss="dismissAiField('date')"
             />
         </div>
         <div class="flex-1">

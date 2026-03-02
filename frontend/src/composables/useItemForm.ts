@@ -6,11 +6,29 @@ import { useQueryClient, useQuery } from '@tanstack/vue-query'
 import { ItemService } from '@/services/ItemService'
 import { ActionService } from '@/services/ActionService'
 import { AttributeTypeService } from '@/services/AttributeTypeService'
+import { CategoryService } from '@/services/CategoryService'
 import { ItemMapper } from '@/api/mappers/ItemMapper'
 import { push } from 'notivue'
-import { EStage, type EStageType, EActionPriority } from '@/enums'
+import { EStage, type EStageType, EActionPriority, ERootCategory } from '@/enums'
 import { formatDateForInput } from '@/lib/utils'
 import { queryKeys } from '@/composables/queries/queryKeys'
+
+/** Per-field AI suggestion with confidence for diff display */
+export interface AiFieldProposal {
+    value: string;
+    displayValue?: string; // human-readable label
+    confidence: number;    // 0.0 – 1.0
+}
+
+export interface AiProposalSnapshot {
+    name?: AiFieldProposal;
+    date?: AiFieldProposal;
+    kind?: AiFieldProposal;
+    context?: AiFieldProposal;
+    store?: AiFieldProposal;
+    strategyId?: string;
+    overallConfidence?: number;
+}
 
 export interface ItemFormData {
     uuid?: string;
@@ -63,7 +81,8 @@ export function useItemForm(isEdit: boolean) {
         }
     })
 
-    const aiHighlights = ref({ name: false, date: false, category: false, context: false, store: false })
+    const aiHighlights = ref<Record<string, boolean>>({ name: false, date: false, category: false, context: false, store: false })
+    const aiProposal = ref<AiProposalSnapshot>({})
     const touched = ref(false)
     const isLoading = ref(false)
 
@@ -87,64 +106,105 @@ export function useItemForm(isEdit: boolean) {
         staleTime: 5 * 60 * 1000
     })
 
+    const { data: kindTree } = useQuery({
+        queryKey: ['category', ERootCategory.KIND, true],
+        queryFn: () => CategoryService.getTree(ERootCategory.KIND),
+        staleTime: 10 * 60 * 1000
+    })
+
+    /** Resolve a KIND UUID to its display name using the cached tree */
+    const resolveKindName = (uuid: string): string => {
+        const findInTree = (node: any): string | null => {
+            if (!node) return null
+            if (node.uuid === uuid) return node.name
+            for (const child of (node.children || [])) {
+                const found = findInTree(child)
+                if (found) return found
+            }
+            return null
+        }
+        return findInTree(kindTree.value) || uuid
+    }
+
     const applyPrediction = (p: any) => {
         if (!p) return
 
-        // 1. Standard Fields
+        const fieldConf: Record<string, number> = p.fieldConfidences || {}
+        const overall = p.confidence ?? 0
+        const snapshot: AiProposalSnapshot = {
+            strategyId: p.strategyId,
+            overallConfidence: overall
+        }
+
+        // 1. Name / Summary
         const desc = p.summary || p.predictedDescription
-        if (desc && !form.value.name) {
-            form.value.name = desc
-            aiHighlights.value.name = true
+        if (desc) {
+            snapshot.name = { value: desc, confidence: fieldConf.summary ?? overall }
+            if (!form.value.name) {
+                form.value.name = desc
+                aiHighlights.value.name = true
+            }
         }
-        
+
+        // 2. Issue Date
         const date = p.documentDate || p.predictedDate
-        if (date && !form.value.issueDate) {
-            form.value.issueDate = date
-            aiHighlights.value.date = true
+        if (date) {
+            snapshot.date = { value: date, confidence: fieldConf.documentDate ?? overall }
+            if (!form.value.issueDate) {
+                form.value.issueDate = date
+                aiHighlights.value.date = true
+            }
         }
-        
-        const cat = p.category || p.predictedCategory
-        if (cat && !form.value.kindId) {
-            form.value.kindId = cat
-            form.value.kindName = 'AI Suggested' 
-            aiHighlights.value.category = true
+
+        // 3. Kind (document type) — backend field is p.kind
+        const kindUuid = p.kind || p.predictedCategory
+        if (kindUuid) {
+            const kindName = resolveKindName(kindUuid)
+            snapshot.kind = { value: kindUuid, displayValue: kindName, confidence: fieldConf.kind ?? overall }
+            if (!form.value.kindId) {
+                form.value.kindId = kindUuid
+                form.value.kindName = kindName
+                aiHighlights.value.category = true
+            }
         }
-        
+
+        // 4. Context — just flag for highlight (ItemFormFields reads from dms.targetContextForDrop)
         const ctx = p.context || p.predictedContext
         if (ctx) {
+            snapshot.context = { value: ctx, confidence: fieldConf.context ?? overall }
             aiHighlights.value.context = true
         }
-        
-        const store = p.store || p.predictedStore
-        if (store && !form.value.storeId) {
-            form.value.storeId = store
-            aiHighlights.value.store = true
-        }
-        
-        // 2. Attributes Processing (Strict 'attributes' key)
-        if (p.attributes && attributeTypes.value) {
-            const mappedAttrs: any[] = [];
-            
-            Object.entries(p.attributes).forEach(([key, val]) => {
-                // Map to Attribute Definition (Key -> UUID)
-                const def = attributeTypes.value?.find(t => 
-                    (t as any).key === key || t.uuid === key
-                );
 
+        // 5. Store
+        const store = p.store || p.predictedStore
+        if (store) {
+            snapshot.store = { value: store, confidence: fieldConf.store ?? overall }
+            if (!form.value.storeId) {
+                form.value.storeId = store
+                aiHighlights.value.store = true
+            }
+        }
+
+        // 6. Attributes
+        if (p.attributes && attributeTypes.value) {
+            const mappedAttrs: any[] = []
+            Object.entries(p.attributes).forEach(([key, val]) => {
+                const def = attributeTypes.value?.find((t: any) =>
+                    t.key === key || t.uuid === key
+                )
                 if (def) {
                     mappedAttrs.push({
-                        definitionId: def.uuid,
-                        typeKey: (def as any).key || def.uuid,
-                        name: def.name,
+                        definitionId: (def as any).uuid,
+                        typeKey: (def as any).key || (def as any).uuid,
+                        name: (def as any).name,
                         value: val
                     })
                 }
-            });
-            
-            if (mappedAttrs.length > 0) {
-                form.value.attributes = mappedAttrs;
-            }
+            })
+            if (mappedAttrs.length > 0) form.value.attributes = mappedAttrs
         }
+
+        aiProposal.value = snapshot
     }
 
     // Reactively re-apply if attribute definitions load later
@@ -284,6 +344,7 @@ export function useItemForm(isEdit: boolean) {
     return { 
         form, 
         aiHighlights, 
+        aiProposal,
         touched, 
         isLoading, 
         save, 

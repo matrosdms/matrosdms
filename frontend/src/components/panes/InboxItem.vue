@@ -2,8 +2,9 @@
 import { ref, computed } from 'vue'
 import {
   FileText, GripVertical, Loader2, Ban, AlertTriangle, Folder,
-  Calendar, Tag, Mail, RefreshCw, Sparkles, ArrowRight, Link2, Info, FileType
+  Mail, RefreshCw, Sparkles, Info, FileType, Brain, Cpu, Eye
 } from 'lucide-vue-next'
+import AiProposalCard from '@/components/ui/AiProposalCard.vue'
 import { useDragDrop } from '@/composables/useDragDrop'
 import { useMatrosData } from '@/composables/useMatrosData'
 import { useDmsStore } from '@/stores/dms'
@@ -73,7 +74,8 @@ const contextName = computed(() => {
   if (!ctxId) return null
   return contexts.value.find((c: any) => c.uuid === ctxId)?.name || null
 })
-const categoryName = computed(() => prediction.value?.category)
+// kindLabel is only used in the INFO panel as a raw fallback; AiProposalCard resolves the real name
+const kindLabel = computed(() => prediction.value?.kind ?? null)
 const duplicateLabel = computed(() => props.file.doublette ? (props.file.doublette.length > 12 ? `${props.file.doublette.slice(0, 12)}…` : props.file.doublette) : '')
 
 const { data: duplicateItem } = useQuery({
@@ -170,7 +172,14 @@ const handleIgnore = (event: Event) => { event.stopPropagation(); emit('ignore')
         </div>
       </div>
       <div class="flex-1 min-w-0">
-        <span class="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug break-words block hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors" :title="displayName">{{ displayName }}</span>
+        <button
+          class="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug break-words text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors flex items-center gap-1.5 group/name"
+          :title="'Preview: ' + displayName"
+          @click.stop="emit('preview')"
+        >
+          {{ displayName }}
+          <Eye :size="12" class="shrink-0 opacity-0 group-hover/name:opacity-60 transition-opacity text-blue-500" />
+        </button>
         <div v-if="subTitle && !isProcessing" class="text-xs text-muted-foreground truncate">{{ subTitle }}</div>
         <div v-if="isProcessing || isDuplicate" class="mt-1 flex flex-col gap-1 text-xs">
           <div class="flex items-center gap-2 font-mono">
@@ -182,7 +191,19 @@ const handleIgnore = (event: Event) => { event.stopPropagation(); emit('ignore')
             <span v-if="duplicateItem?.context" class="flex items-center gap-1 truncate opacity-90"><Folder :size="10" class="shrink-0"/> {{ duplicateItem.context.name }}</span>
           </div>
         </div>
-        <div v-else-if="showAIReady" class="mt-1 text-[10px] text-green-600 dark:text-green-400 font-bold flex items-center gap-1"><Sparkles :size="10" /> AI Ready</div>
+        <div v-else-if="showAIReady" class="mt-1 flex items-center gap-1.5 flex-wrap">
+          <span class="text-[10px] text-green-600 dark:text-green-400 font-bold flex items-center gap-1"><Sparkles :size="10" /> AI Ready</span>
+          <span
+            class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+            :class="prediction?.strategyId === 'ollama'
+              ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800'
+              : 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800'"
+          >
+            <Brain v-if="prediction?.strategyId === 'ollama'" :size="9" />
+            <Cpu v-else :size="9" />
+            {{ prediction?.strategyId === 'ollama' ? 'Ollama' : 'Heuristic' }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -236,8 +257,8 @@ const handleIgnore = (event: Event) => { event.stopPropagation(); emit('ignore')
           <span v-if="contextName" class="text-muted-foreground">Context</span>
           <span v-if="contextName" class="truncate text-foreground">{{ contextName }}</span>
 
-          <span v-if="categoryName" class="text-muted-foreground">Category</span>
-          <span v-if="categoryName" class="truncate text-foreground">{{ categoryName }}</span>
+          <span v-if="kindLabel" class="text-muted-foreground">Kind UUID</span>
+          <span v-if="kindLabel" class="font-mono text-[10px] text-muted-foreground/80 truncate select-all">{{ kindLabel }}</span>
 
           <span v-if="prediction.documentDate" class="text-muted-foreground">Doc Date</span>
           <span v-if="prediction.documentDate" class="font-mono text-foreground">{{ prediction.documentDate }}</span>
@@ -263,18 +284,7 @@ const handleIgnore = (event: Event) => { event.stopPropagation(); emit('ignore')
     </div>
 
     <div v-if="hasPrediction" class="px-4 pb-4 mt-2">
-      <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-800 p-2.5 flex flex-col gap-2 transition-colors hover:border-gray-300 dark:hover:border-gray-700" :class="{ 'border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20': isManuallyAssigned }">
-        <div class="flex items-center gap-2 w-full text-sm font-medium text-gray-700 dark:text-gray-300">
-          <Link2 v-if="isManuallyAssigned" :size="14" class="shrink-0 text-blue-500 dark:text-blue-400" />
-          <Folder v-else :size="14" class="shrink-0 text-gray-400 dark:text-gray-500" />
-          <span class="truncate flex-1" :class="{ 'text-blue-700 dark:text-blue-300': isManuallyAssigned }">{{ contextName || 'Unassigned' }}</span>
-          <ArrowRight v-if="contextName" :size="12" class="text-gray-300" />
-        </div>
-        <div class="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-gray-200 dark:border-gray-700 border-dashed">
-          <div class="flex items-center gap-1.5 overflow-hidden max-w-[65%]"><Tag :size="12" class="shrink-0 opacity-70" /><span class="truncate">{{ categoryName || 'General' }}</span></div>
-          <div v-if="prediction?.documentDate" class="flex items-center gap-1.5 shrink-0"><Calendar :size="12" class="shrink-0 opacity-70" /><span class="font-mono">{{ prediction.documentDate }}</span></div>
-        </div>
-      </div>
+      <AiProposalCard :prediction="prediction!" :contexts="contexts" />
     </div>
   </div>
 </template>

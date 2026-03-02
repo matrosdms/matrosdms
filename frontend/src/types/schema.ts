@@ -796,6 +796,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/exists/{hash}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check whether a file with the given SHA-256 hash already exists in the DMS */
+        get: operations["existsByHash"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/inbox": {
         parameters: {
             query?: never;
@@ -1415,15 +1432,26 @@ export interface components {
         };
         /** @description AI Analysis Results */
         Prediction: {
-            /** @description UUID of the suggested Kind */
+            /** @description UUID of the suggested Kind (document category) */
             kind?: string;
             /** @description UUID of the suggested Context/Folder */
             context?: string;
             /** Format: date */
             documentDate?: string;
             summary?: string;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description Overall confidence score 0.0-1.0 for the entire prediction
+             */
             confidence?: number;
+            /** @description Per-field confidence scores: keys are field names (context, kind, documentDate, summary), values 0.0-1.0 */
+            fieldConfidences?: {
+                [key: string]: number;
+            };
+            /** @description ID of the strategy that produced this prediction: 'ollama', 'heuristic' */
+            strategyId?: string;
+            /** @description True when the user manually set at least one field, overriding the AI suggestion */
+            manuallyAssigned?: boolean;
             /** @description Key-Value pairs extracted by AI */
             attributes?: {
                 [key: string]: Record<string, never>;
@@ -1463,10 +1491,10 @@ export interface components {
             highlight?: string;
         };
         PageMSearchResult: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MSearchResult"][];
@@ -1483,11 +1511,11 @@ export interface components {
         PageableObject: {
             /** Format: int64 */
             offset?: number;
-            paged?: boolean;
             /** Format: int32 */
             pageNumber?: number;
             /** Format: int32 */
             pageSize?: number;
+            paged?: boolean;
             sort?: components["schemas"]["SortObject"];
             unpaged?: boolean;
         };
@@ -1718,10 +1746,10 @@ export interface components {
             status?: components["schemas"]["EJobStatus"];
         };
         PageJobMessage: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["JobMessage"][];
@@ -1741,10 +1769,10 @@ export interface components {
          */
         EArchiveFilter: "ALL" | "ACTIVE_ONLY" | "ARCHIVED_ONLY";
         PageMItem: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MItem"][];
@@ -1779,10 +1807,10 @@ export interface components {
          */
         EBroadcastType: "FILE_ADDED" | "STATUS" | "PROGRESS" | "COMPLETE" | "ERROR";
         PageMAction: {
-            /** Format: int32 */
-            totalPages?: number;
             /** Format: int64 */
             totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
             /** Format: int32 */
             size?: number;
             content?: components["schemas"]["MAction"][];
@@ -6269,6 +6297,75 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    existsByHash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": {
+                        [key: string]: boolean;
+                    };
                 };
             };
             /** @description Bad Request */

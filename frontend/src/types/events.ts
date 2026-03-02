@@ -1,10 +1,7 @@
 import type { components } from './schema';
 
 /** Client-side extension of the generated Prediction type with UI-only properties */
-export type ClientPrediction = components['schemas']['Prediction'] & {
-  manuallyAssigned?: boolean;
-  category?: string;
-};
+export type ClientPrediction = components['schemas']['Prediction'];
 
 export type InboxFile = Omit<components['schemas']['InboxFile'], 'prediction'> & {
   /** AI prediction extended with client-side properties */

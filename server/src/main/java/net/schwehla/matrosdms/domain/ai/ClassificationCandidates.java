@@ -9,6 +9,7 @@ package net.schwehla.matrosdms.domain.ai;
 
 import java.util.List;
 
-public record ClassificationCandidates(List<Candidate> contexts, List<Candidate> categories) {
+public record ClassificationCandidates(List<Candidate> contexts, List<Candidate> kinds) {
+  /** A single named entity (context folder or document kind) */
   public record Candidate(String uuid, String name, String description) {}
 }

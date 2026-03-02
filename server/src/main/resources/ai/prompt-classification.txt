@@ -1,10 +1,10 @@
-You are an intelligent document classifier for a DMS.
+﻿You are an intelligent document classifier for a DMS.
 Your job is to analyze the text content of a file and extract metadata in strict JSON format.
 
-### AVAILABLE CONTEXTS (Folders):
+### AVAILABLE CONTEXTS (Filing Folders):
 %s
 
-### AVAILABLE CATEGORIES (Document Types):
+### AVAILABLE DOCUMENT KINDS (Document Types):
 %s
 
 ### DOCUMENT INFO:
@@ -15,24 +15,25 @@ Content:
 """
 
 ### INSTRUCTIONS:
-1. Analyze the text to determine the most fitting Context and Category from the lists above.
-2. Extract the Document Date (ISO 8601 YYYY-MM-DD). If unsure, use null.
-3. Write a short 1-sentence summary (in the language of the document).
-4. EXTRACT SPECIFIC ATTRIBUTES if found:
+1. Choose the most fitting CONTEXT (folder) from the AVAILABLE CONTEXTS list.
+2. Choose the most fitting DOCUMENT KIND (type) from the AVAILABLE DOCUMENT KINDS list.
+3. Extract the Document Date (ISO 8601 YYYY-MM-DD). If unsure, use null.
+4. Write a short 1-sentence summary in the language of the document.
+5. Rate your overall confidence from 0.0 (guessing) to 1.0 (very confident).
+6. EXTRACT SPECIFIC ATTRIBUTES if found:
    - "ATTR_AMOUNT": Total amount (number) if invoice/receipt.
-   - "ATTR_VENDOR": Vendor name if invoice.
+   - "ATTR_VENDOR": Vendor name if invoice/receipt.
    - "ATTR_TAXYEAR": Tax year if relevant.
 
-### OUTPUT FORMAT (JSON ONLY):
+### OUTPUT FORMAT (JSON ONLY, no markdown, no explanation):
 {
-  "contextUuid": "UUID from list",
-  "categoryUuid": "UUID from list",
-  "date": "YYYY-MM-DD",
-  "summary": "Short description...",
+  "contextUuid": "UUID from CONTEXTS list or null",
+  "kindUuid": "UUID from DOCUMENT KINDS list or null",
+  "date": "YYYY-MM-DD or null",
+  "summary": "Short 1-sentence description in document language",
+  "confidence": 0.85,
   "customAttributes": {
       "ATTR_AMOUNT": 123.45,
       "ATTR_VENDOR": "Name"
   }
 }
-
-Do not include markdown blocks or explanation text. Just the JSON string.

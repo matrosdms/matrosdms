@@ -16,7 +16,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "AI Analysis Results")
 public class Prediction implements Serializable {
 
-	@Schema(description = "UUID of the suggested Kind")
+	@Schema(description = "UUID of the suggested Kind (document category)")
 	private String kind;
 
 	@Schema(description = "UUID of the suggested Context/Folder")
@@ -24,7 +24,18 @@ public class Prediction implements Serializable {
 
 	private LocalDate documentDate;
 	private String summary;
+
+	@Schema(description = "Overall confidence score 0.0-1.0 for the entire prediction")
 	private Double confidence;
+
+	@Schema(description = "Per-field confidence scores: keys are field names (context, kind, documentDate, summary), values 0.0-1.0")
+	private Map<String, Double> fieldConfidences;
+
+	@Schema(description = "ID of the strategy that produced this prediction: 'ollama', 'heuristic'")
+	private String strategyId;
+
+	@Schema(description = "True when the user manually set at least one field, overriding the AI suggestion")
+	private Boolean manuallyAssigned;
 
 	@Schema(description = "Key-Value pairs extracted by AI")
 	private Map<String, Object> attributes;
@@ -70,6 +81,30 @@ public class Prediction implements Serializable {
 
 	public void setConfidence(Double confidence) {
 		this.confidence = confidence;
+	}
+
+	public Map<String, Double> getFieldConfidences() {
+		return fieldConfidences;
+	}
+
+	public void setFieldConfidences(Map<String, Double> fieldConfidences) {
+		this.fieldConfidences = fieldConfidences;
+	}
+
+	public String getStrategyId() {
+		return strategyId;
+	}
+
+	public void setStrategyId(String strategyId) {
+		this.strategyId = strategyId;
+	}
+
+	public Boolean getManuallyAssigned() {
+		return manuallyAssigned;
+	}
+
+	public void setManuallyAssigned(Boolean manuallyAssigned) {
+		this.manuallyAssigned = manuallyAssigned;
 	}
 
 	public Map<String, Object> getAttributes() {
