@@ -212,4 +212,12 @@ public class ItemService {
 	public void deleteAllItems() {
 		itemRepository.deleteAll();
 	}
+
+	/**
+	 * Checks whether a file with the given SHA-256 hash already exists in the DMS
+	 * (checked against both original upload hash and canonical/processed hash).
+	 */
+	public boolean existsByHash(String hash) {
+		return itemRepository.isDuplicate(hash);
+	}
 }

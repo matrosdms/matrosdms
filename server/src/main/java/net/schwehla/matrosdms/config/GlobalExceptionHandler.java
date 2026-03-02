@@ -17,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -129,6 +131,22 @@ public class GlobalExceptionHandler {
 
 		return buildErrorResponse(
 				HttpStatus.BAD_REQUEST, EErrorCode.REQ_JSON_MALFORMED, "Invalid JSON format", request);
+	}
+
+	// 401 Unauthorized (bad credentials)
+	@ExceptionHandler(BadCredentialsException.class)
+	public ResponseEntity<ApiErrorResponse> handleBadCredentials(
+			BadCredentialsException ex, HttpServletRequest request) {
+		return buildErrorResponse(
+				HttpStatus.UNAUTHORIZED, EErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid username or password", request);
+	}
+
+	// 403 Forbidden
+	@ExceptionHandler(AccessDeniedException.class)
+	public ResponseEntity<ApiErrorResponse> handleAccessDenied(
+			AccessDeniedException ex, HttpServletRequest request) {
+		return buildErrorResponse(
+				HttpStatus.FORBIDDEN, EErrorCode.AUTH_ACCESS_DENIED, "Access denied", request);
 	}
 
 	// 404 Not Found

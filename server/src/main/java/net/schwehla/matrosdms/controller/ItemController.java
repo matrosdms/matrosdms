@@ -7,6 +7,8 @@
  */
 package net.schwehla.matrosdms.controller;
 
+import java.util.Map;
+
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -124,6 +126,13 @@ public class ItemController {
 		if (meta == null)
 			return ResponseEntity.notFound().build();
 		return ResponseEntity.ok(meta);
+	}
+
+	@GetMapping("/exists/{hash}")
+	@Operation(summary = "Check whether a file with the given SHA-256 hash already exists in the DMS")
+	public ResponseEntity<Map<String, Boolean>> existsByHash(@PathVariable("hash") String hash) {
+		boolean exists = itemService.existsByHash(hash);
+		return ResponseEntity.ok(Map.of("exists", exists));
 	}
 
 	@GetMapping("/{uuid}/content")

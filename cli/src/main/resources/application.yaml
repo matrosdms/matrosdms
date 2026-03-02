@@ -1,13 +1,23 @@
 server:
-  port: 0 
+  port: 0
 
 spring:
-
   main:
     web-application-type: none
+    banner-mode: off
+    log-startup-info: false
     
   jackson:
     serialization:
       indent-output: true
       write-dates-as-timestamps: false
     default-property-inclusion: "non-null"
+
+logging:
+  level:
+    root: WARN
+    net.schwehla.matrosdms.cli: INFO
+    org.springframework.boot: WARN
+    org.springframework: WARN
+  pattern:
+    console: "%d{HH:mm:ss} %-5level %msg%n"
