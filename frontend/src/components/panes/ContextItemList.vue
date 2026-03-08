@@ -18,7 +18,7 @@ import { useAdminQueries } from '@/composables/queries/useAdminQueries'
 import { useDragDrop } from '@/composables/useDragDrop'
 import { ItemService } from '@/services/ItemService'
 import { parseBackendDate } from '@/lib/utils'
-import { Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar, Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText, ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit, RotateCcw } from 'lucide-vue-next'
+import { Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar, Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText, ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit, RotateCcw, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { push } from 'notivue'
 import { EStage, ERootCategory, ViewMode, EArchiveFilter } from '@/enums'
 import type { Item } from '@/types/models'
@@ -105,6 +105,20 @@ const openDocument = async (uuid: string, name: string) => {
 
 const editItem = () => { if (dms.selectedItem) dms.startItemEditing() }
 const deleteItem = () => { if (dms.selectedItem) dms.startItemArchiving() }
+
+// ─── Prev / Next navigation ───────────────────────────────────────────────
+const currentItemIndex = computed(() => displayItems.value.findIndex(i => i.uuid === dms.selectedItem?.uuid))
+const hasPrev = computed(() => currentItemIndex.value > 0)
+const hasNext = computed(() => currentItemIndex.value < displayItems.value.length - 1)
+
+const navigatePrev = () => {
+  const prev = displayItems.value[currentItemIndex.value - 1]
+  if (prev) dms.setSelectedItem(prev)
+}
+const navigateNext = () => {
+  const next = displayItems.value[currentItemIndex.value + 1]
+  if (next) dms.setSelectedItem(next)
+}
 const destroyItem = async () => { if (dms.selectedItem?.uuid && confirm(`PERMANENTLY DESTROY '${dms.selectedItem.name}'?`)) { await ItemService.destroy(dms.selectedItem.uuid); push.success('Destroyed'); refetch(); dms.setSelectedItem(null) } }
 const restoreItem = async () => { if (dms.selectedItem?.uuid) { await ItemService.restore(dms.selectedItem.uuid); push.success('Restored'); refetch(); dms.setSelectedItem(null) } }
 const addItemAction = () => { if (dms.selectedItem?.uuid) workflow.startActionCreation({ itemId: dms.selectedItem.uuid }) }
@@ -253,6 +267,8 @@ const detailPaneSize = computed(() => isMaximized.value ? 100 : (!props.layout ?
             <div class="flex-1 h-full relative flex flex-col">
               <DocumentPreview :identifier="dms.selectedItem?.uuid || ''" source="item" :file-name="dms.selectedItem?.name" />
               <div class="absolute top-2 right-2 z-20 flex gap-1 transition-opacity opacity-0 group-hover/pane:opacity-100">
+                <button :disabled="!hasPrev" class="p-1.5 bg-background/80 backdrop-blur-sm rounded-md shadow-sm border border-border hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-default" title="Previous item (↑)" @click="navigatePrev"><ChevronUp :size="16" /></button>
+                <button :disabled="!hasNext" class="p-1.5 bg-background/80 backdrop-blur-sm rounded-md shadow-sm border border-border hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-default" title="Next item (↓)" @click="navigateNext"><ChevronDown :size="16" /></button>
                 <button class="p-1.5 bg-background/80 backdrop-blur-sm rounded-md shadow-sm border border-border hover:text-primary transition-colors" @click="toggleMaximize"><component :is="isMaximized ? Minimize2 : Maximize2" :size="16" /></button>
                 <button class="p-1.5 bg-background/80 backdrop-blur-sm rounded-md shadow-sm border border-border hover:text-primary transition-colors" @click="toggleProperties"><Sidebar :size="16" /></button>
               </div>

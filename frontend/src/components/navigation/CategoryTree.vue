@@ -264,6 +264,13 @@ const onKeyDown = (e: KeyboardEvent) => {
 
 watch(() => dms.parentCategoryForCreation, (pid) => { if (!props.selectionMode && pid) expandedIds.value.add(pid) })
 
+// Auto-select the sole result when search narrows to exactly one node
+watch(visibleNodes, (nodes) => {
+    if (searchQuery.value.trim() && nodes.length === 1) {
+        selectNode(nodes[0].id, nodes[0].label)
+    }
+})
+
 const cycleContext = () => {
   if (props.selectionMode) return
   const currentIdx = ERootCategoryList.indexOf(activeContextKey.value as any)

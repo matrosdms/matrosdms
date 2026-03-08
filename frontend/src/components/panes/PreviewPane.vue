@@ -3,9 +3,12 @@ import { computed } from 'vue'
 import { useUIStore } from '@/stores/ui'
 import { useDmsStore } from '@/stores/dms'
 import { useHotkeys } from '@/composables/useHotkeys'
-import { ViewMode } from '@/enums'
-import { ArrowLeft, FileText, Columns, Eye, X } from 'lucide-vue-next'
+import { ViewMode, EArchiveFilter } from '@/enums'
+import { ArrowLeft, FileText, Columns, Eye, X, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import DocumentPreview from '@/components/ui/DocumentPreview.vue'
+import { useQuery } from '@tanstack/vue-query'
+import { ItemService } from '@/services/ItemService'
+import { queryKeys } from '@/composables/queries/queryKeys'
 
 const ui = useUIStore()
 const dms = useDmsStore()
@@ -14,6 +17,27 @@ const dms = useDmsStore()
 const identifier = computed(() => ui.panelData.id)
 const source = computed(() => ui.panelData.source || 'item')
 const title = computed(() => ui.panelData.name || 'Document Preview')
+
+// ─── Prev / Next within context ───────────────────────────────────────────
+const contextId = computed(() => source.value === 'item' ? dms.selectedContext?.uuid : null)
+const { data: contextItems } = useQuery({
+  queryKey: computed(() => contextId.value ? [...queryKeys.items.byContext(contextId.value), EArchiveFilter.ACTIVE_ONLY] : ['__disabled__']),
+  queryFn: () => ItemService.getByContext(contextId.value!, EArchiveFilter.ACTIVE_ONLY),
+  enabled: computed(() => !!contextId.value),
+  staleTime: 60_000,
+})
+const currentIndex = computed(() => (contextItems.value ?? []).findIndex(i => i.uuid === identifier.value))
+const hasPrev = computed(() => currentIndex.value > 0)
+const hasNext = computed(() => currentIndex.value !== -1 && currentIndex.value < (contextItems.value?.length ?? 0) - 1)
+
+const navigatePrev = () => {
+  const prev = contextItems.value?.[currentIndex.value - 1]
+  if (prev?.uuid) { dms.setSelectedItem(prev); ui.setRightPanel(ViewMode.PREVIEW, { id: prev.uuid, name: prev.name, source: 'item' }) }
+}
+const navigateNext = () => {
+  const next = contextItems.value?.[currentIndex.value + 1]
+  if (next?.uuid) { dms.setSelectedItem(next); ui.setRightPanel(ViewMode.PREVIEW, { id: next.uuid, name: next.name, source: 'item' }) }
+}
 
 const goBack = () => {
     // If it was an item, ensure selection is kept so list scrolls to it
@@ -54,6 +78,13 @@ const switchToMetadata = () => {
       </div>
       
       <div class="flex gap-2 items-center">
+          <!-- Prev / Next (only for context items) -->
+          <div v-if="source === 'item' && contextItems && contextItems.length > 1" class="flex items-center gap-0.5 mr-1">
+            <button :disabled="!hasPrev" @click="navigatePrev" class="p-1.5 rounded transition-all text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-25 disabled:cursor-default" title="Previous document (↑)"><ChevronUp :size="16" /></button>
+            <span class="text-[10px] font-mono text-muted-foreground tabular-nums">{{ currentIndex + 1 }}/{{ contextItems.length }}</span>
+            <button :disabled="!hasNext" @click="navigateNext" class="p-1.5 rounded transition-all text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-25 disabled:cursor-default" title="Next document (↓)"><ChevronDown :size="16" /></button>
+          </div>
+
           <!-- View Toggles (Only for stored items) -->
           <div v-if="source === 'item'" class="flex bg-gray-100 dark:bg-gray-700 rounded-md p-0.5 border border-gray-200 dark:border-gray-600 transition-colors mr-2">
               <button @click="switchToSplit" class="p-1.5 rounded transition-all text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Split View"><Columns :size="14" /></button>

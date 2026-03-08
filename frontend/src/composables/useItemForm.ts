@@ -136,17 +136,7 @@ export function useItemForm(isEdit: boolean) {
             overallConfidence: overall
         }
 
-        // 1. Name / Summary
-        const desc = p.summary || p.predictedDescription
-        if (desc) {
-            snapshot.name = { value: desc, confidence: fieldConf.summary ?? overall }
-            if (!form.value.name) {
-                form.value.name = desc
-                aiHighlights.value.name = true
-            }
-        }
-
-        // 2. Issue Date
+        // 1. Issue Date
         const date = p.documentDate || p.predictedDate
         if (date) {
             snapshot.date = { value: date, confidence: fieldConf.documentDate ?? overall }
