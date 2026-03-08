@@ -10,7 +10,7 @@ defineProps<{
 </script>
 
 <template>
-  <div :class="cn('rounded-xl border bg-card text-card-foreground shadow-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800', $props.class)">
+  <div :class="cn('matros-card', $props.class)">
     
     <!-- Header -->
     <div v-if="title || $slots.header || $slots.actions" class="flex flex-col space-y-1.5 p-6 border-b border-gray-100 dark:border-gray-800">

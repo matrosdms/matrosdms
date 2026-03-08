@@ -161,19 +161,19 @@ const goBack = () => {
             <!-- TAB: CONSOLE -->
             <div v-if="activeTab === 'console'" class="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full flex flex-col bg-gray-50 dark:bg-[#1e1e1e] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 transition-colors">
                 <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-[#333] bg-white dark:bg-[#252526] select-none shrink-0 transition-colors">
-                    <button @click="filters.error = !filters.error" class="log-filter-btn text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/30" :class="filters.error ? 'bg-red-50 dark:bg-red-400/10' : 'opacity-50 grayscale hover:opacity-80'">
+                    <button @click="filters.error = !filters.error" class="log-filter-btn text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/30" :class="filters.error ? 'bg-red-50 dark:bg-red-400/10' : 'btn-inactive'">
                         <AlertCircle :size="12" /> Errors
                     </button>
-                    <button @click="filters.warning = !filters.warning" class="log-filter-btn text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-900/30" :class="filters.warning ? 'bg-yellow-50 dark:bg-yellow-400/10' : 'opacity-50 grayscale hover:opacity-80'">
+                    <button @click="filters.warning = !filters.warning" class="log-filter-btn text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-900/30" :class="filters.warning ? 'bg-yellow-50 dark:bg-yellow-400/10' : 'btn-inactive'">
                         <AlertTriangle :size="12" /> Warnings
                     </button>
-                    <button @click="filters.success = !filters.success" class="log-filter-btn text-green-600 dark:text-green-400 border-green-200 dark:border-green-900/30" :class="filters.success ? 'bg-green-50 dark:bg-green-400/10' : 'opacity-50 grayscale hover:opacity-80'">
+                    <button @click="filters.success = !filters.success" class="log-filter-btn text-green-600 dark:text-green-400 border-green-200 dark:border-green-900/30" :class="filters.success ? 'bg-green-50 dark:bg-green-400/10' : 'btn-inactive'">
                         <CheckCircle :size="12" /> Success
                     </button>
-                    <button @click="filters.info = !filters.info" class="log-filter-btn text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/30" :class="filters.info ? 'bg-blue-50 dark:bg-blue-400/10' : 'opacity-50 grayscale hover:opacity-80'">
+                    <button @click="filters.info = !filters.info" class="log-filter-btn text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/30" :class="filters.info ? 'bg-blue-50 dark:bg-blue-400/10' : 'btn-inactive'">
                         <Info :size="12" /> Info
                     </button>
-                    <button @click="filters.debug = !filters.debug" class="log-filter-btn text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700" :class="filters.debug ? 'bg-gray-100 dark:bg-gray-400/10' : 'opacity-50 grayscale hover:opacity-80'">
+                    <button @click="filters.debug = !filters.debug" class="log-filter-btn text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700" :class="filters.debug ? 'bg-gray-100 dark:bg-gray-400/10' : 'btn-inactive'">
                         <Bug :size="12" /> Debug
                     </button>
                     
@@ -224,9 +224,3 @@ const goBack = () => {
   </div>
 </template>
 
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; }
-.log-filter-btn { @apply flex items-center gap-1.5 px-2 py-1 rounded border text-[11px] font-medium transition-all; }
-</style>

@@ -42,8 +42,8 @@ const onAddComment = (msg: string) => { addHistoryEntry(msg, auth.currentUser?.n
   <BaseFormPanel :title="isEdit ? 'Edit Task' : 'New Task'" :subtitle="hasExternal ? `Synced: ${form.externalActionTracker}` : ''" :is-loading="isLoading" @submit="save" @cancel="workflow.cancelCreation" :wide="activeTab === 'preview'">
     <template #header-actions>
         <div v-if="form.itemIdentifier" class="flex bg-muted/50 rounded-md p-0.5 border border-border">
-            <button @click="activeTab = 'form'" class="p-1.5 rounded-sm transition-all" :class="activeTab === 'form' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'"><ListChecks :size="14" /></button>
-            <button @click="activeTab = 'preview'" class="p-1.5 rounded-sm transition-all" :class="activeTab === 'preview' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'"><Eye :size="14" /></button>
+            <button @click="activeTab = 'form'" class="p-1.5 rounded-sm transition-all" :class="activeTab === 'form' ? 'tab-active' : 'tab-inactive'"><ListChecks :size="14" /></button>
+            <button @click="activeTab = 'preview'" class="p-1.5 rounded-sm transition-all" :class="activeTab === 'preview' ? 'tab-active' : 'tab-inactive'"><Eye :size="14" /></button>
         </div>
     </template>
 

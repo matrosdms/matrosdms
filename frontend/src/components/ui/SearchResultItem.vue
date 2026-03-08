@@ -62,7 +62,7 @@ const props = withDefaults(defineProps<{
 </template>
 
 <style>
-/* Style for backend-provided highlight tags usually <em> or <mark> */
+@reference "tailwindcss";
 em, mark {
     @apply bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 font-bold not-italic px-0.5 rounded;
 }

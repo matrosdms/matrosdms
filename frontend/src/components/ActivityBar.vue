@@ -30,7 +30,7 @@ const setMode = (mode) => {
         variant="ghost" 
         size="icon" 
         @click="setMode('tags')" 
-        :class="ui.currentView === 'dms' && ui.sidebarMode === 'tags' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'" 
+        :class="ui.currentView === 'dms' && ui.sidebarMode === 'tags' ? 'nav-active' : 'text-muted-foreground'" 
         title="Tags & Categories"
     >
         <Tags :size="22" />
@@ -41,7 +41,7 @@ const setMode = (mode) => {
             variant="ghost" 
             size="icon" 
             @click="setMode('inbox')" 
-            :class="ui.currentView === 'dms' && ui.sidebarMode === 'inbox' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'" 
+            :class="ui.currentView === 'dms' && ui.sidebarMode === 'inbox' ? 'nav-active' : 'text-muted-foreground'" 
             title="Inbox"
         >
             <Inbox :size="22" />
@@ -56,7 +56,7 @@ const setMode = (mode) => {
         variant="ghost" 
         size="icon" 
         @click="setMode('actions')" 
-        :class="ui.currentView === 'dms' && ui.sidebarMode === 'actions' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'" 
+        :class="ui.currentView === 'dms' && ui.sidebarMode === 'actions' ? 'nav-active' : 'text-muted-foreground'" 
         title="Tasks / Actions"
     >
         <CheckSquare :size="22" />
@@ -69,7 +69,7 @@ const setMode = (mode) => {
         variant="ghost" 
         size="icon" 
         @click="$emit('switch-view', 'search')" 
-        :class="ui.currentView === 'search' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'" 
+        :class="ui.currentView === 'search' ? 'nav-active' : 'text-muted-foreground'" 
         title="Advanced Search"
     >
         <Search :size="22" />
@@ -79,7 +79,7 @@ const setMode = (mode) => {
         variant="ghost" 
         size="icon" 
         @click="$emit('switch-view', 'ai')" 
-        :class="ui.currentView === 'ai' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'" 
+        :class="ui.currentView === 'ai' ? 'nav-active' : 'text-muted-foreground'" 
         title="AI Assistant"
     >
         <Sparkles :size="22" />
@@ -104,7 +104,7 @@ const setMode = (mode) => {
         variant="ghost" 
         size="icon" 
         @click="$emit('switch-view', 'about')" 
-        :class="ui.currentView === 'about' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'" 
+        :class="ui.currentView === 'about' ? 'nav-active' : 'text-muted-foreground'" 
         title="System Info"
     >
         <Info :size="20" />
@@ -114,7 +114,7 @@ const setMode = (mode) => {
         variant="ghost" 
         size="icon" 
         @click="$emit('switch-view', 'settings')" 
-        :class="ui.currentView === 'settings' ? 'bg-primary/10 text-primary' : 'text-muted-foreground'" 
+        :class="ui.currentView === 'settings' ? 'nav-active' : 'text-muted-foreground'" 
         title="Settings"
     >
         <Settings :size="20" />

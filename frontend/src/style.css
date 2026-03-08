@@ -1,6 +1,50 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* ── Class-based dark mode (matches store toggle on <html class="dark">) ── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Theme tokens ── */
+@theme {
+  /* Theme-responsive colors (resolve via CSS variables at runtime) */
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  /* Primary (theme-responsive) */
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-hover: hsl(var(--primary-hover));
+  --color-primary-light: hsl(var(--primary-light));
+
+  /* Muted (theme-responsive) */
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  /* Destructive (theme-responsive) */
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-hover: hsl(var(--destructive-hover));
+  --color-destructive-light: hsl(var(--destructive-light));
+
+  /* Success (theme-responsive) */
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-success-light: hsl(var(--success-light));
+
+  /* Warning (theme-responsive) */
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-warning-light: hsl(var(--warning-light));
+
+  /* Border radius */
+  --radius-lg: 0.5rem;
+  --radius-md: 0.375rem;
+  --radius-sm: 0.25rem;
+}
+
+/* ── CSS custom properties for light / dark theming ── */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -8,12 +52,22 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
-    /* Semantic Blue defined as Primary */
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
-    /* Muted Colors (Light Mode) */
+    --primary-hover: 217.5 81% 47.3%;
+    --primary-light: 213.8 100% 96.9%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-hover: 0 72.2% 50.6%;
+    --destructive-light: 0 85.7% 97.3%;
+    --success: 160.1 84.1% 39.4%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 151.8 81% 95.9%;
+    --warning: 37.7 92.1% 50.2%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 48 96.5% 88.8%;
   }
   .dark {
     --background: 222.2 84% 4.9%;
@@ -21,84 +75,141 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
-    /* Muted Colors (Dark Mode) */
+    --primary: 213.1 93.9% 67.8%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --primary-hover: 217.2 91.2% 59.8%;
+    --primary-light: 217.2 32.6% 17.5%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 85.7% 97.3%;
+    --destructive-hover: 0 72.2% 50.6%;
+    --destructive-light: 0 62.8% 20%;
+    --success: 160.1 84.1% 39.4%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 160.1 40% 16%;
+    --warning: 37.7 92.1% 50.2%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 37.7 40% 16%;
   }
-  * { 
-    @apply border-border; 
+  * {
+    @apply border-border;
   }
-  body { 
-    @apply bg-background text-foreground; 
+  body {
+    @apply bg-background text-foreground;
   }
 }
+
+/* ── Component classes ── */
 @layer components {
-/* Layout Structures */
-.panel-header {
-@apply p-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700 bg-[#f0f2f5] dark:bg-gray-800 h-[35px] select-none shrink-0;
-}
-.panel-filter {
-@apply p-1.5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0;
-}
-/* Form Elements */
-.input-std {
-@apply w-full border border-blue-300 dark:border-gray-600 outline-none p-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-sm transition-all shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-400;
-}
-/* Common UI Patterns */
-.matros-card {
-@apply bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden;
-}
-.badge {
-@apply px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border;
-}
-.badge-green { @apply bg-green-50 text-green-700 border-green-200; }
-.badge-blue { @apply bg-blue-50 text-blue-700 border-blue-200; }
-.badge-gray { @apply bg-gray-100 text-gray-600 border-gray-200; }
-/* Interactive Elements */
-.btn-icon {
-@apply p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-gray-700 transition-all duration-200 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95 active:bg-gray-300/50 dark:active:bg-gray-600/50;
-}
-.btn-icon-danger {
-@apply p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95;
-}
-.btn-icon-primary {
-@apply p-1.5 rounded-md text-primary hover:text-blue-700 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95;
-}
-/* Tag Styles */
-.matros-tag {
-@apply px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center border-2 whitespace-nowrap transition-all cursor-default select-none shadow-sm;
-}
-.matros-tag-who { @apply bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 hover:border-blue-400; }
-.matros-tag-what { @apply bg-green-50 text-green-700 border-green-300 hover:bg-green-100 hover:border-green-400; }
-.matros-tag-where { @apply bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 hover:border-orange-400; }
-.matros-tag-kind { @apply bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100 hover:border-purple-400; }
-.matros-tag-default { @apply bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200; }
+  /* Layout Structures */
+  .panel-header {
+    @apply p-2 flex justify-between items-center border-b border-gray-200 dark:border-gray-700 bg-[#f0f2f5] dark:bg-gray-800 h-[35px] select-none shrink-0;
+  }
+  .panel-filter {
+    @apply p-1.5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0;
+  }
 
-/* Table Rows - Global States */
+  /* Form Elements */
+  .input-std {
+    @apply w-full border border-blue-300 dark:border-gray-600 outline-hidden p-1.5 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-sm transition-all shadow-sm placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-400;
+  }
 
-/* Selected State: Very subtle tint to indicate selection without overwhelming */
-.table-row-selected {
-  @apply bg-blue-50 dark:bg-[#1e293b] !important; 
-}
+  /* Common UI Patterns */
+  .matros-card {
+    @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden;
+  }
+  .badge {
+    @apply px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border;
+  }
+  .badge-green { @apply bg-green-50 text-green-700 border-green-200; }
+  .badge-blue  { @apply bg-blue-50 text-blue-700 border-blue-200; }
+  .badge-gray  { @apply bg-gray-100 text-gray-600 border-gray-200; }
 
-/* Selected Focus Indicator: Distinct left border */
-.table-row-selected::before {
-  content: "";
-  @apply absolute left-0 top-0 bottom-0 w-1 bg-blue-500 z-10;
-}
+  /* Interactive Elements — shared icon button base */
+  .btn-icon {
+    @apply p-1.5 rounded-md transition-all duration-200 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-gray-700 active:bg-gray-300/50 dark:active:bg-gray-600/50;
+  }
+  .btn-icon-danger {
+    @apply p-1.5 rounded-md transition-all duration-200 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20;
+  }
+  .btn-icon-primary {
+    @apply p-1.5 rounded-md transition-all duration-200 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95 text-primary hover:text-blue-700 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20;
+  }
 
-/* Hover effect on top of selection (slightly darker) */
-.table-row-selected:hover {
-  @apply bg-blue-100/50 dark:bg-[#263345] !important;
-}
+  /* Tag Styles */
+  .matros-tag {
+    @apply px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center border-2 whitespace-nowrap transition-all cursor-default select-none shadow-sm;
+  }
+  .matros-tag-who     { @apply bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 hover:border-blue-400; }
+  .matros-tag-what    { @apply bg-green-50 text-green-700 border-green-300 hover:bg-green-100 hover:border-green-400; }
+  .matros-tag-where   { @apply bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 hover:border-orange-400; }
+  .matros-tag-kind    { @apply bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100 hover:border-purple-400; }
+  .matros-tag-default { @apply bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200; }
 
-/* Closed State */
-.table-row-closed {
-  @apply bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 italic;
-}
+  /* Context / Link Badges (reusable) */
+  .badge-link {
+    @apply flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase border;
+  }
+  .badge-link-purple {
+    @apply flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase border bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800;
+  }
+  .badge-link-blue {
+    @apply flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800;
+  }
 
-/* List Focus State - Indicates which pane is active */
-.pane-focused {
-  @apply ring-1 ring-inset ring-blue-400/50 dark:ring-blue-600/50;
-}
+  /* Table Rows – Global States */
+  .table-row-selected {
+    @apply !bg-blue-50 dark:!bg-[#1e293b];
+  }
+  .table-row-selected::before {
+    content: "";
+    @apply absolute left-0 top-0 bottom-0 w-1 bg-blue-500 z-10;
+  }
+  .table-row-selected:hover {
+    @apply !bg-blue-100/50 dark:!bg-[#263345];
+  }
+  .table-row-closed {
+    @apply bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 italic;
+  }
+
+  /* List Focus State */
+  .pane-focused {
+    @apply ring-1 ring-inset ring-blue-400/50 dark:ring-blue-600/50;
+  }
+
+  /* ── Reusable patterns (DRY) ── */
+
+  /* Tab toggle buttons (form header tab bars) */
+  .tab-active {
+    @apply bg-background shadow-sm text-primary;
+  }
+  .tab-inactive {
+    @apply text-muted-foreground hover:text-foreground;
+  }
+
+  /* Navigation active state (sidebar / activity bar) */
+  .nav-active {
+    @apply bg-primary/10 text-primary;
+  }
+
+  /* Inactive / disabled filter toggle */
+  .btn-inactive {
+    @apply opacity-50 grayscale hover:opacity-80;
+  }
+
+  /* Log filter button */
+  .log-filter-btn {
+    @apply flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-medium transition-all;
+  }
+
+  /* Custom thin scrollbar */
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; }
+
+  /* Search result highlight */
+  .highlight-mark {
+    @apply bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 font-bold not-italic px-0.5 rounded;
+  }
 }

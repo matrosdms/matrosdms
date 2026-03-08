@@ -53,15 +53,16 @@ const onResize = (key: 'sidebar' | 'workspace', panes: { size: number }[]) => {
 </template>
 
 <style scoped>
+@reference "tailwindcss";
 :deep(.splitpanes__splitter) {
     /* Widen hit area to 6px, keep visual line 1px via border-left */
-    @apply bg-transparent hover:bg-blue-500/10 transition-colors w-[6px] !important;
-    border-left: 1px solid theme('colors.border');
+    @apply !bg-transparent hover:!bg-blue-500/10 !transition-colors !w-[6px];
+    border-left: 1px solid var(--color-border);
     margin-left: -1px;
     position: relative;
     z-index: 20;
 }
 :deep(.splitpanes__splitter:hover) {
-    border-left-color: theme('colors.primary.DEFAULT');
+    border-left-color: var(--color-primary);
 }
 </style>

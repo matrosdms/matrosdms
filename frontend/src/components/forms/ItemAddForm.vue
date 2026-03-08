@@ -123,9 +123,9 @@ useHotkeys('Escape', () => {
               </div>
 
               <div class="flex bg-muted/50 rounded-md p-0.5 border border-border transition-colors">
-                  <button @click="activeTab = 'split'" class="hidden md:flex p-1.5 rounded transition-all" :class="activeTab === 'split' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'" title="Split View"><Columns :size="14" /></button>
-                  <button @click="activeTab = 'preview'" class="p-1.5 rounded transition-all" :class="activeTab === 'preview' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'" title="Document Only"><Eye :size="14" /></button>
-                  <button @click="activeTab = 'metadata'" class="p-1.5 rounded transition-all" :class="activeTab === 'metadata' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'" title="Form Only"><FileText :size="14" /></button>
+                  <button @click="activeTab = 'split'" class="hidden md:flex p-1.5 rounded transition-all" :class="activeTab === 'split' ? 'tab-active' : 'tab-inactive'" title="Split View"><Columns :size="14" /></button>
+                  <button @click="activeTab = 'preview'" class="p-1.5 rounded transition-all" :class="activeTab === 'preview' ? 'tab-active' : 'tab-inactive'" title="Document Only"><Eye :size="14" /></button>
+                  <button @click="activeTab = 'metadata'" class="p-1.5 rounded transition-all" :class="activeTab === 'metadata' ? 'tab-active' : 'tab-inactive'" title="Form Only"><FileText :size="14" /></button>
               </div>
           </div>
       </div>

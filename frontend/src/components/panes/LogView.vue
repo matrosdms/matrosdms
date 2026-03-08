@@ -90,21 +90,21 @@ const onDragStartStackItem = (event: DragEvent, item: any) => startDrag(event, '
       <div v-else-if="activeTab === 'logview'" class="h-full flex flex-col bg-[#1e1e1e] font-mono text-xs overflow-hidden text-gray-300">
         
         <div class="flex items-center gap-2 px-2 py-1 border-b border-[#333] bg-[#252526] select-none shrink-0 h-[30px]">
-            <button @click="filters.error = !filters.error" class="log-filter-btn text-red-400 border-red-900/30" :class="filters.error ? 'bg-red-400/10 border-red-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+            <button @click="filters.error = !filters.error" class="log-filter-btn text-red-400 border-red-900/30" :class="filters.error ? 'bg-red-400/10 border-red-500/50' : 'btn-inactive'">
                 <AlertCircle :size="11" /> {{ ui.logs.filter(l => l.type === 'error').length }} Errors
             </button>
             
-            <button @click="filters.warning = !filters.warning" class="log-filter-btn text-yellow-400 border-yellow-900/30" :class="filters.warning ? 'bg-yellow-400/10 border-yellow-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+            <button @click="filters.warning = !filters.warning" class="log-filter-btn text-yellow-400 border-yellow-900/30" :class="filters.warning ? 'bg-yellow-400/10 border-yellow-500/50' : 'btn-inactive'">
                 <AlertTriangle :size="11" /> Warnings
             </button>
 
-            <button @click="filters.success = !filters.success" class="log-filter-btn text-green-400 border-green-900/30" :class="filters.success ? 'bg-green-400/10 border-green-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+            <button @click="filters.success = !filters.success" class="log-filter-btn text-green-400 border-green-900/30" :class="filters.success ? 'bg-green-400/10 border-green-500/50' : 'btn-inactive'">
                 <CheckCircle :size="11" /> Success
             </button>
-            <button @click="filters.info = !filters.info" class="log-filter-btn text-blue-400 border-blue-900/30" :class="filters.info ? 'bg-blue-400/10 border-blue-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+            <button @click="filters.info = !filters.info" class="log-filter-btn text-blue-400 border-blue-900/30" :class="filters.info ? 'bg-blue-400/10 border-blue-500/50' : 'btn-inactive'">
                 <Info :size="11" /> Info
             </button>
-            <button @click="filters.debug = !filters.debug" class="log-filter-btn text-gray-400 border-gray-700" :class="filters.debug ? 'bg-gray-400/10 border-gray-500/50' : 'opacity-50 grayscale hover:opacity-80'">
+            <button @click="filters.debug = !filters.debug" class="log-filter-btn text-gray-400 border-gray-700" :class="filters.debug ? 'bg-gray-400/10 border-gray-500/50' : 'btn-inactive'">
                 <Bug :size="11" /> Debug
             </button>
             
@@ -148,6 +148,3 @@ const onDragStartStackItem = (event: DragEvent, item: any) => startDrag(event, '
   </div>
 </template>
 
-<style scoped>
-.log-filter-btn { @apply flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-medium transition-all; }
-</style>

@@ -173,22 +173,22 @@ const getRowClass = (row) => (row.uuid === selectedId.value || row.id === select
         </div>
         
         <div class="flex-1 p-2 space-y-1 overflow-hidden">
-          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'bg-primary/10 text-primary': activeTab === 'stores' }" @click="onTabChange('stores')">
+          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'nav-active': activeTab === 'stores' }" @click="onTabChange('stores')">
              <Box :size="18" class="mr-2"/> Stores
           </BaseButton>
-          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'bg-primary/10 text-primary': activeTab === 'users' }" @click="onTabChange('users')">
+          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'nav-active': activeTab === 'users' }" @click="onTabChange('users')">
              <Users :size="18" class="mr-2"/> Users
           </BaseButton>
-          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'bg-primary/10 text-primary': activeTab === 'attributes' }" @click="onTabChange('attributes')">
+          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'nav-active': activeTab === 'attributes' }" @click="onTabChange('attributes')">
              <List :size="18" class="mr-2"/> Attributes
           </BaseButton>
           
           <div class="my-2 border-t border-border"></div>
           
-          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'bg-primary/10 text-primary': activeTab === 'import' }" @click="onTabChange('import')">
+          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'nav-active': activeTab === 'import' }" @click="onTabChange('import')">
              <UploadCloud :size="18" class="mr-2"/> Import Categories
           </BaseButton>
-          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'bg-primary/10 text-primary': activeTab === 'jobs' }" @click="onTabChange('jobs')">
+          <BaseButton variant="ghost" class="w-full justify-start" :class="{ 'nav-active': activeTab === 'jobs' }" @click="onTabChange('jobs')">
              <Activity :size="18" class="mr-2"/> System Jobs
           </BaseButton>
 
