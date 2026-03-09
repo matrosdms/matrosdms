@@ -8410,13 +8410,13 @@
             "PageMSearchResult": {
                 "type": "object",
                 "properties": {
-                    "totalElements": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
                     "totalPages": {
                         "type": "integer",
                         "format": "int32"
+                    },
+                    "totalElements": {
+                        "type": "integer",
+                        "format": "int64"
                     },
                     "size": {
                         "type": "integer",
@@ -8460,16 +8460,16 @@
                         "type": "integer",
                         "format": "int64"
                     },
-                    "pageNumber": {
-                        "type": "integer",
-                        "format": "int32"
+                    "paged": {
+                        "type": "boolean"
                     },
                     "pageSize": {
                         "type": "integer",
                         "format": "int32"
                     },
-                    "paged": {
-                        "type": "boolean"
+                    "pageNumber": {
+                        "type": "integer",
+                        "format": "int32"
                     },
                     "sort": {
                         "$ref": "#/components/schemas/SortObject"
@@ -9014,13 +9014,13 @@
             "PageJobMessage": {
                 "type": "object",
                 "properties": {
-                    "totalElements": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
                     "totalPages": {
                         "type": "integer",
                         "format": "int32"
+                    },
+                    "totalElements": {
+                        "type": "integer",
+                        "format": "int64"
                     },
                     "size": {
                         "type": "integer",
@@ -9069,13 +9069,13 @@
             "PageMItem": {
                 "type": "object",
                 "properties": {
-                    "totalElements": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
                     "totalPages": {
                         "type": "integer",
                         "format": "int32"
+                    },
+                    "totalElements": {
+                        "type": "integer",
+                        "format": "int64"
                     },
                     "size": {
                         "type": "integer",
@@ -9157,13 +9157,13 @@
             "PageMAction": {
                 "type": "object",
                 "properties": {
-                    "totalElements": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
                     "totalPages": {
                         "type": "integer",
                         "format": "int32"
+                    },
+                    "totalElements": {
+                        "type": "integer",
+                        "format": "int64"
                     },
                     "size": {
                         "type": "integer",

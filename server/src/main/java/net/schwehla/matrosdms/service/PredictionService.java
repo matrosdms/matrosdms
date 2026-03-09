@@ -27,7 +27,6 @@ import net.schwehla.matrosdms.repository.CategoryRepository;
 import net.schwehla.matrosdms.service.domain.AttributeLookupService;
 import net.schwehla.matrosdms.service.domain.ContextService;
 import net.schwehla.matrosdms.service.message.DigestResultMessage;
-import net.schwehla.matrosdms.service.CategoryLookupService;
 
 @Service
 public class PredictionService {

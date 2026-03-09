@@ -11,12 +11,12 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.LinkedHashMap;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.ahocorasick.trie.Emit;
@@ -134,7 +134,8 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 			Trie.TrieBuilder builder = Trie.builder().ignoreCase().ignoreOverlaps().onlyWholeWords();
 			for (Candidate c : candidates.contexts()) {
 				String name = c.name().toLowerCase();
-				if (name.length() < 3) continue; // Skip very short names (too many false positives)
+				if (name.length() < 3)
+					continue; // Skip very short names (too many false positives)
 				builder.addKeyword(name);
 				contextMap.put(name, c);
 			}
@@ -146,7 +147,8 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 				Map<Candidate, Long> scores = new HashMap<>();
 				for (Emit e : emits) {
 					Candidate c = contextMap.get(e.getKeyword().toLowerCase());
-					if (c != null) scores.merge(c, 1L, Long::sum);
+					if (c != null)
+						scores.merge(c, 1L, Long::sum);
 				}
 				Optional<Map.Entry<Candidate, Long>> best = scores.entrySet().stream()
 						.max(Comparator.comparingLong(Map.Entry::getValue));
@@ -154,7 +156,8 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 				if (best.isPresent()) {
 					selectedContext = best.get().getKey();
 					p.setContext(selectedContext.uuid());
-					p.setSummary("Matched folder '" + selectedContext.name() + "' (" + best.get().getValue() + "x in text)");
+					p.setSummary(
+							"Matched folder '" + selectedContext.name() + "' (" + best.get().getValue() + "x in text)");
 					// Confidence scales with frequency: 1 hit = 0.80, 3+ hits = 0.92
 					double textConf = Math.min(0.92, 0.80 + (best.get().getValue() - 1) * 0.06);
 					fieldConf.put("context", textConf);
@@ -165,14 +168,16 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 		// ── PHASE B: Kind detection ─────────────────────────────────────────────────
 
 		if (selectedContext != null) {
-			// B1. Majority-vote : last N documents filed into this context → most common kind
+			// B1. Majority-vote : last N documents filed into this context → most common
+			// kind
 			boolean kindMatched = proposeBestKindFromContext(selectedContext.uuid(), candidates.kinds(), p);
 			if (kindMatched) {
 				fieldConf.put("kind", 0.72);
 			}
 		}
 
-		// B2. Semantic similarity: search nearest-neighbour docs by fulltext → cross-ref kind
+		// B2. Semantic similarity: search nearest-neighbour docs by fulltext →
+		// cross-ref kind
 		if (!fieldConf.containsKey("kind") && !normalizedText.isBlank()) {
 			boolean semanticKind = proposeSimilarDocKind(normalizedText, candidates.kinds(), p,
 					selectedContext != null ? selectedContext.uuid() : null);
@@ -215,19 +220,21 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 	/**
 	 * Dynamic filename history scorer.
 	 * For each context candidate, fetches the most recently filed documents and
-	 * scores the incoming filename against their actual filenames using two signals:
+	 * scores the incoming filename against their actual filenames using two
+	 * signals:
 	 * <ol>
-	 *   <li><b>Extension match</b>: ratio of historical files sharing the same
-	 *       file extension as the incoming filename (weight 0.5)</li>
-	 *   <li><b>Token overlap</b>: Jaccard-like overlap of filename tokens (split on
-	 *       {@code [._\- 0-9]}) between the incoming name and the historical corpus
-	 *       (weight 0.5)</li>
+	 * <li><b>Extension match</b>: ratio of historical files sharing the same
+	 * file extension as the incoming filename (weight 0.5)</li>
+	 * <li><b>Token overlap</b>: Jaccard-like overlap of filename tokens (split on
+	 * {@code [._\- 0-9]}) between the incoming name and the historical corpus
+	 * (weight 0.5)</li>
 	 * </ol>
 	 * Returns the best-scoring context if its combined score exceeds 0.35.
 	 * Returns {@code null} if no context passes the threshold.
 	 */
 	private Candidate scoreContextByFilenameHistory(String incomingFilename, List<Candidate> contexts) {
-		if (contexts == null || contexts.isEmpty() || incomingFilename.isBlank()) return null;
+		if (contexts == null || contexts.isEmpty() || incomingFilename.isBlank())
+			return null;
 
 		// Extract extension and tokens from the incoming filename
 		String incomingExt = extractExtension(incomingFilename);
@@ -244,7 +251,8 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 				criteria.setValue(ctx.uuid());
 
 				Page<MSearchResult> results = searchService.search(criteria, 0, 15);
-				if (!results.hasContent()) continue;
+				if (!results.hasContent())
+					continue;
 
 				List<String> histFilenames = results.getContent().stream()
 						.map(MSearchResult::getFilename)
@@ -252,7 +260,8 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 						.map(String::toLowerCase)
 						.collect(Collectors.toList());
 
-				if (histFilenames.isEmpty()) continue;
+				if (histFilenames.isEmpty())
+					continue;
 
 				// Signal 1: extension match ratio
 				double extScore = 0.0;
@@ -299,14 +308,17 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 		return (dot >= 0 && dot < filename.length() - 1) ? filename.substring(dot + 1).toLowerCase() : "";
 	}
 
-	/** Splits a filename into meaningful tokens, ignoring digits and short tokens. */
+	/**
+	 * Splits a filename into meaningful tokens, ignoring digits and short tokens.
+	 */
 	private java.util.Set<String> tokenizeFilename(String filename) {
 		String base = filename.contains(".") ? filename.substring(0, filename.lastIndexOf('.')) : filename;
 		String[] parts = base.split("[._ \\-]+");
 		java.util.Set<String> tokens = new java.util.HashSet<>();
 		for (String p : parts) {
 			String t = p.toLowerCase().replaceAll("[0-9]", "");
-			if (t.length() >= 3) tokens.add(t);
+			if (t.length() >= 3)
+				tokens.add(t);
 		}
 		return tokens;
 	}
@@ -316,13 +328,15 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 	 * Returns the best-scoring candidate, or null if no match above threshold.
 	 */
 	private Candidate scoreKindFromText(String normalizedText, List<Candidate> kinds) {
-		if (kinds == null || kinds.isEmpty()) return null;
+		if (kinds == null || kinds.isEmpty())
+			return null;
 
 		Candidate best = null;
 		int bestScore = 0;
 
 		for (Candidate kind : kinds) {
-			if (kind.name() == null || kind.name().length() < 3) continue;
+			if (kind.name() == null || kind.name().length() < 3)
+				continue;
 			int score = countOccurrences(normalizedText, kind.name().toLowerCase());
 			// Also check description keywords
 			if (kind.description() != null && !kind.description().isBlank()) {
@@ -404,13 +418,14 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 	 * Fetches the N most recent documents stored in the given context and
 	 * determines the most common KIND via majority vote.
 	 *
-	 * Confidence scales with the vote ratio:  4/5 same kind → 0.88, 5/5 → 0.92.
+	 * Confidence scales with the vote ratio: 4/5 same kind → 0.88, 5/5 → 0.92.
 	 * Minimum required: at least 2 votes.
 	 *
 	 * @return true if a kind was inferred with sufficient confidence
 	 */
 	private boolean proposeBestKindFromContext(String contextUuid, List<Candidate> kinds, Prediction p) {
-		if (kinds == null || kinds.isEmpty()) return false;
+		if (kinds == null || kinds.isEmpty())
+			return false;
 		// Build a reverse name→candidate lookup (case-insensitive)
 		Map<String, Candidate> byName = kinds.stream().collect(
 				Collectors.toMap(c -> c.name().toLowerCase(), c -> c, (a, b) -> a));
@@ -423,7 +438,8 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 
 			// Fetch last 10 documents from this context
 			Page<MSearchResult> results = searchService.search(criteria, 0, 10);
-			if (!results.hasContent()) return false;
+			if (!results.hasContent())
+				return false;
 
 			// Build frequency map: kind UUID → vote count
 			Map<String, Integer> votes = new LinkedHashMap<>();
@@ -432,7 +448,8 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 
 			for (MSearchResult item : results.getContent()) {
 				List<String> tags = item.getTags();
-				if (tags == null) continue;
+				if (tags == null)
+					continue;
 				for (String tag : tags) {
 					Candidate c = byName.get(tag.toLowerCase());
 					if (c != null) {
@@ -444,17 +461,20 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 				}
 			}
 
-			if (votes.isEmpty() || total < 2) return false;
+			if (votes.isEmpty() || total < 2)
+				return false;
 
 			// Majority winner
 			Map.Entry<String, Integer> winner = votes.entrySet().stream()
 					.max(Comparator.comparingInt(Map.Entry::getValue))
 					.orElse(null);
-			if (winner == null) return false;
+			if (winner == null)
+				return false;
 
 			int winnerVotes = winner.getValue();
 			Candidate winnerCandidate = uuidToCandidate.get(winner.getKey());
-			if (winnerCandidate == null) return false;
+			if (winnerCandidate == null)
+				return false;
 
 			p.setKind(winnerCandidate.uuid());
 			double voteratio = (double) winnerVotes / results.getContent().size();
@@ -478,28 +498,33 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 
 	/**
 	 * Fulltext nearest-neighbour lookup: extracts key terms from the document text,
-	 * searches the whole corpus for similar documents, and majority-votes their KIND tags.
+	 * searches the whole corpus for similar documents, and majority-votes their
+	 * KIND tags.
 	 *
-	 * Optionally scoped to a specific context (AND filter) to reduce false positives.
+	 * Optionally scoped to a specific context (AND filter) to reduce false
+	 * positives.
 	 *
 	 * @return true if a kind was inferred from neighbours
 	 */
 	private boolean proposeSimilarDocKind(String normalizedText, List<Candidate> kinds, Prediction p,
 			String limitToContextUuid) {
-		if (kinds == null || kinds.isEmpty() || normalizedText.isBlank()) return false;
+		if (kinds == null || kinds.isEmpty() || normalizedText.isBlank())
+			return false;
 
 		Map<String, Candidate> byName = kinds.stream().collect(
 				Collectors.toMap(c -> c.name().toLowerCase(), c -> c, (a, b) -> a));
 
 		try {
-			// Extract 3-5 meaningful terms (≥5 chars) from the beginning of the text for the query
+			// Extract 3-5 meaningful terms (≥5 chars) from the beginning of the text for
+			// the query
 			String[] tokens = normalizedText.split("\\s+");
 			String queryTerms = java.util.Arrays.stream(tokens)
 					.filter(t -> t.length() >= 5 && t.matches("[a-zA-ZäöüÄÖÜßA-z]+"))
 					.limit(5)
 					.collect(Collectors.joining(" "));
 
-			if (queryTerms.isBlank()) return false;
+			if (queryTerms.isBlank())
+				return false;
 
 			SearchCriteria searchCriteria;
 			if (limitToContextUuid != null) {
@@ -521,7 +546,8 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 			}
 
 			Page<MSearchResult> results = searchService.search(searchCriteria, 0, 5);
-			if (!results.hasContent()) return false;
+			if (!results.hasContent())
+				return false;
 
 			// Majority vote on tags across similar documents
 			Map<String, Integer> votes = new LinkedHashMap<>();
@@ -529,7 +555,8 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 
 			for (MSearchResult item : results.getContent()) {
 				List<String> tags = item.getTags();
-				if (tags == null) continue;
+				if (tags == null)
+					continue;
 				for (String tag : tags) {
 					Candidate c = byName.get(tag.toLowerCase());
 					if (c != null) {
@@ -540,15 +567,18 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 				}
 			}
 
-			if (votes.isEmpty()) return false;
+			if (votes.isEmpty())
+				return false;
 
 			Map.Entry<String, Integer> winner = votes.entrySet().stream()
 					.max(Comparator.comparingInt(Map.Entry::getValue))
 					.orElse(null);
-			if (winner == null || winner.getValue() < 2) return false; // Need at least 2 agreeing neighbours
+			if (winner == null || winner.getValue() < 2)
+				return false; // Need at least 2 agreeing neighbours
 
 			Candidate winnerCandidate = uuidToCandidate.get(winner.getKey());
-			if (winnerCandidate == null) return false;
+			if (winnerCandidate == null)
+				return false;
 
 			p.setKind(winnerCandidate.uuid());
 			String summary = "Type '" + winnerCandidate.name() + "' from " + winner.getValue() + " similar documents";

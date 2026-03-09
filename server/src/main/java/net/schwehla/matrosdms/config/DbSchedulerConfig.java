@@ -81,9 +81,9 @@ public class DbSchedulerConfig {
 
 						IntegrityReport report = adminService.runIntegrityCheck();
 
-String result = String.format("Checked %d items. Missing: %d, Corrupt: %d, Orphaned Index: %d",
-							report.getTotalDbItems(), report.getMissingCount(), report.getCorruptCount(),
-							report.getOrphanedIndexCount());
+						String result = String.format("Checked %d items. Missing: %d, Corrupt: %d, Orphaned Index: %d",
+								report.getTotalDbItems(), report.getMissingCount(), report.getCorruptCount(),
+								report.getOrphanedIndexCount());
 
 						// 1. Log details to Database (for UI History)
 						for (IntegrityReport.MissingItem item : report.getMissingItems()) {
@@ -93,7 +93,8 @@ String result = String.format("Checked %d items. Missing: %d, Corrupt: %d, Orpha
 							job.addLog("ERROR", "Corrupt: " + item.name + " (" + item.uuid + ")");
 						}
 						for (IntegrityReport.OrphanedIndexItem item : report.getOrphanedIndexItems()) {
-							job.addLog("WARN", "Orphaned Index (not in DB): " + item.uuid + " — run Reindex Search to fix");
+							job.addLog("WARN",
+									"Orphaned Index (not in DB): " + item.uuid + " — run Reindex Search to fix");
 						}
 
 						// 2. Mark Complete

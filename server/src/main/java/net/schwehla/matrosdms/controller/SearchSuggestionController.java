@@ -18,9 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import net.schwehla.matrosdms.repository.AttributeTypeRepository;
 import net.schwehla.matrosdms.repository.CategoryRepository;
 import net.schwehla.matrosdms.repository.ContextRepository;
-import net.schwehla.matrosdms.repository.AttributeTypeRepository;
 import net.schwehla.matrosdms.repository.StoreRepository;
 
 import io.swagger.v3.oas.annotations.Operation;

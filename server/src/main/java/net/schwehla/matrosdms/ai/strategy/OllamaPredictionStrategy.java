@@ -9,6 +9,8 @@ package net.schwehla.matrosdms.ai.strategy;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
@@ -36,8 +38,6 @@ import net.schwehla.matrosdms.domain.ai.OllamaRequest;
 import net.schwehla.matrosdms.domain.ai.OllamaResponse;
 import net.schwehla.matrosdms.domain.inbox.Prediction;
 import net.schwehla.matrosdms.service.message.DigestResultMessage;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Component
 public class OllamaPredictionStrategy implements IPredictionStrategy {
@@ -155,10 +155,14 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 				double overallConf = dto.getConfidence() != null ? dto.getConfidence() : 0.80;
 				p.setConfidence(overallConf);
 				Map<String, Double> fieldConf = new LinkedHashMap<>();
-				if (dto.getContextUuid() != null) fieldConf.put("context", overallConf);
-				if (dto.getKindUuid()    != null) fieldConf.put("kind",    overallConf);
-				if (dto.getDate()        != null) fieldConf.put("documentDate", overallConf);
-				if (dto.getSummary()     != null) fieldConf.put("summary", overallConf);
+				if (dto.getContextUuid() != null)
+					fieldConf.put("context", overallConf);
+				if (dto.getKindUuid() != null)
+					fieldConf.put("kind", overallConf);
+				if (dto.getDate() != null)
+					fieldConf.put("documentDate", overallConf);
+				if (dto.getSummary() != null)
+					fieldConf.put("summary", overallConf);
 				p.setFieldConfidences(fieldConf);
 			}
 		} catch (JsonProcessingException e) {

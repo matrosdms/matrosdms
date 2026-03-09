@@ -22,12 +22,14 @@ cli/target/cli-0-SNAPSHOT.jar
 Create a wrapper script for convenience (optional):
 
 **Linux / macOS** — `~/bin/matros`:
+
 ```bash
 #!/usr/bin/env bash
 java -jar /opt/matrosdms/cli.jar "$@"
 ```
 
 **Windows** — `matros.cmd`:
+
 ```bat
 @echo off
 java -jar "C:\tools\matrosdms\cli.jar" %*
@@ -47,11 +49,11 @@ Subsequent commands read the token from this file automatically — no need to p
 matros login --server <url> --user <username> [--password <password>]
 ```
 
-| Option | Short | Required | Description |
-|---|---|---|---|
-| `--server` | `-s` | ✔ | Server base URL, e.g. `http://localhost:8080` |
-| `--user` | `-u` | ✔ | Username |
-| `--password` | `-p` | — | Password. If omitted, prompted interactively (recommended) |
+|    Option    | Short | Required |                        Description                         |
+|--------------|-------|----------|------------------------------------------------------------|
+| `--server`   | `-s`  | ✔        | Server base URL, e.g. `http://localhost:8080`              |
+| `--user`     | `-u`  | ✔        | Username                                                   |
+| `--password` | `-p`  | —        | Password. If omitted, prompted interactively (recommended) |
 
 **Examples:**
 
@@ -86,11 +88,11 @@ Requires an active session — run `matros login` first.
 matros find-duplicate --docfolder <path> --duplicate-folder <path> [--dry-run]
 ```
 
-| Option | Short | Required | Description |
-|---|---|---|---|
-| `--docfolder` | `-d` | ✔ | Source folder to scan recursively |
-| `--duplicate-folder` | `-t` | ✔ | Target folder for duplicates |
-| `--dry-run` | — | — | Log what would be moved without actually moving anything |
+|        Option        | Short | Required |                       Description                        |
+|----------------------|-------|----------|----------------------------------------------------------|
+| `--docfolder`        | `-d`  | ✔        | Source folder to scan recursively                        |
+| `--duplicate-folder` | `-t`  | ✔        | Target folder for duplicates                             |
+| `--dry-run`          | —     | —        | Log what would be moved without actually moving anything |
 
 **Examples:**
 
@@ -124,11 +126,11 @@ Done.  Scanned: 142  |  Duplicates: 37  |  Moved: 37  |  Errors: 0
 
 **Exit codes:**
 
-| Code | Meaning |
-|---|---|
-| `0` | Success, no errors |
-| `1` | Fatal error (bad arguments, source folder missing, not logged in) |
-| `2` | Completed but at least one file could not be processed |
+| Code |                              Meaning                              |
+|------|-------------------------------------------------------------------|
+| `0`  | Success, no errors                                                |
+| `1`  | Fatal error (bad arguments, source folder missing, not logged in) |
+| `2`  | Completed but at least one file could not be processed            |
 
 ---
 
@@ -141,12 +143,12 @@ running server — useful for disaster recovery.
 matros decrypt <file.enc> --password <pwd> --salt <salt> [--out <output>]
 ```
 
-| Argument / Option | Required | Description |
-|---|---|---|
-| `<file>` | ✔ | Path to the `.enc` file |
-| `--password` / `-p` | ✔ | Store encryption password |
-| `--salt` / `-s` | ✔ | Store encryption salt |
-| `--out` / `-o` | — | Output file path. If omitted, decrypted content is written to stdout |
+|  Argument / Option  | Required |                             Description                              |
+|---------------------|----------|----------------------------------------------------------------------|
+| `<file>`            | ✔        | Path to the `.enc` file                                              |
+| `--password` / `-p` | ✔        | Store encryption password                                            |
+| `--salt` / `-s`     | ✔        | Store encryption salt                                                |
+| `--out` / `-o`      | —        | Output file path. If omitted, decrypted content is written to stdout |
 
 **Examples:**
 
@@ -191,9 +193,10 @@ The log level can be adjusted at runtime via a system property:
 java -Dlogging.level.net.schwehla.matrosdms.cli=DEBUG -jar cli.jar find-duplicate ...
 ```
 
-| Level | Content |
-|---|---|
-| `INFO` (default) | Start/stop banners, duplicates found, files moved, summary |
-| `DEBUG` | Per-file hash, API URL, skip reasons, empty-dir cleanup |
-| `WARN` | Non-fatal issues (unreadable session file, cleanup failures) |
-| `ERROR` | Per-file processing failures |
+|      Level       |                           Content                            |
+|------------------|--------------------------------------------------------------|
+| `INFO` (default) | Start/stop banners, duplicates found, files moved, summary   |
+| `DEBUG`          | Per-file hash, API URL, skip reasons, empty-dir cleanup      |
+| `WARN`           | Non-fatal issues (unreadable session file, cleanup failures) |
+| `ERROR`          | Per-file processing failures                                 |
+
