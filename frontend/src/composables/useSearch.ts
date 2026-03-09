@@ -48,12 +48,27 @@ export function useSearch() {
         'text': ESearchDimension.FULLTEXT,
         'uuid': ESearchDimension.UUID,
         'id': ESearchDimension.UUID,
+        'attr': ESearchDimension.ATTRIBUTE,
     }
 
     const keysPattern = Object.keys(DIMENSION_MAP).join('|')
     const triggerRegex = new RegExp(`(?:^|\\s)(${keysPattern}):([^\\s]*)$`, 'i')
+    // attr: is special — attribute names may contain spaces, terminated by end-of-string
+    const attrTriggerRegex = /(?:^|\s)(attr):(.+)$/i
 
     // --- HELPERS ---
+
+    // Parses attr partial like "taxyear=2025" or "amount>500" into key/op/val
+    const parseAttrPartial = (partial: string): { attrKey: string; op: EOperator; attrVal: string } | null => {
+        const match = partial.match(/^([^=><~]+)(>=|<=|>|<|~|=)(.+)$/)
+        if (!match) return null
+        const [, attrKey, opStr, attrVal] = match
+        const op = opStr === '>=' ? EOperator.GTE : opStr === '<=' ? EOperator.LTE
+            : opStr === '>' ? EOperator.GT : opStr === '<' ? EOperator.LT
+            : opStr === '~' ? EOperator.CONTAINS : EOperator.EQ
+        return { attrKey: attrKey.trim(), op, attrVal }
+    }
+
     const parseInput = (input: string) => {
         if (!input) return { op: EOperator.EQ, val: '' }
         if (input.startsWith('>=')) return { op: EOperator.GTE, val: input.substring(2) }
@@ -65,7 +80,11 @@ export function useSearch() {
 
     const currentTrigger = computed(() => {
         const match = searchQuery.value.match(triggerRegex)
-        return match ? { raw: match[0], key: match[1].toLowerCase(), partial: match[2] } : null
+        if (match) return { raw: match[0], key: match[1].toLowerCase(), partial: match[2] }
+        // Fallback: attr: allows spaces in the attribute name portion
+        const attrMatch = searchQuery.value.match(attrTriggerRegex)
+        if (attrMatch) return { raw: attrMatch[0], key: 'attr', partial: attrMatch[2] }
+        return null
     })
 
     // Typed Tree Traversal
@@ -168,7 +187,21 @@ export function useSearch() {
                 }
             }
 
-            // 5. Fallback to Backend Autocomplete (e.g. Attributes)
+            // 5. Attribute type-name autocomplete
+            if (dim === ESearchDimension.ATTRIBUTE) {
+                // Only suggest key names while no operator has been typed yet
+                if (!/[=><~]/.test(partial)) {
+                    try {
+                        const sugs = await SearchService.getSuggestions('attr', partial)
+                        suggestions.value = sugs || []
+                    } catch(e) { suggestions.value = [] }
+                } else {
+                    suggestions.value = []
+                }
+                return
+            }
+
+            // 6. Fallback to Backend Autocomplete
             try {
                 const sugs = await SearchService.getSuggestions(key, partial)
                 suggestions.value = sugs || []
@@ -221,6 +254,33 @@ export function useSearch() {
 
         const { key, raw } = currentTrigger.value
         const backendField = DIMENSION_MAP[key]
+
+        // Resolve attribute name → UUID from shared query cache
+        if (backendField === ESearchDimension.ATTRIBUTE) {
+            const parsed = parseAttrPartial(val)
+            if (!parsed) {
+                // User selected an attribute name only — prompt for value
+                searchQuery.value = searchQuery.value.replace(raw, '').trim() + ` attr:${val}=`
+                suggestions.value = []
+                fetchSuggestions()
+                return
+            }
+            const cachedAttrTypes = queryClient.getQueryData<any[]>(queryKeys.admin.attributes)
+            const attrType = cachedAttrTypes?.find(
+                (a: any) => a.name?.toLowerCase() === parsed.attrKey.toLowerCase()
+            )
+            const attrUuid = attrType?.uuid ?? parsed.attrKey
+            activeFilters.value.push({
+                field: ESearchDimension.ATTRIBUTE,
+                operator: parsed.op,
+                value: `${attrUuid}=${parsed.attrVal}`,
+                label: `attr:${parsed.attrKey}=${parsed.attrVal}`
+            })
+            searchQuery.value = searchQuery.value.replace(raw, '').trim() + ' '
+            suggestions.value = []
+            return
+        }
+
         const { op, val: cleanVal } = parseInput(val)
         const finalValue = resolveUUID(key, cleanVal)
 

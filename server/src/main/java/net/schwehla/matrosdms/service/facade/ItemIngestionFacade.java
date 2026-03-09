@@ -19,6 +19,8 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -158,13 +160,43 @@ public class ItemIngestionFacade {
 
 			dbItem.setFile(metadata);
 
-			DBItem saved = itemRepository.save(dbItem);
+			DBItem saved = itemRepository.saveAndFlush(dbItem);
 
-			scheduler.schedule(
-					indexItemTask.instance("idx-" + saved.getUuid(), saved.getId()), Instant.now());
+			// Register transaction-aware callbacks:
+			// - afterCommit: schedule index + cleanup inbox (only if DB committed)
+			// - afterCompletion(ROLLBACK): remove orphaned file from disk
+			final String savedUuid = saved.getUuid();
+			final Long savedId = saved.getId();
 
-			inboxManager.moveToProcessed(hashOriginal);
-			pipelineService.cleanup(hashOriginal);
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					try {
+						scheduler.schedule(
+								indexItemTask.instance("idx-" + savedUuid, savedId), Instant.now());
+					} catch (Exception e) {
+						log.error("Failed to schedule index task for {} after commit", savedUuid, e);
+					}
+					try {
+						inboxManager.moveToProcessed(hashOriginal);
+						pipelineService.cleanup(hashOriginal);
+					} catch (Exception e) {
+						log.error("Failed inbox cleanup for hash {} after commit", hashOriginal, e);
+					}
+				}
+
+				@Override
+				public void afterCompletion(int status) {
+					if (status == STATUS_ROLLED_BACK) {
+						log.warn("Transaction rolled back — removing orphaned file for UUID: {}", savedUuid);
+						try {
+							storeService.moveToTrash(savedUuid);
+						} catch (Exception e) {
+							log.error("Failed to clean up orphaned file for UUID: {}", savedUuid, e);
+						}
+					}
+				}
+			});
 
 			return itemMapper.entityToModel(saved);
 

@@ -14,9 +14,11 @@ public class IntegrityReport {
 	private int totalDbItems;
 	private int missingCount;
 	private int corruptCount;
+	private int orphanedIndexCount;
 
 	private List<MissingItem> missingItems = new ArrayList<>();
 	private List<CorruptItem> corruptItems = new ArrayList<>();
+	private List<OrphanedIndexItem> orphanedIndexItems = new ArrayList<>();
 
 	public void addMissingItem(String uuid, String name) {
 		missingItems.add(new MissingItem(uuid, name));
@@ -26,6 +28,11 @@ public class IntegrityReport {
 	public void addCorruptItem(String uuid, String name, String expected, String actual) {
 		corruptItems.add(new CorruptItem(uuid, name, expected, actual));
 		corruptCount++;
+	}
+
+	public void addOrphanedIndexItem(String uuid) {
+		orphanedIndexItems.add(new OrphanedIndexItem(uuid));
+		orphanedIndexCount++;
 	}
 
 	public int getTotalDbItems() {
@@ -44,12 +51,20 @@ public class IntegrityReport {
 		return corruptCount;
 	}
 
+	public int getOrphanedIndexCount() {
+		return orphanedIndexCount;
+	}
+
 	public List<MissingItem> getMissingItems() {
 		return missingItems;
 	}
 
 	public List<CorruptItem> getCorruptItems() {
 		return corruptItems;
+	}
+
+	public List<OrphanedIndexItem> getOrphanedIndexItems() {
+		return orphanedIndexItems;
 	}
 
 	public static class MissingItem {
@@ -73,6 +88,14 @@ public class IntegrityReport {
 			this.name = name;
 			this.expectedHash = expected;
 			this.actualHash = actual;
+		}
+	}
+
+	public static class OrphanedIndexItem {
+		public String uuid;
+
+		public OrphanedIndexItem(String uuid) {
+			this.uuid = uuid;
 		}
 	}
 }

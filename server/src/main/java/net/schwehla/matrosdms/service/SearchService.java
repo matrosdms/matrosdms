@@ -31,6 +31,7 @@ import net.schwehla.matrosdms.domain.search.ESearchDimension;
 import net.schwehla.matrosdms.domain.search.MSearchResult;
 import net.schwehla.matrosdms.entity.DBItem;
 import net.schwehla.matrosdms.search.SearchCriteria;
+import net.schwehla.matrosdms.service.domain.AttributeLookupService;
 
 @Service
 public class SearchService {
@@ -38,13 +39,25 @@ public class SearchService {
 	@Autowired
 	private EntityManager entityManager;
 
-	@Transactional
+	@Autowired
+	private AttributeLookupService attributeLookupService;
+
+	@Transactional(readOnly = true)
 	public void indexSingleItem(Long itemId) {
 		SearchSession searchSession = org.hibernate.search.mapper.orm.Search.session(entityManager);
 		DBItem item = entityManager.find(DBItem.class, itemId);
 		if (item != null) {
 			searchSession.indexingPlan().addOrUpdate(item);
 		}
+	}
+
+	@Transactional(readOnly = true)
+	public List<String> getAllIndexedUuids() {
+		SearchSession searchSession = org.hibernate.search.mapper.orm.Search.session(entityManager);
+		return searchSession.search(DBItem.class)
+				.select(f -> f.field("uuid", String.class))
+				.where(f -> f.matchAll())
+				.fetchAllHits();
 	}
 
 	@Transactional(readOnly = true)
@@ -166,7 +179,19 @@ public class SearchService {
 				if ("uuid".equals(fieldBase)) {
 					yield f.match().field("uuid").matching(val);
 				}
-				if ("fulltext".equals(fieldBase) || "attr".equals(fieldBase)) {
+				// ATTRIBUTE: value is encoded as "attrName=attrValue"
+				if (node.getField() == ESearchDimension.ATTRIBUTE) {
+					int sep = val.indexOf('=');
+					if (sep > 0) {
+						String attrName = val.substring(0, sep);
+						String attrVal = val.substring(sep + 1);
+						String uuid = attributeLookupService.getUuid(attrName);
+						String field = (uuid != null) ? "attr." + uuid : "attr." + attrName;
+						yield f.match().field(field).matching(attrVal);
+					}
+					yield f.matchAll();
+				}
+				if ("fulltext".equals(fieldBase)) {
 					yield f.match().field(fieldBase).matching(val);
 				}
 				yield f.match().field(fieldBase + ".uuid").matching(val);
@@ -187,13 +212,45 @@ public class SearchService {
 							.matching(val)
 							.defaultOperator(BooleanOperator.AND);
 				}
+				// ATTRIBUTE fuzzy match: value encoded as "attrName=attrValue"
+				if (node.getField() == ESearchDimension.ATTRIBUTE) {
+					int sep = val.indexOf('=');
+					if (sep > 0) {
+						String attrName = val.substring(0, sep);
+						String attrVal = val.substring(sep + 1);
+						String uuid = attributeLookupService.getUuid(attrName);
+						String field = (uuid != null) ? "attr." + uuid : "attr." + attrName;
+						yield f.match().field(field).matching(attrVal).fuzzy(1);
+					}
+					yield f.matchAll();
+				}
 				yield f.match().field(fieldBase).matching(val).fuzzy(1);
 			}
 
-			case GT -> f.range().field(fieldBase).greaterThan(val);
-			case LT -> f.range().field(fieldBase).lessThan(val);
-			case GTE -> f.range().field(fieldBase).atLeast(val);
-			case LTE -> f.range().field(fieldBase).atMost(val);
+			case GT -> {
+				if (node.getField() == ESearchDimension.ATTRIBUTE) {
+					int sep = val.indexOf('='); if (sep > 0) { String attrName = val.substring(0, sep); String attrVal = val.substring(sep + 1); String uuid = attributeLookupService.getUuid(attrName); String field = (uuid != null) ? "attr." + uuid : "attr." + attrName; yield f.range().field(field).greaterThan(attrVal); } yield f.matchAll();
+				}
+				yield f.range().field(fieldBase).greaterThan(val);
+			}
+			case LT -> {
+				if (node.getField() == ESearchDimension.ATTRIBUTE) {
+					int sep = val.indexOf('='); if (sep > 0) { String attrName = val.substring(0, sep); String attrVal = val.substring(sep + 1); String uuid = attributeLookupService.getUuid(attrName); String field = (uuid != null) ? "attr." + uuid : "attr." + attrName; yield f.range().field(field).lessThan(attrVal); } yield f.matchAll();
+				}
+				yield f.range().field(fieldBase).lessThan(val);
+			}
+			case GTE -> {
+				if (node.getField() == ESearchDimension.ATTRIBUTE) {
+					int sep = val.indexOf('='); if (sep > 0) { String attrName = val.substring(0, sep); String attrVal = val.substring(sep + 1); String uuid = attributeLookupService.getUuid(attrName); String field = (uuid != null) ? "attr." + uuid : "attr." + attrName; yield f.range().field(field).atLeast(attrVal); } yield f.matchAll();
+				}
+				yield f.range().field(fieldBase).atLeast(val);
+			}
+			case LTE -> {
+				if (node.getField() == ESearchDimension.ATTRIBUTE) {
+					int sep = val.indexOf('='); if (sep > 0) { String attrName = val.substring(0, sep); String attrVal = val.substring(sep + 1); String uuid = attributeLookupService.getUuid(attrName); String field = (uuid != null) ? "attr." + uuid : "attr." + attrName; yield f.range().field(field).atMost(attrVal); } yield f.matchAll();
+				}
+				yield f.range().field(fieldBase).atMost(val);
+			}
 
 			default -> f.matchAll();
 		};

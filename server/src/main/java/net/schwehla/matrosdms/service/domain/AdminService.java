@@ -16,8 +16,10 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +39,7 @@ import net.schwehla.matrosdms.domain.storage.EStorageLocation;
 import net.schwehla.matrosdms.entity.DBCategory;
 import net.schwehla.matrosdms.entity.DBItem;
 import net.schwehla.matrosdms.repository.ItemRepository;
+import net.schwehla.matrosdms.service.SearchService;
 import net.schwehla.matrosdms.service.TikaService;
 import net.schwehla.matrosdms.service.message.IntegrityReport;
 import net.schwehla.matrosdms.store.FileUtils;
@@ -57,6 +60,8 @@ public class AdminService {
 	FileUtils fileUtils;
 	@Autowired
 	AttributeLookupService attributeLookupService;
+	@Autowired
+	SearchService searchService;
 	@Autowired
 	ObjectMapper objectMapper;
 	@Autowired
@@ -120,11 +125,28 @@ public class AdminService {
 			}
 		}
 
+		// Phase 2: Check index → DB (orphaned Lucene entries with no DB record)
+		Set<String> dbUuids = new HashSet<>();
+		for (DBItem item : allItems) {
+			if (item.getUuid() != null) {
+				dbUuids.add(item.getUuid());
+			}
+		}
+		List<String> indexedUuids = searchService.getAllIndexedUuids();
+		for (String indexedUuid : indexedUuids) {
+			if (indexedUuid != null && !dbUuids.contains(indexedUuid)) {
+				report.addOrphanedIndexItem(indexedUuid);
+				log.warn("ORPHANED INDEX: UUID '{}' found in Lucene but not in DB — run Reindex Search to remove",
+						indexedUuid);
+			}
+		}
+
 		log.info(
-				"Integrity Check Complete. Scanned {} items. Missing: {}, Corrupt: {}.",
+				"Integrity Check Complete. Scanned {} items. Missing: {}, Corrupt: {}, Orphaned Index: {}.",
 				report.getTotalDbItems(),
 				report.getMissingCount(),
-				report.getCorruptCount());
+				report.getCorruptCount(),
+				report.getOrphanedIndexCount());
 
 		return report;
 	}

@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import net.schwehla.matrosdms.repository.CategoryRepository;
 import net.schwehla.matrosdms.repository.ContextRepository;
+import net.schwehla.matrosdms.repository.AttributeTypeRepository;
 import net.schwehla.matrosdms.repository.StoreRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +36,8 @@ public class SearchSuggestionController {
 	ContextRepository contextRepository;
 	@Autowired
 	StoreRepository storeRepository;
+	@Autowired
+	AttributeTypeRepository attributeTypeRepository;
 
 	@GetMapping
 	@Operation(summary = "Autocomplete/Suggestions for MQL Dimensions", description = "Returns a list of names matching the query for a specific dimension (who, where, folder,"
@@ -81,6 +84,16 @@ public class SearchSuggestionController {
 				// Ideally, you'd filter by Root UUID (e.g. ROOT_WHO) if the field is 'who'.
 				// But global category search is often good enough for UI dropdowns.
 				results = categoryRepository.suggestNames(query, limit);
+				break;
+
+			case "attr":
+				// Suggest attribute type names (e.g. "taxyear", "amount", "vendor")
+				results = attributeTypeRepository.findAll().stream()
+						.map(a -> a.getName())
+						.filter(n -> n != null && n.toLowerCase().contains(query.toLowerCase()))
+						.sorted()
+						.limit(10)
+						.collect(java.util.stream.Collectors.toList());
 				break;
 
 			default:

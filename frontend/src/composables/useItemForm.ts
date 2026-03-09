@@ -324,7 +324,7 @@ export function useItemForm(isEdit: boolean) {
                 push.error("Duplicate file prevented saving.")
             } else {
                 const msg = e.message || 'Unknown Error'
-                if(!msg.includes('409')) push.error('Failed: ' + msg)
+                push.error('Failed: ' + msg)
             }
         } finally {
             isLoading.value = false
