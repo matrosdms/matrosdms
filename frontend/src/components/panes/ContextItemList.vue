@@ -18,7 +18,8 @@ import { useAdminQueries } from '@/composables/queries/useAdminQueries'
 import { useDragDrop } from '@/composables/useDragDrop'
 import { ItemService } from '@/services/ItemService'
 import { parseBackendDate } from '@/lib/utils'
-import { Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar, Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText, ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit, RotateCcw, ChevronUp, ChevronDown } from 'lucide-vue-next'
+import ModalDialog from '@/components/ui/ModalDialog.vue'
+import { AlertTriangle, Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar, Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText, ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit, RotateCcw, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { push } from 'notivue'
 import { EStage, ERootCategory, ViewMode, EArchiveFilter } from '@/enums'
 import type { Item } from '@/types/models'
@@ -119,7 +120,9 @@ const navigateNext = () => {
   const next = displayItems.value[currentItemIndex.value + 1]
   if (next) dms.setSelectedItem(next)
 }
-const destroyItem = async () => { if (dms.selectedItem?.uuid && confirm(`PERMANENTLY DESTROY '${dms.selectedItem.name}'?`)) { await ItemService.destroy(dms.selectedItem.uuid); push.success('Destroyed'); refetch(); dms.setSelectedItem(null) } }
+const showDestroyModal = ref(false)
+const destroyItem = () => { if (dms.selectedItem?.uuid) showDestroyModal.value = true }
+const confirmDestroy = async () => { showDestroyModal.value = false; if (!dms.selectedItem?.uuid) return; try { await ItemService.destroy(dms.selectedItem.uuid); push.success('Document permanently deleted'); refetch(); dms.setSelectedItem(null) } catch(e: any) { push.error(`Failed: ${e.message}`) } }
 const restoreItem = async () => { if (dms.selectedItem?.uuid) { await ItemService.restore(dms.selectedItem.uuid); push.success('Restored'); refetch(); dms.setSelectedItem(null) } }
 const addItemAction = () => { if (dms.selectedItem?.uuid) workflow.startActionCreation({ itemId: dms.selectedItem.uuid }) }
 
@@ -286,4 +289,21 @@ const detailPaneSize = computed(() => isMaximized.value ? 100 : (!props.layout ?
       </div>
     </div>
   </div>
+
+  <!-- Permanent Delete Confirmation -->
+  <ModalDialog :isOpen="showDestroyModal" title="Permanently Delete Document" @close="showDestroyModal = false">
+      <div class="flex gap-4">
+          <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center shrink-0">
+              <AlertTriangle class="text-red-600 dark:text-red-400" :size="24" />
+          </div>
+          <div>
+              <p class="text-sm text-foreground font-bold mb-2">Permanently delete "{{ dms.selectedItem?.name }}"?</p>
+              <p class="text-xs text-muted-foreground mb-4">This will <strong>irreversibly</strong> remove the document from the database and delete the file from storage. This cannot be undone.</p>
+              <div class="flex gap-3 justify-end mt-4">
+                  <BaseButton variant="outline" @click="showDestroyModal = false">Cancel</BaseButton>
+                  <BaseButton variant="destructive" @click="confirmDestroy">Yes, Permanently Delete</BaseButton>
+              </div>
+          </div>
+      </div>
+  </ModalDialog>
 </template>

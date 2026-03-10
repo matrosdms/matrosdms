@@ -106,6 +106,45 @@ public class TrashService {
 	}
 
 	/**
+	 * Moves all files associated with a document to the failed-ingestion error folder.
+	 * Used when a DB transaction rolls back after files were already written to disk.
+	 *
+	 * @param rootFolder
+	 *            Document storage root
+	 * @param uuid
+	 *            Document UUID
+	 */
+	public void moveToErrorFolder(Path rootFolder, String uuid) {
+		Path errorRoot = trashRoot.resolve("_failed");
+		try {
+			Files.createDirectories(errorRoot);
+			Path documentDir = pathService.resolveDocumentDirectory(rootFolder, uuid);
+
+			if (!Files.exists(documentDir)) {
+				log.warn("Document directory not found for UUID {}, nothing to move to error folder", uuid);
+				return;
+			}
+
+			long timestamp = Instant.now().toEpochMilli();
+			try (Stream<Path> files = Files.list(documentDir)) {
+				for (Path file : files.filter(p -> p.getFileName().toString().startsWith(uuid)).toList()) {
+					String errorFileName = timestamp + "_FAILED_" + file.getFileName().toString();
+					Path targetPath = errorRoot.resolve(errorFileName);
+					try {
+						Files.move(file, targetPath, StandardCopyOption.REPLACE_EXISTING);
+						log.debug("Moved to error folder: {} -> {}", file.getFileName(), errorFileName);
+					} catch (IOException e) {
+						log.error("Failed to move file to error folder: {}", file, e);
+					}
+				}
+			}
+			log.warn("Orphaned files moved to error folder for UUID: {}", uuid);
+		} catch (IOException e) {
+			log.error("Failed to move document to error folder: {}", uuid, e);
+		}
+	}
+
+	/**
 	 * Permanently deletes all files associated with a document.
 	 * This operation cannot be undone.
 	 * 

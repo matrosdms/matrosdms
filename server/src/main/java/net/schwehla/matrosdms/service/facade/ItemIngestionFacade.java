@@ -79,7 +79,7 @@ public class ItemIngestionFacade {
 	@Autowired
 	FileUtils fileUtils;
 
-	@Transactional
+	@Transactional()
 	@Caching(evict = {
 			@CacheEvict(value = "itemList", allEntries = true),
 			@CacheEvict(value = "contextList", allEntries = true),
@@ -188,11 +188,11 @@ public class ItemIngestionFacade {
 				@Override
 				public void afterCompletion(int status) {
 					if (status == STATUS_ROLLED_BACK) {
-						log.warn("Transaction rolled back — removing orphaned file for UUID: {}", savedUuid);
+						log.warn("Transaction rolled back — moving orphaned file to error folder for UUID: {}", savedUuid);
 						try {
-							storeService.moveToTrash(savedUuid);
+							storeService.moveToErrorFolder(savedUuid);
 						} catch (Exception e) {
-							log.error("Failed to clean up orphaned file for UUID: {}", savedUuid, e);
+							log.error("Failed to move orphaned file to error folder for UUID: {}", savedUuid, e);
 						}
 					}
 				}

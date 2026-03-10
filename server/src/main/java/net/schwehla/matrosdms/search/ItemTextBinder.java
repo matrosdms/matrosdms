@@ -130,8 +130,10 @@ public class ItemTextBinder implements TypeBinder {
 
 		// 6. Attributes
 		IndexSchemaObjectField attrField = root.objectField("attr", ObjectStructure.FLATTENED);
-		root.fieldTemplate("attributeTemplate", f -> f.asString().analyzer("standard"))
-				.matchingPathGlob("attr.*");
+		// Template must be defined ON the object field (not root), so Hibernate Search
+		// resolves dynamic sub-fields written via attrObject.addValue(uuid, value).
+		attrField.fieldTemplate("attrValueTemplate", f -> f.asString().analyzer("standard"))
+				.matchingPathGlob("*");
 
 		// Capture Reference: Attribute Object
 		IndexObjectFieldReference attrObjRef = attrField.toReference();

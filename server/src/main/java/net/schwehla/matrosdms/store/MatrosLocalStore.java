@@ -199,6 +199,12 @@ public class MatrosLocalStore implements IMatrosStore {
 	}
 
 	@Override
+	public void moveToErrorFolder(String uuid) {
+		log.warn("Moving orphaned document to error folder: uuid={}", uuid);
+		trashService.moveToErrorFolder(rootFolder, uuid);
+	}
+
+	@Override
 	public boolean hasThumbnail(String uuid) {
 		String suffix = ".thumb.jpg" + encryptionConfig.getEncryptedFileSuffix();
 		return pathService.fileExists(rootFolder, uuid, suffix);

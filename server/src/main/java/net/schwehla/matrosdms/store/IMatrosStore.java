@@ -59,6 +59,15 @@ public interface IMatrosStore {
 	void moveToTrash(String uuid);
 
 	/**
+	 * Moves orphaned document files to the failed-ingestion error folder.
+	 * Called on transaction rollback when files were written but DB insert failed.
+	 *
+	 * @param uuid
+	 *            Document UUID
+	 */
+	void moveToErrorFolder(String uuid);
+
+	/**
 	 * Checks if a document has a thumbnail.
 	 * 
 	 * @param uuid

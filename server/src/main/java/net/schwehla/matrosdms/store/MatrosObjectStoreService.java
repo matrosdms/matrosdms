@@ -35,4 +35,8 @@ public class MatrosObjectStoreService {
 	public void moveToTrash(String uuid) {
 		store.moveToTrash(uuid);
 	}
+
+	public void moveToErrorFolder(String uuid) {
+		store.moveToErrorFolder(uuid);
+	}
 }

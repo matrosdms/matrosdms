@@ -117,7 +117,6 @@ const addToFilter = (node: FlatNode) => {
         transitiveChildrenAndSelf 
     })
     dms.setActiveContext(rootType)
-    notify.success(`Added "${node.label}" to ${rootType} filter`)
 }
 
 const onDoubleClick = (node: FlatNode) => {
