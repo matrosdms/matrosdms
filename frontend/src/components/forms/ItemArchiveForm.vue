@@ -3,14 +3,14 @@ import { useDmsStore } from '@/stores/dms'
 import { client } from '@/api/client'
 import { push } from 'notivue'
 import { useQueryClient } from '@tanstack/vue-query'
-import { Trash2, FileText } from 'lucide-vue-next'
+import { Archive, FileText } from 'lucide-vue-next'
 import BaseButton from '@/components/ui/BaseButton.vue' // Updated Import
 
 const dms = useDmsStore()
 const queryClient = useQueryClient()
 
 const onConfirm = async () => {
-  const promise = push.promise('Moving document to trash...')
+  const promise = push.promise('Archiving document...')
   try {
     const { error } = await client.DELETE('/api/items/{uuid}', {
       params: { path: { uuid: dms.selectedItem.uuid } }
@@ -23,7 +23,7 @@ const onConfirm = async () => {
     
     dms.setSelectedItem(null)
     dms.cancelCreation()
-    promise.resolve('Document moved to trash')
+    promise.resolve('Document archived')
   } catch(err) {
     promise.reject(`Failed: ${err.message}`)
   }
@@ -33,21 +33,21 @@ const onConfirm = async () => {
 <template>
   <div class="h-full flex flex-col bg-muted/20 transition-colors">
     <div class="p-2 border-b border-border bg-background h-[35px] flex items-center shadow-sm">
-      <span class="text-[13px] font-bold text-destructive flex items-center gap-2"><Trash2 :size="14"/> Delete Document</span>
+      <span class="text-[13px] font-bold text-amber-600 flex items-center gap-2"><Archive :size="14"/> Archive Document</span>
     </div>
     <div class="flex-1 p-6 flex flex-col items-center justify-center text-center overflow-auto">
       <div class="bg-background p-8 rounded-lg border border-border shadow-sm max-w-md w-full transition-colors">
         <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
           <FileText class="text-muted-foreground" :size="32" />
         </div>
-        <h3 class="text-lg font-bold text-foreground mb-2">Delete "{{ dms.selectedItem?.name }}"?</h3>
+        <h3 class="text-lg font-bold text-foreground mb-2">Archive "{{ dms.selectedItem?.name }}"?</h3>
         <p class="text-sm text-muted-foreground mb-6">
-          This document will be moved to trash. It can be recovered later if needed.
+          This document will be archived and hidden from the main view. It can be restored at any time.
         </p>
         
         <div class="flex flex-col gap-3">
-          <BaseButton variant="destructive" class="w-full" @click="onConfirm">
-            Yes, Move to Trash
+          <BaseButton variant="warning" class="w-full" @click="onConfirm">
+            Yes, Archive
           </BaseButton>
           <BaseButton variant="outline" class="w-full" @click="dms.cancelCreation">
             Cancel

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Pencil, Trash2 } from 'lucide-vue-next'
+import { Pencil, Archive } from 'lucide-vue-next'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import type { AnyEntity } from '@/types/models'
@@ -36,8 +36,8 @@ const shortName = computed(() => safeItem.value.shortname || null)
           <BaseButton variant="ghost" size="icon" @click="$emit('edit')" title="Edit">
               <Pencil :size="18" />
           </BaseButton>
-          <BaseButton variant="ghost" size="icon" class="text-destructive hover:bg-destructive-light" @click="$emit('delete')" title="Delete">
-              <Trash2 :size="18" />
+          <BaseButton variant="ghost" size="icon" class="text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20" @click="$emit('delete')" title="Archive">
+              <Archive :size="18" />
           </BaseButton>
       </div>
   </div>

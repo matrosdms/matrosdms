@@ -27,7 +27,7 @@ const { mutate: deleteItem, isPending: isDeleting } = useMutation({
     onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['items'] })
         queryClient.invalidateQueries({ queryKey: ['contexts'] })
-        push.success('Document moved to trash')
+        push.success('Document archived')
         showDeleteModal.value = false
         dms.setSelectedItem(null)
         dms.cancelCreation()
@@ -143,17 +143,17 @@ useHotkeys('Escape', () => {
       </div>
 
       <!-- DELETE MODAL -->
-      <ModalDialog :isOpen="showDeleteModal" title="Delete Document" @close="showDeleteModal = false">
+      <ModalDialog :isOpen="showDeleteModal" title="Archive Document" @close="showDeleteModal = false">
           <div class="flex gap-4">
               <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center shrink-0">
                   <AlertTriangle class="text-red-600 dark:text-red-400" :size="24" />
               </div>
               <div>
                   <p class="text-sm text-foreground font-bold mb-2">Are you sure you want to delete "{{ form.name }}"?</p>
-                  <p class="text-xs text-muted-foreground mb-4">This action will move the document to the trash. It can be recovered later if needed.</p>
+                  <p class="text-xs text-muted-foreground mb-4">This document will be archived and hidden from the main view. It can be restored at any time.</p>
                   <div class="flex gap-3 justify-end mt-4">
                       <BaseButton variant="outline" @click="showDeleteModal = false">Cancel</BaseButton>
-                      <BaseButton variant="destructive" @click="() => deleteItem()">Yes, Delete</BaseButton>
+                      <BaseButton variant="warning" @click="() => deleteItem()">Yes, Archive</BaseButton>
                   </div>
               </div>
           </div>

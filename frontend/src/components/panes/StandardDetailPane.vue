@@ -139,7 +139,7 @@ const runAiTransform = async (instruction: 'SUMMARY' | 'KEY_FACTS') => {
               <div>
                   <h4 class="text-xs font-bold text-red-800 dark:text-red-300 uppercase mb-1">Archived Item</h4>
                   <p class="text-xs text-red-700 dark:text-red-400">
-                      This item is in the trash. Restore it to edit or move it.
+                      This document is archived. Restore it to make it active again.
                   </p>
               </div>
           </div>

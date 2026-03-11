@@ -19,7 +19,7 @@ import { useDragDrop } from '@/composables/useDragDrop'
 import { ItemService } from '@/services/ItemService'
 import { parseBackendDate } from '@/lib/utils'
 import ModalDialog from '@/components/ui/ModalDialog.vue'
-import { AlertTriangle, Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar, Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText, ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit, RotateCcw, ChevronUp, ChevronDown } from 'lucide-vue-next'
+import { AlertTriangle, Archive, Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar, Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText, ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit, RotateCcw, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { push } from 'notivue'
 import { EStage, ERootCategory, ViewMode, EArchiveFilter } from '@/enums'
 import type { Item } from '@/types/models'
@@ -231,20 +231,20 @@ const detailPaneSize = computed(() => isMaximized.value ? 100 : (!props.layout ?
         <BaseButton v-if="dms.selectedContext" variant="ghost" size="iconSm" @click="toggleZoom"><component :is="isSplitMode ? Minimize2 : Maximize2" :size="16" /></BaseButton>
         <div class="flex items-center gap-2 overflow-hidden px-1">
           <span class="text-[13px] font-bold text-foreground truncate">{{ dms.selectedContext ? dms.selectedContext.name : 'All Items' }}</span>
-          <span v-if="isTrashMode" class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase">Trash Bin</span>
+          <span v-if="isTrashMode" class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase">Archived</span>
         </div>
       </div>
       <div class="flex items-center gap-1 ml-auto">
-        <BaseButton variant="ghost" size="iconSm" @click="dms.toggleArchiveView" :class="isTrashMode ? 'text-red-600 bg-red-100 dark:bg-red-900/30' : 'text-muted-foreground hover:text-red-600'" :title="isTrashMode ? 'Show Active' : 'Show Trash'"><Trash2 :size="14" /></BaseButton>
+        <BaseButton variant="ghost" size="sm" @click="dms.toggleArchiveView" :class="isTrashMode ? 'text-amber-600 bg-amber-100 dark:bg-amber-900/30' : 'text-muted-foreground'" :title="isTrashMode ? 'Show Active Documents' : 'Show Archived'"><Archive :size="14" class="mr-1"/>{{ isTrashMode ? 'Archived' : 'Archived' }}</BaseButton>
         <div class="w-px h-3 bg-border mx-1"></div>
         <template v-if="isTrashMode">
              <BaseButton variant="ghost" size="sm" class="text-green-600 hover:bg-green-50" :disabled="!dms.selectedItem" @click="restoreItem"><RotateCcw :size="14" class="mr-1"/> Restore</BaseButton>
-             <BaseButton variant="ghost" size="sm" class="text-red-600 hover:bg-red-50" :disabled="!dms.selectedItem" @click="destroyItem"><Trash2 :size="14" class="mr-1"/> Destroy</BaseButton>
+             <BaseButton variant="ghost" size="sm" class="text-red-600 hover:bg-red-50" :disabled="!dms.selectedItem" @click="destroyItem"><Trash2 :size="14" class="mr-1"/> Delete Permanently</BaseButton>
         </template>
         <template v-else>
-            <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedItem" @click="editItem"><Pencil :size="14" /></BaseButton>
-            <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedItem" @click="addItemAction"><CheckSquare :size="14" /></BaseButton>
-            <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedItem" class="hover:text-destructive" @click="deleteItem"><Trash2 :size="14" /></BaseButton>
+            <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedItem" @click="editItem" title="Edit"><Pencil :size="14" /></BaseButton>
+            <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedItem" @click="addItemAction" title="Add Task"><CheckSquare :size="14" /></BaseButton>
+            <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedItem" class="hover:text-amber-600" @click="deleteItem" title="Archive"><Archive :size="14" /></BaseButton>
         </template>
       </div>
     </div>
