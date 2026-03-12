@@ -7,18 +7,20 @@ import { queryKeys } from './queryKeys';
 import { ContextService } from '@/services/ContextService';
 import { CategoryService } from '@/services/CategoryService';
 import type { Category, Context } from '@/types/models';
-import { ERootCategoryType } from '@/enums';
+import { EArchiveFilter, type EArchiveFilterType, ERootCategoryType } from '@/enums';
 
-export function useContextQueries() {
+export function useContextQueries(archiveStateRef?: Ref<EArchiveFilterType> | EArchiveFilterType) {
     const auth = useAuthStore();
     const ui = useUIStore();
     const queryClient = useQueryClient();
     const { fetcher } = useQueryHelpers();
 
+    const archiveState = computed(() => unref(archiveStateRef) ?? EArchiveFilter.ACTIVE_ONLY);
+
     // --- CONTEXTS ---
     const { data: contexts, isLoading: isLoadingContexts } = useQuery({
-        queryKey: queryKeys.context.all,
-        queryFn: fetcher(() => ContextService.getAll(), 'context-list'),
+        queryKey: computed(() => [...queryKeys.context.all, archiveState.value]),
+        queryFn: fetcher(() => ContextService.getAll(archiveState.value), 'context-list'),
         enabled: computed(() => auth.isAuthenticated),
         staleTime: 1000 * 60 * 5, // 5 min
     });

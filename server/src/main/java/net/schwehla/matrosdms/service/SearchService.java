@@ -89,7 +89,9 @@ public class SearchService {
 								f.field("filename", String.class),
 								f.score(),
 								f.highlight("fulltext")))
-				.where(f -> buildPredicate(f, rootCriteria))
+				.where(f -> f.bool()
+						.must(buildPredicate(f, rootCriteria))
+						.mustNot(f.match().field("isArchived").matching(true)))
 				.fetch(offset, limit);
 
 		// Find max score for normalization

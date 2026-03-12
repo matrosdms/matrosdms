@@ -83,8 +83,22 @@ public class ContextController {
 		return new ResponseEntity<>(result, HttpStatus.OK);
 	}
 
+	@PostMapping("/{id}/archive")
+	@Operation(summary = "Soft-archive context (sets dateArchived)")
+	public ResponseEntity<HttpStatus> archiveContext(@PathVariable("id") String tsid) {
+		contextService.archiveContext(tsid);
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+	}
+
+	@PostMapping("/{id}/restore")
+	@Operation(summary = "Restore archived context (clears dateArchived)")
+	public ResponseEntity<HttpStatus> restoreContext(@PathVariable("id") String tsid) {
+		contextService.restoreContext(tsid);
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+	}
+
 	@DeleteMapping("/{id}")
-	@Operation(summary = "Delete context by id")
+	@Operation(summary = "Permanently delete context by id")
 	public ResponseEntity<HttpStatus> deleteContext(@PathVariable("id") String tsid) {
 		contextService.deleteContext(tsid);
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);

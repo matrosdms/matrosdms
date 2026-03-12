@@ -19,16 +19,24 @@ export const useDmsStore = defineStore('dms', () => {
   const clipboard = useClipboardStore()
   const ui = useUIStore()
 
-  // --- NEW: Archive/Trash View State ---
+  // --- Archive View State (Items) ---
   const archiveViewMode = ref<EArchiveFilterType>(EArchiveFilter.ACTIVE_ONLY)
 
   function toggleArchiveView() {
       archiveViewMode.value = archiveViewMode.value === EArchiveFilter.ACTIVE_ONLY 
           ? EArchiveFilter.ARCHIVED_ONLY 
           : EArchiveFilter.ACTIVE_ONLY
-      
-      // Reset selection to prevent actions on invisible items
       setSelectedItem(null)
+  }
+
+  // --- Archive View State (Contexts) ---
+  const contextArchiveViewMode = ref<EArchiveFilterType>(EArchiveFilter.ACTIVE_ONLY)
+
+  function toggleContextArchiveView() {
+      contextArchiveViewMode.value = contextArchiveViewMode.value === EArchiveFilter.ACTIVE_ONLY
+          ? EArchiveFilter.ARCHIVED_ONLY
+          : EArchiveFilter.ACTIVE_ONLY
+      setSelectedContext(null)
   }
 
   // --- 1. Selection Coordination ---
@@ -64,9 +72,13 @@ export const useDmsStore = defineStore('dms', () => {
     itemStack: computed(() => clipboard.stack),
     currentDragType: computed(() => workflow.currentDragType),
     
-    // Archive/Trash State
+    // Archive/Trash State (Items)
     archiveViewMode,
     toggleArchiveView,
+
+    // Archive State (Contexts)
+    contextArchiveViewMode,
+    toggleContextArchiveView,
 
     // Actions (Proxied)
     setSelectedCategory: selection.setSelectedCategory,

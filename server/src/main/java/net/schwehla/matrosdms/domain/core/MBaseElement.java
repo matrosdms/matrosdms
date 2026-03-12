@@ -18,7 +18,7 @@ public class MBaseElement implements IIdentifiable, Serializable, Comparable<MBa
 	public MBaseElement() {
 	}
 
-	@Schema(accessMode = Schema.AccessMode.READ_ONLY)
+	@Schema(accessMode = Schema.AccessMode.READ_ONLY, required = true)
 	protected String uuid;
 
 	protected String name;

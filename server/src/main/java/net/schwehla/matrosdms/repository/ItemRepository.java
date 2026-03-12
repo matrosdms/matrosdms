@@ -31,6 +31,11 @@ public interface ItemRepository extends JpaRepository<DBItem, Long> {
 	@Query("SELECT c FROM DBItem c where c.infoContext.id = :id and c.dateArchived is null order by c.issueDate")
 	List<DBItem> findAllNotArchivedByContextid(@Param("id") Long pk);
 
+	// Items archived at exactly the given timestamp (i.e. archived as part of a
+	// context-cascade operation)
+	@Query("SELECT c FROM DBItem c where c.infoContext.id = :id and c.dateArchived = :ts")
+	List<DBItem> findArchivedAtTimestampByContextId(@Param("id") Long pk, @Param("ts") java.time.LocalDateTime ts);
+
 	// --- MAIN API QUERIES ---
 
 	@Query("SELECT i FROM DBItem i " +
@@ -39,6 +44,22 @@ public interface ItemRepository extends JpaRepository<DBItem, Long> {
 			"LEFT JOIN FETCH i.file f " +
 			"ORDER BY c.name ASC, i.id ASC, s.shortname ASC, i.storageItemIdentifier ASC")
 	List<DBItem> findAllForReport();
+
+	@Query("SELECT i FROM DBItem i " +
+			"LEFT JOIN FETCH i.infoContext c " +
+			"LEFT JOIN FETCH i.store s " +
+			"LEFT JOIN FETCH i.file f " +
+			"WHERE i.dateArchived IS NULL AND c.dateArchived IS NULL " +
+			"ORDER BY c.name ASC, i.id ASC, s.shortname ASC, i.storageItemIdentifier ASC")
+	List<DBItem> findAllActiveForReport();
+
+	@Query("SELECT i FROM DBItem i " +
+			"LEFT JOIN FETCH i.infoContext c " +
+			"LEFT JOIN FETCH i.store s " +
+			"LEFT JOIN FETCH i.file f " +
+			"WHERE i.dateArchived IS NOT NULL OR c.dateArchived IS NOT NULL " +
+			"ORDER BY c.name ASC, i.id ASC, s.shortname ASC, i.storageItemIdentifier ASC")
+	List<DBItem> findAllArchivedForReport();
 
 	// 1. ACTIVE ONLY
 	@Query("SELECT i FROM DBItem i WHERE "

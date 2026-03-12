@@ -9,17 +9,23 @@ import { useUIStore } from '@/stores/ui'
 import { useWorkflowStore } from '@/stores/workflow'
 import { useContextQueries } from '@/composables/queries/useContextQueries'
 import { getTagClassByKey } from '@/utils/tagStyles'
-import { Pencil, Archive, Plus, CheckSquare, Folder, Hash, Tags, Activity, Lock, Unlock } from 'lucide-vue-next'
+import { Pencil, Archive, Plus, CheckSquare, Folder, Hash, Tags, Activity, Lock, Unlock, RotateCcw, Trash2, ListFilter, Check } from 'lucide-vue-next'
+import AppPopover from '@/components/ui/AppPopover.vue'
 import { push } from 'notivue'
-import { EStage, EStageLabels, type EStageType, ERootCategoryList } from '@/enums'
+import { EStage, EArchiveFilter, EStageLabels, type EStageType, ERootCategoryList } from '@/enums'
 import { useDragDrop } from '@/composables/useDragDrop'
+import { useQueryClient } from '@tanstack/vue-query'
+import { ContextService } from '@/services/ContextService'
 import type { ColumnDef } from '@tanstack/vue-table'
 
 const dms = useDmsStore()
 const ui = useUIStore()
 const workflow = useWorkflowStore()
+const queryClient = useQueryClient()
 const { startDrag } = useDragDrop()
-const { contexts, isLoadingContexts } = useContextQueries()
+const { contexts, isLoadingContexts } = useContextQueries(computed(() => dms.contextArchiveViewMode))
+
+const isArchivedMode = computed(() => dms.contextArchiveViewMode === EArchiveFilter.ARCHIVED_ONLY)
 
 const searchQuery = ref('')
 const tableRef = ref<InstanceType<typeof DataTable> | null>(null)
@@ -37,7 +43,31 @@ const actions = {
   edit: () => { if (!dms.selectedContext) return showContextRequiredWarning(); dms.startContextEditing() },
   archive: () => { if (!dms.selectedContext) return showContextRequiredWarning(); dms.startContextArchiving() },
   create: () => dms.startContextCreation(),
-  addAction: () => { if (!dms.selectedContext) return showContextRequiredWarning(); workflow.startActionCreation({ contextId: dms.selectedContext.uuid }) }
+  addAction: () => { if (!dms.selectedContext) return showContextRequiredWarning(); workflow.startActionCreation({ contextId: dms.selectedContext.uuid }) },
+  restore: async () => {
+    if (!dms.selectedContext) return showContextRequiredWarning()
+    const promise = push.promise('Restoring context...')
+    try {
+      await ContextService.restore(dms.selectedContext.uuid!)
+      queryClient.invalidateQueries({ queryKey: ['contexts'] })
+      dms.setSelectedContext(null)
+      promise.resolve('Context restored')
+    } catch (err: any) {
+      promise.reject(`Failed: ${err.message}`)
+    }
+  },
+  deletePermanently: async () => {
+    if (!dms.selectedContext) return showContextRequiredWarning()
+    const promise = push.promise('Deleting context permanently...')
+    try {
+      await ContextService.delete(dms.selectedContext.uuid!)
+      queryClient.invalidateQueries({ queryKey: ['contexts'] })
+      dms.setSelectedContext(null)
+      promise.resolve('Context permanently deleted')
+    } catch (err: any) {
+      promise.reject(`Failed: ${err.message}`)
+    }
+  }
 }
 
 const handleRowClick = (ctx: any) => dms.setSelectedContext(ctx)
@@ -137,13 +167,44 @@ const onFocusActiveRow = () => {
     @keydown="handlePaneKeyDown"
     @focus-active-row="onFocusActiveRow"
   >
-    <BasePane title="Context List" :count="filteredContexts.length" :total="contexts?.length || 0">
+    <BasePane :title="isArchivedMode ? 'Contexts — Archived' : 'Context List'" :count="filteredContexts.length" :total="contexts?.length || 0">
         <template #actions>
             <BaseButton variant="ghost" size="iconSm" class="mr-1" :class="ui.isContextListLocked ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-400'" @click="ui.toggleContextListLock"><component :is="ui.isContextListLocked ? Lock : Unlock" :size="14" /></BaseButton>
             <div class="w-px h-3 bg-gray-300 dark:bg-gray-600 mx-1" />
-            <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedContext" @click="actions.edit"><Pencil :size="14" /></BaseButton>
-            <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedContext" @click="actions.addAction"><CheckSquare :size="14" /></BaseButton>
-            <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedContext" class="hover:text-destructive" @click="actions.archive"><Archive :size="14" /></BaseButton>
+            <template v-if="isArchivedMode">
+                <BaseButton variant="ghost" size="sm" class="text-green-600 hover:bg-green-50" :disabled="!dms.selectedContext" @click="actions.restore"><RotateCcw :size="14" class="mr-1"/> Restore</BaseButton>
+                <BaseButton variant="ghost" size="sm" class="text-red-600 hover:bg-red-50" :disabled="!dms.selectedContext" @click="actions.deletePermanently"><Trash2 :size="14" class="mr-1"/> Delete Permanently</BaseButton>
+            </template>
+            <template v-else>
+                <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedContext" @click="actions.edit"><Pencil :size="14" /></BaseButton>
+                <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedContext" @click="actions.addAction"><CheckSquare :size="14" /></BaseButton>
+                <BaseButton variant="ghost" size="iconSm" :disabled="!dms.selectedContext" class="hover:text-amber-600" @click="actions.archive" title="Archive"><Archive :size="14" /></BaseButton>
+            </template>
+            <div class="w-px h-3 bg-gray-300 dark:bg-gray-600 mx-1" />
+            <AppPopover align="right" width="w-36">
+              <template #trigger="{ isOpen }">
+                <button
+                  title="Filter view"
+                  class="relative flex items-center justify-center w-6 h-6 rounded transition-all duration-150"
+                  :class="isArchivedMode ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 ring-1 ring-amber-300 dark:ring-amber-700' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
+                >
+                  <ListFilter :size="13" />
+                  <span v-if="isArchivedMode" class="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                </button>
+              </template>
+              <template #content="{ close }">
+                <div class="py-1">
+                  <button class="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted transition-colors" :class="!isArchivedMode ? 'text-foreground font-medium' : 'text-muted-foreground'" @click="dms.contextArchiveViewMode = EArchiveFilter.ACTIVE_ONLY; close()">
+                    <Check v-if="!isArchivedMode" :size="12" class="text-primary" /><span v-else class="w-3" />
+                    <Folder :size="13" /> Active
+                  </button>
+                  <button class="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted transition-colors" :class="isArchivedMode ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground'" @click="dms.contextArchiveViewMode = EArchiveFilter.ARCHIVED_ONLY; close()">
+                    <Check v-if="isArchivedMode" :size="12" class="text-amber-600" /><span v-else class="w-3" />
+                    <Archive :size="13" /> Archived
+                  </button>
+                </div>
+              </template>
+            </AppPopover>
             <div class="w-px h-3 bg-gray-300 dark:bg-gray-600 mx-1" />
             <BaseButton variant="ghost" size="iconSm" class="text-primary hover:bg-primary/10" @click="actions.create"><Plus :size="16" stroke-width="3" /></BaseButton>
         </template>

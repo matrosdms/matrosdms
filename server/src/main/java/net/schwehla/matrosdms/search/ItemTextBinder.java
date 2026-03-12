@@ -38,7 +38,8 @@ public class ItemTextBinder implements TypeBinder {
 				.use("source")
 				.use("stage")
 				.use("storageItemIdentifier")
-				.use("textParsed");
+				.use("textParsed")
+				.use("dateArchived");
 
 		IndexSchemaElement root = context.indexSchemaElement();
 
@@ -73,6 +74,9 @@ public class ItemTextBinder implements TypeBinder {
 		// NEW PROJECTIONS
 		root.field("stage", f -> f.asString().projectable(Projectable.YES)).toReference();
 		root.field("storageItemIdentifier", f -> f.asString().projectable(Projectable.YES)).toReference();
+
+		// Archive filter field — computed: item OR context is archived
+		root.field("isArchived", f -> f.asBoolean()).toReference();
 
 		// Capture Reference 1: Fulltext
 		IndexFieldReference<String> fulltextRef = root.field(

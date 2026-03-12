@@ -150,7 +150,7 @@ public class InboxPipelineService {
 					.filter(p -> {
 						String name = p.getFileName().toString();
 						return !name.endsWith(".json")
-								&& !name.endsWith(".txt")
+								&& !name.equals("textlayer.txt")
 								&& !name.equals("source.info");
 					})
 					.findFirst()

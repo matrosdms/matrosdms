@@ -104,14 +104,19 @@ public class TextExtractionStep implements PipelineStep {
 				try {
 					rawText = Files.readString(res.path(), StandardCharsets.UTF_8);
 				} catch (Exception e) {
-					log.warn("Failed to read text file as UTF-8, falling back to Tika");
+					log.warn("Failed to read text file as UTF-8, trying ISO-8859-1...");
+					try {
+						rawText = Files.readString(res.path(), java.nio.charset.StandardCharsets.ISO_8859_1);
+					} catch (Exception e2) {
+						ctx.addWarning("Could not read text file content: " + e2.getMessage());
+					}
 				}
-			}
-
-			// 2. Fallback to full Tika OCR if the smart inspector flagged needsOcr = true
-			if (rawText == null || rawText.isBlank()) {
-				ctx.log("Performing full text extraction / OCR...");
-				rawText = tikaService.extractText(res.path());
+			} else {
+				// 2. Fallback to full Tika OCR for non-plain-text files only
+				if (rawText == null || rawText.isBlank()) {
+					ctx.log("Performing full text extraction / OCR...");
+					rawText = tikaService.extractText(res.path());
+				}
 			}
 
 			if (rawText == null || rawText.isBlank()) {

@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import net.schwehla.matrosdms.domain.core.EArchiveFilter;
 import net.schwehla.matrosdms.entity.DBCategory;
 import net.schwehla.matrosdms.entity.DBItem;
 import net.schwehla.matrosdms.repository.ItemRepository;
@@ -32,8 +33,8 @@ public class ReportService {
 	private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
 	@Transactional(readOnly = true)
-	public String generateCsvReport() {
-		List<DBItem> items = itemRepository.findAllForReport();
+	public String generateCsvReport(EArchiveFilter archiveState) {
+		List<DBItem> items = resolveItems(archiveState);
 		StringBuilder csv = new StringBuilder();
 
 		// 1. BOM for Excel UTF-8 recognition
@@ -77,9 +78,17 @@ public class ReportService {
 	}
 
 	@Transactional(readOnly = true)
-	public String generateHtmlReport() {
-		List<DBItem> items = itemRepository.findAllForReport();
+	public String generateHtmlReport(EArchiveFilter archiveState) {
+		List<DBItem> items = resolveItems(archiveState);
 		return new HtmlReportExporter().export(items);
+	}
+
+	private List<DBItem> resolveItems(EArchiveFilter archiveState) {
+		return switch (archiveState) {
+			case ARCHIVED_ONLY -> itemRepository.findAllArchivedForReport();
+			case ALL -> itemRepository.findAllForReport();
+			default -> itemRepository.findAllActiveForReport();
+		};
 	}
 
 	/**

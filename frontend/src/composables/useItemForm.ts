@@ -210,7 +210,7 @@ export function useItemForm(isEdit: boolean) {
         if (!isEdit && f && !form.value.name) {
             if (f.prediction) applyPrediction(f.prediction)
             if (!form.value.name) {
-                form.value.name = f.fileInfo?.originalFilename || f.displayName || ''
+                form.value.name = f.fileInfo?.originalFilename || f.displayName || (f as any).name || ''
             }
         }
     }, { immediate: true })

@@ -26,4 +26,16 @@ public interface ContextRepository extends JpaRepository<DBContext, Long> {
 	@Query("SELECT c.name FROM DBContext c WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%')) AND"
 			+ " c.dateArchived IS NULL")
 	List<String> suggestNames(@Param("query") String query, Pageable pageable);
+
+	@EntityGraph(attributePaths = { "categoryList" })
+	@Query("SELECT c FROM DBContext c WHERE c.dateArchived IS NULL ORDER BY c.name ASC")
+	List<DBContext> findAllActive(Pageable pageable);
+
+	@EntityGraph(attributePaths = { "categoryList" })
+	@Query("SELECT c FROM DBContext c WHERE c.dateArchived IS NOT NULL ORDER BY c.name ASC")
+	List<DBContext> findAllArchived(Pageable pageable);
+
+	@EntityGraph(attributePaths = { "categoryList" })
+	@Query("SELECT c FROM DBContext c ORDER BY c.name ASC")
+	List<DBContext> findAllContexts(Pageable pageable);
 }

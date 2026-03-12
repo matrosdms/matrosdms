@@ -19,12 +19,13 @@ import { useDragDrop } from '@/composables/useDragDrop'
 import { ItemService } from '@/services/ItemService'
 import { parseBackendDate } from '@/lib/utils'
 import ModalDialog from '@/components/ui/ModalDialog.vue'
-import { AlertTriangle, Archive, Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar, Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText, ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit, RotateCcw, ChevronUp, ChevronDown } from 'lucide-vue-next'
+import { AlertTriangle, Archive, Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar, Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText, ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit, RotateCcw, ChevronUp, ChevronDown, ListFilter, Check } from 'lucide-vue-next'
+import AppPopover from '@/components/ui/AppPopover.vue'
 import { push } from 'notivue'
 import { EStage, ERootCategory, ViewMode, EArchiveFilter } from '@/enums'
 import type { Item } from '@/types/models'
 import type { ColumnDef } from '@tanstack/vue-table'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { queryKeys } from '@/composables/queries/queryKeys'
 
 const props = defineProps<{ layout?: number[] }>()
@@ -36,6 +37,7 @@ const workflow = useWorkflowStore()
 const { useCategoryTree } = useContextQueries()
 const { useStores } = useAdminQueries()
 const { handleDropOnContext, startDrag } = useDragDrop()
+const queryClient = useQueryClient()
 
 const tableRef = ref<InstanceType<typeof DataTable> | null>(null)
 const searchQuery = ref('')
@@ -122,8 +124,8 @@ const navigateNext = () => {
 }
 const showDestroyModal = ref(false)
 const destroyItem = () => { if (dms.selectedItem?.uuid) showDestroyModal.value = true }
-const confirmDestroy = async () => { showDestroyModal.value = false; if (!dms.selectedItem?.uuid) return; try { await ItemService.destroy(dms.selectedItem.uuid); push.success('Document permanently deleted'); refetch(); dms.setSelectedItem(null) } catch(e: any) { push.error(`Failed: ${e.message}`) } }
-const restoreItem = async () => { if (dms.selectedItem?.uuid) { await ItemService.restore(dms.selectedItem.uuid); push.success('Restored'); refetch(); dms.setSelectedItem(null) } }
+const confirmDestroy = async () => { showDestroyModal.value = false; if (!dms.selectedItem?.uuid) return; try { await ItemService.destroy(dms.selectedItem.uuid); push.success('Document permanently deleted'); queryClient.invalidateQueries({ queryKey: ['items'] }); queryClient.invalidateQueries({ queryKey: ['contexts'] }); dms.setSelectedItem(null) } catch(e: any) { push.error(`Failed: ${e.message}`) } }
+const restoreItem = async () => { if (dms.selectedItem?.uuid) { await ItemService.restore(dms.selectedItem.uuid); push.success('Restored'); queryClient.invalidateQueries({ queryKey: ['items'] }); queryClient.invalidateQueries({ queryKey: ['contexts'] }); dms.setSelectedItem(null) } }
 const addItemAction = () => { if (dms.selectedItem?.uuid) workflow.startActionCreation({ itemId: dms.selectedItem.uuid }) }
 
 const handleDragEnter = (event: DragEvent) => { if (event.dataTransfer?.types.includes('Files') || (dms.isDraggingGlobal && dms.currentDragType === 'inbox-file')) isDragOver.value = true }
@@ -231,11 +233,33 @@ const detailPaneSize = computed(() => isMaximized.value ? 100 : (!props.layout ?
         <BaseButton v-if="dms.selectedContext" variant="ghost" size="iconSm" @click="toggleZoom"><component :is="isSplitMode ? Minimize2 : Maximize2" :size="16" /></BaseButton>
         <div class="flex items-center gap-2 overflow-hidden px-1">
           <span class="text-[13px] font-bold text-foreground truncate">{{ dms.selectedContext ? dms.selectedContext.name : 'All Items' }}</span>
-          <span v-if="isTrashMode" class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase">Archived</span>
         </div>
       </div>
       <div class="flex items-center gap-1 ml-auto">
-        <BaseButton variant="ghost" size="sm" @click="dms.toggleArchiveView" :class="isTrashMode ? 'text-amber-600 bg-amber-100 dark:bg-amber-900/30' : 'text-muted-foreground'" :title="isTrashMode ? 'Show Active Documents' : 'Show Archived'"><Archive :size="14" class="mr-1"/>{{ isTrashMode ? 'Archived' : 'Archived' }}</BaseButton>
+        <AppPopover align="right" width="w-36">
+          <template #trigger="{ isOpen }">
+            <button
+              title="Filter view"
+              class="relative flex items-center justify-center w-6 h-6 rounded transition-all duration-150"
+              :class="isTrashMode ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 ring-1 ring-amber-300 dark:ring-amber-700' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
+            >
+              <ListFilter :size="13" />
+              <span v-if="isTrashMode" class="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full" />
+            </button>
+          </template>
+          <template #content="{ close }">
+            <div class="py-1">
+              <button class="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted transition-colors" :class="!isTrashMode ? 'text-foreground font-medium' : 'text-muted-foreground'" @click="dms.archiveViewMode = EArchiveFilter.ACTIVE_ONLY; close()">
+                <Check v-if="!isTrashMode" :size="12" class="text-primary" /><span v-else class="w-3" />
+                <Folder :size="13" /> Active
+              </button>
+              <button class="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted transition-colors" :class="isTrashMode ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground'" @click="dms.archiveViewMode = EArchiveFilter.ARCHIVED_ONLY; close()">
+                <Check v-if="isTrashMode" :size="12" class="text-amber-600" /><span v-else class="w-3" />
+                <Archive :size="13" /> Archived
+              </button>
+            </div>
+          </template>
+        </AppPopover>
         <div class="w-px h-3 bg-border mx-1"></div>
         <template v-if="isTrashMode">
              <BaseButton variant="ghost" size="sm" class="text-green-600 hover:bg-green-50" :disabled="!dms.selectedItem" @click="restoreItem"><RotateCcw :size="14" class="mr-1"/> Restore</BaseButton>

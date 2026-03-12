@@ -1,18 +1,17 @@
 import { client } from '@/api/client'
 import type { components } from '@/types/schema'
 import { getErrorMessage } from '@/lib/utils'
-import { EArchiveFilter } from '@/enums'
+import { EArchiveFilter, type EArchiveFilterType } from '@/enums'
 
 type UpdateContextPayload = components['schemas']['UpdateContextMessage'];
 type MContext = components['schemas']['MContext'];
 
 export const ContextService = {
-  async getAll() {
+  async getAll(archiveState: EArchiveFilterType = EArchiveFilter.ACTIVE_ONLY) {
     const { data, error } = await client.GET("/api/contexts", { 
         params: { 
             query: { 
-                // Only fetch non-archived contexts
-                archiveState: EArchiveFilter.ACTIVE_ONLY, 
+                archiveState: archiveState, 
                 sort: 'name'
             } 
         } 
@@ -33,22 +32,24 @@ export const ContextService = {
     if (error) throw new Error(getErrorMessage(error))
   },
 
-  /**
-   * Archive/Soft Delete a context.
-   * Maps to DELETE /api/contexts/{id}
-   * Note: Returns 409 Conflict if context contains items (preventing accidental loss).
-   */
-  async close(uuid: string) {
-    const { error, response } = await client.DELETE('/api/contexts/{id}', { 
+  async archive(uuid: string) {
+    const { error } = await client.POST('/api/contexts/{id}/archive' as any, { 
       params: { path: { id: uuid } } 
     })
-    if (response?.status === 409) {
-      throw new Error('Cannot delete folder. Please move or delete items inside it first.')
-    }
     if (error) throw new Error(getErrorMessage(error))
   },
-  
-  async archive(uuid: string) {
-    return this.close(uuid)
+
+  async restore(uuid: string) {
+    const { error } = await client.POST('/api/contexts/{id}/restore' as any, { 
+      params: { path: { id: uuid } } 
+    })
+    if (error) throw new Error(getErrorMessage(error))
+  },
+
+  async delete(uuid: string) {
+    const { error } = await client.DELETE('/api/contexts/{id}', { 
+      params: { path: { id: uuid } } 
+    })
+    if (error) throw new Error(getErrorMessage(error))
   }
 }

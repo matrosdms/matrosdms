@@ -188,7 +188,8 @@ public class ItemIngestionFacade {
 				@Override
 				public void afterCompletion(int status) {
 					if (status == STATUS_ROLLED_BACK) {
-						log.warn("Transaction rolled back — moving orphaned file to error folder for UUID: {}", savedUuid);
+						log.warn("Transaction rolled back — moving orphaned file to error folder for UUID: {}",
+								savedUuid);
 						try {
 							storeService.moveToErrorFolder(savedUuid);
 						} catch (Exception e) {

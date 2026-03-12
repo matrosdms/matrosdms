@@ -106,8 +106,10 @@ public class TrashService {
 	}
 
 	/**
-	 * Moves all files associated with a document to the failed-ingestion error folder.
-	 * Used when a DB transaction rolls back after files were already written to disk.
+	 * Moves all files associated with a document to the failed-ingestion error
+	 * folder.
+	 * Used when a DB transaction rolls back after files were already written to
+	 * disk.
 	 *
 	 * @param rootFolder
 	 *            Document storage root

@@ -70,6 +70,10 @@ public class ItemTextBridge implements TypeBridge<DBItem> {
 
 		target.addValue("textParsed", String.valueOf(item.isTextParsed()));
 
+		// Archive flag: true if item is archived OR its context is archived
+		boolean contextArchived = item.getInfoContext() != null && item.getInfoContext().getDateArchived() != null;
+		target.addValue("isArchived", item.getDateArchived() != null || contextArchived);
+
 		// 2. Fulltext Content (The critical part)
 		// We ignore the DB flag and try to read from disk to ensure index consistency.
 		if (item.getUuid() != null) {

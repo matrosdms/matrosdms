@@ -39,7 +39,8 @@ public class AttributeLookupService {
 			refresh();
 		} catch (Exception e) {
 			// Catch DB errors so the server starts successfully.
-			// This allows Hibernate to write the DDL file even if the current DB is invalid.
+			// This allows Hibernate to write the DDL file even if the current DB is
+			// invalid.
 			System.err.println(
 					"WARN: AttributeLookupService skipped init (Schema mismatch?): " + e.getMessage());
 		}
