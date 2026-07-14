@@ -140,11 +140,15 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 			log.info("app is running in: http://localhost:" + serverPort);
 
-			log.info("Start Browser");
-			System.setProperty("java.awt.headless", "false");
+			if (isContainerEnvironment()) {
+				log.info("Browser auto-open skipped (container). Open http://localhost:{} yourself.", serverPort);
+				return;
+			}
 
-			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)
-					&& startBrowser) {
+			// Note: java.awt.headless cannot be flipped here — Spring Boot has already set it to true
+			// during startup and the toolkit reads it once. The desktop builds pass
+			// -Djava.awt.headless=false on the command line instead (see the jpackage profiles).
+			if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
 				// Give server a moment to fully start before opening browser
 				Thread.sleep(1000);
 				URI uri = new URI("http://localhost:" + serverPort);
@@ -159,10 +163,11 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 	}
 
 	private boolean isContainerEnvironment() {
-		// Check for Docker container indicators
+		// Docker/Kubernetes indicators only. Deliberately NOT java.awt.headless: Spring Boot sets that
+		// to true on every JVM it starts, so testing it here would classify every desktop run as a
+		// container and never open a browser.
 		return java.nio.file.Files.exists(java.nio.file.Paths.get("/.dockerenv"))
 				|| System.getenv("CONTAINER") != null
-				|| System.getenv("KUBERNETES_SERVICE_HOST") != null
-				|| "true".equals(System.getProperty("java.awt.headless"));
+				|| System.getenv("KUBERNETES_SERVICE_HOST") != null;
 	}
 }

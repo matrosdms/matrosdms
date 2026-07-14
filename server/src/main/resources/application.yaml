@@ -23,6 +23,9 @@ logging:
 app:
   base-path: ${MATROS_DATA_DIR:./data}
   start-browser: false
+  # System tray for the desktop builds (jpackage app-image / deb). Ignored unless the JVM was
+  # started with -Djava.awt.headless=false, so a plain `java -jar` and Docker never see a tray.
+  system-tray: true
   security:
     jwt-secret: ${MATROS_JWT_SECRET:bXl0cm9zZG1zU2VjcmV0S2V5Rm9yRGV2ZWxvcG1lbnRPbmx5Q2hhbmdlSW5Qcm9kdWN0aW9u} 
     jwt-expiration-ms: 86400000 
@@ -46,7 +49,19 @@ app:
       heuristic:
         enabled: true
         preference: 20
-        
+    # Semantic vector search (optional). Needs a local Ollama embedding model.
+    # When enabled, an embedding is generated per document at ingest and
+    # /api/search/semantic ranks documents by cosine similarity.
+    embedding:
+      enabled: ${MATROS_AI_EMBED_ENABLED:false}
+      url: ${MATROS_AI_EMBED_URL:http://localhost:11434}
+      model: ${MATROS_AI_EMBED_MODEL:nomic-embed-text}
+      dimension: 768
+    # RAG chat backend (optional). Falls back to classification.ollama if unset.
+    chat:
+      url: ${MATROS_AI_CHAT_URL:}
+      model: ${MATROS_AI_CHAT_MODEL:}
+
   processing:
     convert-text-to-pdf: true
     concurrency: 2 
@@ -94,6 +109,11 @@ spring:
   data:
     rest:
       base-path: /api
+    jpa:
+      repositories:
+        # Bootstrap the EntityManagerFactory on a background thread so Hibernate's metadata build
+        # overlaps the rest of the context refresh; the first repository call transparently waits.
+        bootstrap-mode: deferred
   jackson:
     serialization:
       indent-output: true
@@ -121,7 +141,9 @@ spring:
 
   h2:
     console:
-      enabled: true
+      # SECURITY: off by default - full DB access from a browser. Enable only
+      # for local debugging via MATROS_H2_CONSOLE=true
+      enabled: ${MATROS_H2_CONSOLE:false}
       path: /h2-console
       
   jpa:

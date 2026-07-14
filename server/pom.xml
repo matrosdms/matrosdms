@@ -267,9 +267,10 @@
                 <configuration>
                     <parameters>true</parameters>
                     <release>${java.version}</release>
-                    <compilerArgs>
-                        <arg>--enable-preview</arg>
-                    </compilerArgs>
+                    <!-- Preview features are deliberately off: nothing in this codebase uses a preview
+                         API, and the flag has to be repeated at runtime by every launcher (jar, Docker,
+                         jpackage), which is a standing trap. javac also rejects it whenever the JDK is
+                         newer than the release level, so it broke the build on every JDK bump. -->
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.mapstruct</groupId>
@@ -375,6 +376,125 @@
         </plugins>
     </build>
     <profiles>
+        <!-- `mvn -Pspec verify -DskipTests` → boots the app on a throwaway in-memory
+             (H2/PostgreSQL-mode) DB on port 9099, pulls /v3/api-docs, writes
+             ../spec/openapi.json, then stops. Refreshes the OpenAPI spec without a
+             manual run+curl and without touching the real workspace/DB. Feed
+             `npm run generate` afterwards for the TS types. -->
+        <profile>
+            <id>spec</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <version>${spring-boot.version}</version>
+                        <executions>
+                            <execution>
+                                <id>spec-start</id>
+                                <phase>pre-integration-test</phase>
+                                <goals><goal>start</goal></goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>--server.port=9099</argument>
+                                        <argument>--spring.datasource.url=jdbc:h2:mem:specgen;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1</argument>
+                                        <argument>--app.base-path=./target/specgen-data</argument>
+                                        <argument>--app.start-browser=false</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>spec-stop</id>
+                                <phase>post-integration-test</phase>
+                                <goals><goal>stop</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.springdoc</groupId>
+                        <artifactId>springdoc-openapi-maven-plugin</artifactId>
+                        <version>1.4</version>
+                        <executions>
+                            <execution>
+                                <id>spec-generate</id>
+                                <phase>integration-test</phase>
+                                <goals><goal>generate</goal></goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <!-- WebConfig adds /api to every @RestController, including
+                                 springdoc's own docs controller, so the spec lives under /api -->
+                            <apiDocsUrl>http://localhost:9099/api/v3/api-docs</apiDocsUrl>
+                            <outputFileName>openapi.json</outputFileName>
+                            <outputDir>${project.basedir}/../spec</outputDir>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- `mvn -Pddl verify -DskipTests` → boots the app on a throwaway in-memory
+             (H2/PostgreSQL-mode) DB on port 9099, has Hibernate export the
+             entity-derived schema to ../spec/matros.ddl, then stops. Flyway still
+             owns the live schema (ddl-auto=none); this profile only flips the JPA
+             schema-generation script action from `none` to `create` so the DDL is
+             regenerated from the entities without touching the real workspace/DB.
+             Use the output to author/update the Flyway V*__*.sql migrations. -->
+        <profile>
+            <id>ddl</id>
+            <build>
+                <plugins>
+                    <!-- Hibernate opens the schema-generation create-target in APPEND
+                         mode, so wipe any prior matros.ddl first — otherwise each run
+                         concatenates another full copy onto the file. Declared before
+                         the spring-boot plugin so it runs first in pre-integration-test. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>ddl-clean</id>
+                                <phase>pre-integration-test</phase>
+                                <goals><goal>run</goal></goals>
+                                <configuration>
+                                    <target>
+                                        <delete file="${project.basedir}/../spec/matros.ddl"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <version>${spring-boot.version}</version>
+                        <executions>
+                            <execution>
+                                <id>ddl-start</id>
+                                <phase>pre-integration-test</phase>
+                                <goals><goal>start</goal></goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>--server.port=9099</argument>
+                                        <argument>--spring.datasource.url=jdbc:h2:mem:ddlgen;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1</argument>
+                                        <argument>--spring.jpa.properties.jakarta.persistence.schema-generation.scripts.action=create</argument>
+                                        <argument>--spring.jpa.properties.jakarta.persistence.schema-generation.scripts.create-target=${project.basedir}/../spec/matros.ddl</argument>
+                                        <argument>--app.base-path=./target/ddlgen-data</argument>
+                                        <argument>--app.start-browser=false</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>ddl-stop</id>
+                                <phase>post-integration-test</phase>
+                                <goals><goal>stop</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <profile>
             <id>with-frontend</id>
             <dependencies>
@@ -392,6 +512,7 @@
             <id>windows-portable</id>
             <build>
                 <plugins>
+                    <!-- 1. Stage the jar that jpackage will wrap. -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-resources-plugin</artifactId>
@@ -421,14 +542,30 @@
                         <artifactId>exec-maven-plugin</artifactId>
                         <version>3.5.0</version>
                         <executions>
+                            <!-- 2. Render the app icon from MatrosBadge, so no binary can drift from the brand. -->
                             <execution>
-                                <id>jpackage-portable</id>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
+                                <id>generate-icon</id>
+                                <goals><goal>exec</goal></goals>
                                 <phase>package</phase>
                                 <configuration>
-                                    <executable>jpackage</executable>
+                                    <executable>${java.home}/bin/java</executable>
+                                    <arguments>
+                                        <argument>-cp</argument>
+                                        <argument>${project.build.outputDirectory}</argument>
+                                        <argument>net.schwehla.matrosdms.desktop.IconGenerator</argument>
+                                        <argument>${project.build.directory}/icon/matrosdms.ico</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- 3. Wrap it up. No win-console flag: the app launches windowed and lives in the
+                                 system tray (see TrayLauncher); the tray's log window replaces the console. -->
+                            <execution>
+                                <id>jpackage-portable</id>
+                                <goals><goal>exec</goal></goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <executable>${java.home}/bin/jpackage</executable>
                                     <arguments>
                                         <argument>--name</argument>
                                         <argument>${app.name}</argument>
@@ -438,6 +575,8 @@
                                         <argument>${app.description}</argument>
                                         <argument>--vendor</argument>
                                         <argument>${app.vendor}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.build.directory}/icon/matrosdms.ico</argument>
                                         <argument>--input</argument>
                                         <argument>${project.build.directory}/jpackage-input</argument>
                                         <argument>--main-jar</argument>
@@ -450,9 +589,10 @@
                                         <argument>-Xmx2048m</argument>
                                         <argument>--java-options</argument>
                                         <argument>-Dspring.profiles.active=prod</argument>
+                                        <!-- What makes the tray and splash possible at all: Spring Boot otherwise
+                                             forces headless=true and AWT can never open a window. -->
                                         <argument>--java-options</argument>
-                                        <argument>--enable-preview</argument>
-                                        <argument>--win-console</argument>
+                                        <argument>-Djava.awt.headless=false</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -481,17 +621,21 @@
                 </plugins>
             </build>
         </profile>
+
+        <!-- Linux is not a second-class target: the same self-contained app-image as Windows, with a
+             bundled runtime, the branded icon and a non-headless launch, so the tray, the splash and
+             the log window all work. Unpack and run; no JDK needed. -->
         <profile>
-            <id>linux-installer</id>
+            <id>linux-portable</id>
             <build>
                 <plugins>
-                    <!-- 1. Prepare input directory for jpackage -->
+                    <!-- 1. Stage the jar that jpackage will wrap. -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-resources-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>prepare-jpackage-input-linux</id>
+                                <id>prepare-jpackage-input</id>
                                 <goals>
                                     <goal>copy-resources</goal>
                                 </goals>
@@ -510,58 +654,157 @@
                             </execution>
                         </executions>
                     </plugin>
-
-                    <!-- 2. Execute jpackage for Linux -->
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <version>3.5.0</version>
                         <executions>
+                            <!-- 2. Render the app icon from MatrosBadge, so no binary can drift from the brand. -->
                             <execution>
-                                <id>jpackage-linux</id>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
+                                <id>generate-icon</id>
+                                <goals><goal>exec</goal></goals>
                                 <phase>package</phase>
                                 <configuration>
-                                    <executable>jpackage</executable>
+                                    <executable>${java.home}/bin/java</executable>
                                     <arguments>
-                                        <!-- NOTE: Linux package names must be strictly lowercase! 
-                                             We cannot use ${app.name} here as "MatrosDMS" will fail the deb/rpm specs. -->
-                                        <argument>--name</argument>
-                                        <argument>matrosdms</argument>
+                                        <argument>-cp</argument>
+                                        <argument>${project.build.outputDirectory}</argument>
+                                        <argument>net.schwehla.matrosdms.desktop.IconGenerator</argument>
+                                        <argument>${project.build.directory}/icon/matrosdms.png</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
 
+                            <execution>
+                                <id>jpackage-linux-portable</id>
+                                <goals><goal>exec</goal></goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <executable>${java.home}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--name</argument>
+                                        <argument>${app.name}</argument>
                                         <argument>--app-version</argument>
                                         <argument>${jpackage.version}</argument>
                                         <argument>--description</argument>
                                         <argument>${app.description}</argument>
                                         <argument>--vendor</argument>
                                         <argument>${app.vendor}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.build.directory}/icon/matrosdms.png</argument>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.build.finalName}.jar</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.build.directory}/linux-image</argument>
+                                        <argument>--type</argument>
+                                        <argument>app-image</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>-Xmx2048m</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>-Dspring.profiles.active=prod</argument>
+                                        <!-- What makes the tray and splash possible at all: Spring Boot otherwise
+                                             forces headless=true and AWT can never open a window. -->
+                                        <argument>--java-options</argument>
+                                        <argument>-Djava.awt.headless=false</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Native .deb: a real desktop entry with a menu icon, a launcher and an uninstall. -->
+        <profile>
+            <id>linux-installer</id>
+            <build>
+                <plugins>
+                    <!-- 1. Stage the jar that jpackage will wrap. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>prepare-jpackage-input</id>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}/jpackage-input</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.build.directory}</directory>
+                                            <includes>
+                                                <include>${project.build.finalName}.jar</include>
+                                            </includes>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <!-- 2. Render the app icon from MatrosBadge, so no binary can drift from the brand. -->
+                            <execution>
+                                <id>generate-icon</id>
+                                <goals><goal>exec</goal></goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <executable>${java.home}/bin/java</executable>
+                                    <arguments>
+                                        <argument>-cp</argument>
+                                        <argument>${project.build.outputDirectory}</argument>
+                                        <argument>net.schwehla.matrosdms.desktop.IconGenerator</argument>
+                                        <argument>${project.build.directory}/icon/matrosdms.png</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <execution>
+                                <id>jpackage-linux</id>
+                                <goals><goal>exec</goal></goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <executable>${java.home}/bin/jpackage</executable>
+                                    <arguments>
+                                        <!-- Linux package names must be lowercase; "MatrosDMS" fails the deb spec. -->
+                                        <argument>--name</argument>
+                                        <argument>matrosdms</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${jpackage.version}</argument>
+                                        <argument>--description</argument>
+                                        <argument>${app.description}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>${app.vendor}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.build.directory}/icon/matrosdms.png</argument>
                                         <argument>--input</argument>
                                         <argument>${project.build.directory}/jpackage-input</argument>
                                         <argument>--main-jar</argument>
                                         <argument>${project.build.finalName}.jar</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.build.directory}/linux-installer</argument>
-
-                                        <!-- Use 'deb' for Debian/Ubuntu or 'rpm' for RHEL/Fedora -->
                                         <argument>--type</argument>
                                         <argument>deb</argument>
-
-                                        <!-- JVM Options -->
                                         <argument>--java-options</argument>
                                         <argument>-Xmx2048m</argument>
                                         <argument>--java-options</argument>
                                         <argument>-Dspring.profiles.active=prod</argument>
+                                        <!-- What makes the tray and splash possible at all: Spring Boot otherwise
+                                             forces headless=true and AWT can never open a window. -->
                                         <argument>--java-options</argument>
-                                        <argument>--enable-preview</argument>
-
-                                        <!-- Linux Specific Integrations -->
+                                        <argument>-Djava.awt.headless=false</argument>
                                         <argument>--linux-shortcut</argument>
                                         <argument>--linux-menu-group</argument>
                                         <argument>Office</argument>
-
-                                        <!-- Required for .deb packages to prevent warnings -->
                                         <argument>--linux-deb-maintainer</argument>
                                         <argument>maintainer@matrosdms.net</argument>
                                     </arguments>

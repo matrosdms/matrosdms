@@ -20,6 +20,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import net.schwehla.matrosdms.desktop.DesktopSplash;
 import net.schwehla.matrosdms.util.UUIDProvider;
 
 @SpringBootApplication(exclude = { UserDetailsServiceAutoConfiguration.class })
@@ -45,6 +46,11 @@ public class MatrosSpringbootApplication {
 	}
 
 	public static void main(String[] args) throws Exception {
+		// The desktop build has no console window, so show the splash before Spring boots: once it
+		// does, it forces java.awt.headless=true and no window can be created any more. No-ops on a
+		// headless JVM (plain jar, container, CI). TrayLauncher dismisses it when we are ready.
+		DesktopSplash.showIfDesktop();
+
 		SpringApplication.run(MatrosSpringbootApplication.class, args);
 	}
 }

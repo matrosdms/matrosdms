@@ -1,0 +1,25 @@
+name: Render the desktop app icon
+description: >
+  Renders the MatrosDMS icon for a jpackage build. Shared by the Windows, Linux tarball and .deb
+  jobs so they cannot drift apart.
+
+inputs:
+  icon-format:
+    description: ico (Windows) or png (Linux/macOS)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The icon is drawn in Java2D, not checked in, so it cannot drift from the brand. MatrosBadge and
+    # IconGenerator are deliberately JDK-only, which is why a bare javac of two files is enough — no
+    # Maven, no application classpath.
+    - name: Render the app icon
+      shell: bash
+      run: |
+        javac -d icon-classes \
+          server/src/main/java/net/schwehla/matrosdms/desktop/MatrosBadge.java \
+          server/src/main/java/net/schwehla/matrosdms/desktop/IconGenerator.java
+        java -cp icon-classes net.schwehla.matrosdms.desktop.IconGenerator \
+          "icon/matrosdms.${{ inputs.icon-format }}"
+        ls -l "icon/matrosdms.${{ inputs.icon-format }}"
