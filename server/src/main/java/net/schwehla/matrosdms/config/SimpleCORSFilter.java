@@ -8,6 +8,9 @@
 package net.schwehla.matrosdms.config;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -20,6 +23,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -30,8 +34,22 @@ public class SimpleCORSFilter implements Filter {
 
 	private final Logger log = LoggerFactory.getLogger(SimpleCORSFilter.class);
 
-	public SimpleCORSFilter() {
-		log.info("SimpleCORSFilter init (Highest Priority Mode)");
+	/**
+	 * SECURITY: fixed allowlist instead of echoing the caller's Origin.
+	 * Reflecting any Origin combined with Allow-Credentials=true lets every
+	 * website script this API with the victim's stored credentials.
+	 * In production the SPA is served same-origin (no Origin mismatch), so the
+	 * defaults only need to cover local Vite dev servers.
+	 */
+	private final Set<String> allowedOrigins;
+
+	public SimpleCORSFilter(
+			@Value("${matros.security.allowed-origins:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173}") String origins) {
+		this.allowedOrigins = Arrays.stream(origins.split(","))
+				.map(String::trim)
+				.filter(s -> !s.isEmpty())
+				.collect(Collectors.toSet());
+		log.info("SimpleCORSFilter init, allowed origins: {}", allowedOrigins);
 	}
 
 	@Override
@@ -41,29 +59,30 @@ public class SimpleCORSFilter implements Filter {
 		HttpServletResponse response = (HttpServletResponse) res;
 		HttpServletRequest request = (HttpServletRequest) req;
 
-		// 1. ALLOW ORIGIN: Dynamic echo allows localhost:5173, 5174, etc.
 		String origin = request.getHeader("Origin");
-		response.setHeader("Access-Control-Allow-Origin", origin != null ? origin : "*");
 
-		// 2. ALLOW CREDENTIALS (for JWT/Cookies)
-		response.setHeader("Access-Control-Allow-Credentials", "true");
+		// Same-origin requests and non-browser clients send no Origin header:
+		// nothing to do. Unknown origins get no CORS headers -> browser blocks.
+		if (origin != null && allowedOrigins.contains(origin)) {
+			response.setHeader("Access-Control-Allow-Origin", origin);
+			response.setHeader("Vary", "Origin");
+			response.setHeader("Access-Control-Allow-Credentials", "true");
+			response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH");
+			response.setHeader(
+					"Access-Control-Allow-Headers",
+					"Content-Type, Accept, X-Requested-With, Authorization, X-MATROS-USER, Origin");
+			response.setHeader("Access-Control-Max-Age", "3600");
 
-		// 3. ALLOW METHODS
-		response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH");
-
-		// 4. ALLOW HEADERS (Include Authorization!)
-		response.setHeader(
-				"Access-Control-Allow-Headers",
-				"Content-Type, Accept, X-Requested-With, Authorization, X-MATROS-USER, Origin");
-
-		// 5. CACHE PREFLIGHT
-		response.setHeader("Access-Control-Max-Age", "3600");
-
-		// 6. HANDLE PREFLIGHT (OPTIONS)
-		// Bypass the rest of the chain (Security) entirely for OPTIONS requests.
-		if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-			response.setStatus(HttpServletResponse.SC_OK);
-			return; // Stop here, do not continue to Security Filter Chain
+			// Preflight for an allowed origin: answer directly
+			if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+				response.setStatus(HttpServletResponse.SC_OK);
+				return;
+			}
+		} else if (origin != null && "OPTIONS".equalsIgnoreCase(request.getMethod())) {
+			// Preflight from a non-allowlisted origin: refuse without CORS headers
+			log.warn("CORS preflight rejected for origin: {}", origin);
+			response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+			return;
 		}
 
 		chain.doFilter(req, res);

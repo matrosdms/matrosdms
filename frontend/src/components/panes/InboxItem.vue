@@ -76,6 +76,12 @@ const contextName = computed(() => {
 })
 // kindLabel is only used in the INFO panel as a raw fallback; AiProposalCard resolves the real name
 const kindLabel = computed(() => prediction.value?.kind ?? null)
+// Internal keys (e.g. _vector embedding array) must never be rendered
+const visibleAttributes = computed(() => {
+  const attrs = prediction.value?.attributes
+  if (!attrs) return null
+  return Object.fromEntries(Object.entries(attrs).filter(([k]) => !k.startsWith('_')))
+})
 const duplicateLabel = computed(() => props.file.doublette ? (props.file.doublette.length > 12 ? `${props.file.doublette.slice(0, 12)}…` : props.file.doublette) : '')
 
 const { data: duplicateItem } = useQuery({
@@ -267,13 +273,13 @@ const handleIgnore = (event: Event) => { event.stopPropagation(); emit('ignore')
           <span v-if="prediction.summary" class="text-foreground leading-relaxed col-span-1">{{ prediction.summary }}</span>
 
           <span v-if="prediction.confidence != null" class="text-muted-foreground">Confidence</span>
-          <span v-if="prediction.confidence != null" class="font-mono text-foreground">{{ Math.round((prediction.confidence ?? 0) * 100) }}%</span>
+          <span v-if="prediction.confidence != null" class="font-mono text-foreground">{{ Math.round(Math.min(1, Math.max(0, prediction.confidence ?? 0)) * 100) }}%</span>
         </div>
 
-        <!-- AI extracted attributes -->
-        <template v-if="prediction.attributes && Object.keys(prediction.attributes).length">
+        <!-- AI extracted attributes (internal keys like _vector are hidden) -->
+        <template v-if="visibleAttributes && Object.keys(visibleAttributes).length">
           <div class="px-3 py-2 border-t border-border/60 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
-            <template v-for="(val, key) in prediction.attributes" :key="key">
+            <template v-for="(val, key) in visibleAttributes" :key="key">
               <span class="text-muted-foreground font-sans capitalize">{{ String(key).replace(/_/g, ' ').toLowerCase() }}</span>
               <span class="font-mono text-foreground truncate">{{ val }}</span>
             </template>

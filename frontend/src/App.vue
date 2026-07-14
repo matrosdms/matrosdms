@@ -1,20 +1,14 @@
 <script setup lang="ts">
-import DashboardView from '@/views/dashboard/DashboardView.vue'
 import ActivityBar from '@/components/ActivityBar.vue'
 import LoginView from '@/views/auth/LoginView.vue'
-import SettingsView from '@/views/admin/SettingsView.vue'
-import ProfileView from '@/views/user/ProfileView.vue'
 import OfflineView from '@/views/system/OfflineView.vue'
-import AboutView from '@/views/system/AboutView.vue'
-import SearchView from '@/views/search/SearchView.vue'
-import AiView from '@/views/ai/AiView.vue'
 import WelcomeTour from '@/components/onboarding/WelcomeTour.vue'
 import ToastProvider from '@/components/ui/ToastProvider.vue'
 import ContextFilterBar from '@/components/widgets/ContextFilterBar.vue'
 import GlobalSearch from '@/components/widgets/GlobalSearch.vue'
 import UserMenu from '@/components/widgets/UserMenu.vue'
 import { Loader2, Bell } from 'lucide-vue-next'
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, defineAsyncComponent } from 'vue'
 import { useIsFetching, useIsMutating, useQuery } from '@tanstack/vue-query'
 import { SystemService } from '@/services/SystemService'
 import { push } from 'notivue'
@@ -27,6 +21,14 @@ import { useAppBoot } from '@/composables/useAppBoot'
 import { useRouteSync } from '@/composables/useRouteSync'
 import { InboxService } from '@/services/InboxService'
 
+// Lazy-loaded views (code splitting): only fetched when the user navigates to them
+const DashboardView = defineAsyncComponent(() => import('@/views/dashboard/DashboardView.vue'))
+const SettingsView = defineAsyncComponent(() => import('@/views/admin/SettingsView.vue'))
+const SearchView = defineAsyncComponent(() => import('@/views/search/SearchView.vue'))
+const AiView = defineAsyncComponent(() => import('@/views/ai/AiView.vue'))
+const ProfileView = defineAsyncComponent(() => import('@/views/user/ProfileView.vue'))
+const AboutView = defineAsyncComponent(() => import('@/views/system/AboutView.vue'))
+
 const auth = useAuthStore()
 const ui = useUIStore()
 const dms = useDmsStore()
@@ -36,10 +38,11 @@ const { isBackendDisconnected, bootSystem, onRetryConnection } = useAppBoot()
 
 useRouteSync()
 
-const dashboardRef = ref<InstanceType<typeof DashboardView> | null>(null)
-const settingsRef = ref<InstanceType<typeof SettingsView> | null>(null)
-const searchRef = ref<InstanceType<typeof SearchView> | null>(null)
-const aiRef = ref<InstanceType<typeof AiView> | null>(null)
+// Note: async components don't expose InstanceType, so refs are loosely typed
+const dashboardRef = ref<any>(null)
+const settingsRef = ref<any>(null)
+const searchRef = ref<any>(null)
+const aiRef = ref<any>(null)
 
 const isFetching = useIsFetching()
 const isMutating = useIsMutating()

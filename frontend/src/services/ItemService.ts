@@ -22,46 +22,53 @@ const throwWithCode = (error: any) => {
 export const ItemService = {
   
   async getByContext(contextId: string, archiveState: EArchiveFilterType = EArchiveFilter.ACTIVE_ONLY): Promise<Item[]> {
-      const allItems: any[] = []
+      const PAGE_SIZE = 200
+      const allItems: Item[] = []
       let page = 0
       let hasNext = true
 
       // Fetch all pages
       while (hasNext) {
-          const { data, error } = await client.GET("/api/items", { 
+          const { data, error } = await client.GET("/api/items", {
               params: {
-                  query: { 
-                      context: contextId, 
+                  query: {
+                      context: contextId,
                       // Explicitly pass the filter (Active vs Archived)
                       archiveState: archiveState,
                       page: page,
-                      size: 50,
-                      sort: ['issueDate,desc'] 
+                      size: PAGE_SIZE,
+                      sort: ['issueDate,desc']
                   } as any
               }
           })
-          
+
           if(error) throwWithCode(error)
 
           const content = data?.content || []
           if (content.length > 0) {
-              allItems.push(...content)
+              // RUNTIME VALIDATION (Zod) — per page, with per-row fallback
+              const result = ItemListSchema.safeParse(content)
+              if (result.success) {
+                  allItems.push(...(result.data as Item[]))
+              } else {
+                  // A row in this page is malformed: keep the valid rows, drop the rest
+                  for (const row of content) {
+                      const rowResult = ItemSchema.safeParse(row)
+                      if (rowResult.success) {
+                          allItems.push(rowResult.data as Item)
+                      } else {
+                          console.warn("[ItemService] Dropping invalid item:", (row as any)?.uuid ?? row, rowResult.error)
+                      }
+                  }
+              }
               page++
-              if (data?.last === true || content.length < 50) hasNext = false
+              if (data?.last === true || content.length < PAGE_SIZE) hasNext = false
           } else {
               hasNext = false
           }
       }
 
-      // RUNTIME VALIDATION (Zod)
-      const result = ItemListSchema.safeParse(allItems)
-      
-      if (!result.success) {
-          console.error("[ItemService] Validation Failed:", result.error)
-          return [] 
-      }
-      
-      return result.data as Item[]
+      return allItems
   },
 
   async getById(uuid: string): Promise<Item> {
@@ -147,11 +154,12 @@ export const ItemService = {
       const safeInstruction = instruction.toUpperCase() as any;
       
       const { data, error } = await client.POST("/api/items/{uuid}/ai/transform", {
-          params: { 
+          params: {
               path: { uuid },
               query: { instruction: safeInstruction, format }
           },
-          parseAs: "text"
+          parseAs: "text",
+          signal: AbortSignal.timeout(120_000)
       });
       if (error) throwWithCode(error);
       return data || "";

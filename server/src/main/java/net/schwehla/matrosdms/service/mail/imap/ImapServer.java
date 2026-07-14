@@ -51,8 +51,25 @@ public class ImapServer {
 	private static final Pattern COPY_PATTERN = Pattern
 			.compile("(?i)COPY\\s+(\\d+(?:,\\d+)?)\\s+(?:\"([^\"]+)\"|([^\\s]+))");
 
+	// Reject APPEND literals larger than this (client-declared size was used to
+	// allocate a buffer directly -> trivial OOM DoS)
+	private static final int MAX_APPEND_SIZE = 50 * 1024 * 1024;
+
 	@Value("${app.mail.imap.port:1143}")
 	private int port;
+
+	// Local-first: loopback by default (local Thunderbird). Set
+	// MATROS_MAIL_BIND to expose on LAN - then also set app.mail.require-auth.
+	@Value("${app.mail.bind-address:${MATROS_MAIL_BIND:127.0.0.1}}")
+	private String bindAddress;
+
+	// Off by default: loopback-only + forcing real credentials would break
+	// existing local mail client profiles
+	@Value("${app.mail.require-auth:false}")
+	private boolean requireAuth;
+
+	@Autowired
+	net.schwehla.matrosdms.service.mail.common.MailAuthenticator mailAuthenticator;
 
 	@Autowired
 	MailboxManager mailboxManager;
@@ -71,9 +88,9 @@ public class ImapServer {
 
 	private void serverLoop() {
 		try {
-			serverSocket = new ServerSocket(port);
+			serverSocket = new ServerSocket(port, 50, java.net.InetAddress.getByName(bindAddress));
 			running = true;
-			log.info("🚀 IMAP Server listening on port {}", port);
+			log.info("🚀 IMAP Server listening on {}:{}", bindAddress, port);
 			while (running) {
 				try {
 					Socket client = serverSocket.accept();
@@ -139,15 +156,32 @@ public class ImapServer {
 							send(writer, "* CAPABILITY IMAP4rev1 AUTH=PLAIN NAMESPACE ID CHILDREN");
 							send(writer, tag + " OK CAPABILITY completed");
 						}
-						case "LOGIN", "AUTHENTICATE" -> {
-							authenticated = true;
-							if (cmd.equals("AUTHENTICATE")
-									&& args.contains("PLAIN")
-									&& !args.trim().endsWith("=")) {
-								send(writer, "+");
-								reader.readLine();
+						case "LOGIN" -> {
+							String[] cred = parseLoginArgs(args);
+							if (!requireAuth || (cred != null && mailAuthenticator.authenticate(cred[0], cred[1]))) {
+								authenticated = true;
+								send(writer, tag + " OK LOGIN completed");
+							} else {
+								send(writer, tag + " NO [AUTHENTICATIONFAILED] Invalid credentials");
 							}
-							send(writer, tag + " OK LOGIN completed");
+						}
+						case "AUTHENTICATE" -> {
+							if (!args.toUpperCase().startsWith("PLAIN")) {
+								send(writer, tag + " NO Unsupported authentication mechanism");
+								break;
+							}
+							// SASL-IR: initial response may follow on the same line
+							String blob = args.length() > 5 ? args.substring(5).trim() : "";
+							if (blob.isEmpty()) {
+								send(writer, "+");
+								blob = reader.readLine();
+							}
+							if (!requireAuth || (blob != null && mailAuthenticator.authenticatePlain(blob))) {
+								authenticated = true;
+								send(writer, tag + " OK AUTHENTICATE completed");
+							} else {
+								send(writer, tag + " NO [AUTHENTICATIONFAILED] Invalid credentials");
+							}
 						}
 						case "LOGOUT" -> {
 							send(writer, "* BYE");
@@ -244,12 +278,29 @@ public class ImapServer {
 		return true;
 	}
 
+	/** Parses {@code LOGIN user pass} with optional quoting; null if malformed. */
+	private String[] parseLoginArgs(String args) {
+		List<String> tokens = new ArrayList<>();
+		Matcher m = Pattern.compile("\"([^\"]*)\"|(\\S+)").matcher(args);
+		while (m.find()) {
+			tokens.add(m.group(1) != null ? m.group(1) : m.group(2));
+		}
+		return tokens.size() >= 2 ? new String[] { tokens.get(0), tokens.get(1) } : null;
+	}
+
 	private void handleAppend(BufferedReader reader, PrintWriter writer, String line, String tag)
 			throws IOException {
 		Matcher m = APPEND_PATTERN.matcher(line);
 		if (m.find()) {
 			String targetName = m.group(1) != null ? m.group(1) : m.group(2);
 			int size = Integer.parseInt(m.group(3));
+
+			// The literal size is client-controlled and used for allocation below -
+			// without a cap a single APPEND with {2000000000} is an OOM DoS
+			if (size < 0 || size > MAX_APPEND_SIZE) {
+				send(writer, tag + " NO [LIMIT] APPEND literal exceeds maximum of " + MAX_APPEND_SIZE + " bytes");
+				return;
+			}
 
 			send(writer, "+ Ready for literal data");
 

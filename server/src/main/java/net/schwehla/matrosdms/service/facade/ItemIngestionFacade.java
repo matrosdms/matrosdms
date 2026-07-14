@@ -78,6 +78,8 @@ public class ItemIngestionFacade {
 	UUIDProvider uuidProvider;
 	@Autowired
 	FileUtils fileUtils;
+	@Autowired
+	net.schwehla.matrosdms.service.SemanticSearchService semanticSearchService;
 
 	@Transactional()
 	@Caching(evict = {
@@ -134,6 +136,7 @@ public class ItemIngestionFacade {
 		// 1. Set Gatekeeper Hash
 		metadata.setSha256Original(hashOriginal);
 
+		String embedText = null;
 		try {
 			Path processedFile = pipelineService.getProcessedFile(hashOriginal, extension);
 			Path textFile = pipelineService.getTextLayerFile(hashOriginal);
@@ -142,6 +145,7 @@ public class ItemIngestionFacade {
 				String rawXml = Files.readString(textFile, java.nio.charset.StandardCharsets.UTF_8);
 				String cleanText = net.schwehla.matrosdms.util.TextLayerUtils.extractCleanText(rawXml);
 				dbItem.setTextParsed(!cleanText.isBlank());
+				embedText = cleanText;
 			} else {
 				dbItem.setTextParsed(false);
 			}
@@ -167,6 +171,7 @@ public class ItemIngestionFacade {
 			// - afterCompletion(ROLLBACK): remove orphaned file from disk
 			final String savedUuid = saved.getUuid();
 			final Long savedId = saved.getId();
+			final String embeddingText = embedText;
 
 			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 				@Override
@@ -176,6 +181,13 @@ public class ItemIngestionFacade {
 								indexItemTask.instance("idx-" + savedUuid, savedId), Instant.now());
 					} catch (Exception e) {
 						log.error("Failed to schedule index task for {} after commit", savedUuid, e);
+					}
+					// Semantic embedding: after commit, never inside the tx (it calls a
+					// possibly-slow/absent Ollama). No-op unless embeddings are enabled.
+					try {
+						semanticSearchService.indexItem(savedUuid, embeddingText);
+					} catch (Exception e) {
+						log.warn("Failed to generate embedding for {} (non-fatal)", savedUuid, e);
 					}
 					try {
 						inboxManager.moveToProcessed(hashOriginal);

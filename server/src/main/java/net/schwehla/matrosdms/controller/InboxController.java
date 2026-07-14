@@ -56,13 +56,15 @@ public class InboxController {
 		return new ResponseEntity<>(inboxManager.loadInboxList(), HttpStatus.OK);
 	}
 
-	@GetMapping("/inbox/{hash}/status")
+	// {hash:...} regex: the hash flows into filesystem paths and recursive
+	// deletes downstream - only a plain SHA-256 hex string may ever get through
+	@GetMapping("/inbox/{hash:[a-fA-F0-9]{64}}/status")
 	public ResponseEntity<InboxFile> getFileStatus(@PathVariable("hash") String hash) {
 		InboxFile file = inboxManager.getInboxFileDto(hash);
 		return file != null ? ResponseEntity.ok(file) : ResponseEntity.notFound().build();
 	}
 
-	@PostMapping("/inbox/{hash}/digest")
+	@PostMapping("/inbox/{hash:[a-fA-F0-9]{64}}/digest")
 	public ResponseEntity<Object> startDigest(@PathVariable("hash") String hash) {
 		InboxFile file = inboxManager.getInboxFileDto(hash);
 		if (file == null)
@@ -86,13 +88,24 @@ public class InboxController {
 		}
 	}
 
-	@PostMapping("/inbox/{hash}/ignore")
+	@PostMapping("/inbox/{hash:[a-fA-F0-9]{64}}/assign")
+	@Operation(summary = "Manually assign a target context to an inbox file (persisted)")
+	public ResponseEntity<InboxFile> assignContext(
+			@PathVariable("hash") String hash, @RequestParam("contextUuid") String contextUuid) {
+		try {
+			return ResponseEntity.ok(inboxManager.assignContext(hash, contextUuid));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.notFound().build();
+		}
+	}
+
+	@PostMapping("/inbox/{hash:[a-fA-F0-9]{64}}/ignore")
 	public ResponseEntity<Void> ignoreFile(@PathVariable("hash") String hash) {
 		inboxManager.ignoreFile(hash);
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 
-	@GetMapping("/inbox/{hash}/content")
+	@GetMapping("/inbox/{hash:[a-fA-F0-9]{64}}/content")
 	public ResponseEntity<Resource> viewInboxFile(@PathVariable("hash") String hash) {
 		try {
 			Path path = inboxManager.getInboxFile(hash);

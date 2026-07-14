@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import net.schwehla.matrosdms.ai.IPredictionStrategy;
 import net.schwehla.matrosdms.config.model.AppServerSpringConfig;
@@ -51,7 +50,9 @@ public class PredictionService {
 	@Autowired
 	AppServerSpringConfig appConfig;
 
-	@Transactional(readOnly = true)
+	// Deliberately NOT @Transactional: strategy.analyze() may block on a remote
+	// LLM for minutes - a surrounding transaction would pin a DB connection for
+	// that whole time. The lookups below manage their own (cached) transactions.
 	public void predictMetadata(String fullText, String filename, DigestResultMessage result) {
 
 		// 1. Select Strategy

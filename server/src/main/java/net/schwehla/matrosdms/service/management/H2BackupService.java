@@ -58,6 +58,20 @@ public class H2BackupService {
 		}
 	}
 
+	// Users tend to just close the console window (hard kill, no graceful
+	// shutdown) - fsync committed work every interval so nothing older is lost
+	@Scheduled(
+			fixedDelayString = "${app.database.checkpoint-interval-ms:300000}",
+			initialDelayString = "${app.database.checkpoint-interval-ms:300000}")
+	public void checkpointDatabase() {
+		try {
+			jdbcTemplate.execute("CHECKPOINT SYNC");
+			log.debug("[DB] CHECKPOINT SYNC completed");
+		} catch (Exception e) {
+			log.warn("[DB] CHECKPOINT SYNC failed: {}", e.getMessage());
+		}
+	}
+
 	@Scheduled(cron = "0 0 3 * * ?")
 	public void performDailyBackup() {
 		log.info("[Backup] Performing Scheduled Nightly Backup...");
@@ -66,8 +80,8 @@ public class H2BackupService {
 		}
 	}
 
-	public void createBackup() {
-		createBackup("manual");
+	public boolean createBackup() {
+		return createBackup("manual");
 	}
 
 	private boolean createBackup(String type) {

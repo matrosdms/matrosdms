@@ -17,6 +17,15 @@ export const InboxService = {
       return (data || []) as InboxFile[]
   },
 
+  // Persists a manual context assignment on the server (survives reloads).
+  async assignContext(hash: string, contextUuid: string) {
+      const { data, error } = await client.POST("/api/inbox/{hash}/assign", {
+          params: { path: { hash }, query: { contextUuid } },
+      })
+      if (error) throw new Error(getErrorMessage(error))
+      return data as InboxFile
+  },
+
   async upload(file: File) {
       const formData = new FormData()
       formData.append('file', file)

@@ -41,8 +41,10 @@ const kindName = computed(() => {
   return findInTree(kindTree.value, id) ?? id
 })
 
+// Guard against out-of-range values (e.g. an LLM answering on a 0-100 scale)
+const clamp01 = (c: number) => Math.min(1, Math.max(0, c))
 const fieldConf = computed<Record<string, number>>(() => props.prediction.fieldConfidences ?? {})
-const overall = computed(() => props.prediction.confidence ?? 0)
+const overall = computed(() => clamp01(props.prediction.confidence ?? 0))
 
 // ─── Per-field rows ────────────────────────────────────────────────────────
 interface FieldRow { key: string; label: string; icon: any; value: string | null; confidence: number }
@@ -50,13 +52,13 @@ interface FieldRow { key: string; label: string; icon: any; value: string | null
 const fieldRows = computed<FieldRow[]>(() => {
   const rows: FieldRow[] = []
   if (contextName.value) {
-    rows.push({ key: 'context', label: 'Folder', icon: Folder, value: contextName.value, confidence: fieldConf.value.context ?? overall.value })
+    rows.push({ key: 'context', label: 'Folder', icon: Folder, value: contextName.value, confidence: clamp01(fieldConf.value.context ?? overall.value) })
   }
   if (kindName.value) {
-    rows.push({ key: 'kind', label: 'Type', icon: FileType, value: kindName.value, confidence: fieldConf.value.kind ?? overall.value })
+    rows.push({ key: 'kind', label: 'Type', icon: FileType, value: kindName.value, confidence: clamp01(fieldConf.value.kind ?? overall.value) })
   }
   if (props.prediction.documentDate) {
-    rows.push({ key: 'date', label: 'Date', icon: Calendar, value: props.prediction.documentDate, confidence: fieldConf.value.documentDate ?? overall.value })
+    rows.push({ key: 'date', label: 'Date', icon: Calendar, value: props.prediction.documentDate, confidence: clamp01(fieldConf.value.documentDate ?? overall.value) })
   }
   return rows
 })

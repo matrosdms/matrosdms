@@ -13,8 +13,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Properties;
 
@@ -26,14 +27,18 @@ import jakarta.mail.internet.MimeMessage;
 
 public class MimeHelper {
 
-	private static final SimpleDateFormat IMAP_DATE_FMT = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss Z", Locale.US);
+	// DateTimeFormatter is immutable/thread-safe; SimpleDateFormat is not and was
+	// shared across concurrent IMAP client threads
+	private static final DateTimeFormatter IMAP_DATE_FMT = DateTimeFormatter
+			.ofPattern("dd-MMM-yyyy HH:mm:ss Z", Locale.US)
+			.withZone(ZoneId.systemDefault());
 
 	public static String getInternalDate(Path path) {
 		try {
 			BasicFileAttributes attr = Files.readAttributes(path, BasicFileAttributes.class);
-			return IMAP_DATE_FMT.format(new Date(attr.creationTime().toMillis()));
+			return IMAP_DATE_FMT.format(attr.creationTime().toInstant());
 		} catch (Exception e) {
-			return IMAP_DATE_FMT.format(new Date());
+			return IMAP_DATE_FMT.format(Instant.now());
 		}
 	}
 

@@ -53,18 +53,23 @@ public class GlobalExceptionHandler {
 
 	/** Handle Broken Pipes (Client killed connection during download/stream) */
 	@ExceptionHandler(IOException.class)
-	public void handleIOError(IOException ex) {
+	public void handleIOError(IOException ex, jakarta.servlet.http.HttpServletResponse response) throws IOException {
 		// Filter out "Broken pipe" or "Connection reset"
 		if (ex.getMessage() != null
 				&& (ex.getMessage().contains("Broken pipe")
 						|| ex.getMessage().contains("Connection reset")
 						|| ex.getMessage().contains("abgebrochen"))) { // German Locale Support
 
-			// WARN: Log single line, no stack trace
+			// WARN: Log single line, no stack trace. Connection is gone - nothing to send.
 			log.warn("Client disconnected during IO (Broken pipe/Reset): {}", ex.getMessage());
-		} else {
-			// ERROR: Genuine I/O error (Disk full, etc)
-			log.error("IO Exception: ", ex);
+			return;
+		}
+
+		// ERROR: Genuine I/O error (disk full, unreadable file). Must NOT be
+		// swallowed into an empty 200 - tell the client the request failed.
+		log.error("IO Exception: ", ex);
+		if (!response.isCommitted()) {
+			response.sendError(HttpStatus.INTERNAL_SERVER_ERROR.value(), "I/O error while processing the request");
 		}
 	}
 

@@ -26,6 +26,11 @@ const getStores = () => {
 // Queue for requests waiting for token refresh
 let refreshPromise: Promise<boolean> | null = null;
 
+// Pre-send clones of bodied requests: once a request has been sent its body
+// stream is consumed, and `new Request(sent)` throws - without a clone,
+// POST/PUT/PATCH retries after a 401 token refresh would fail and lose the write.
+const retryClones = new WeakMap<Request, Request>();
+
 async function refreshAccessToken(): Promise<boolean> {
     const { auth } = getStores();
     
@@ -65,6 +70,9 @@ client.use({
     if (auth.token) {
         request.headers.set("Authorization", `Bearer ${auth.token}`);
     }
+    if (request.method !== "GET" && request.method !== "HEAD") {
+        retryClones.set(request, request.clone());
+    }
     return request;
   },
   
@@ -103,12 +111,14 @@ client.use({
             const refreshed = await refreshPromise;
             
             if (refreshed) {
-                // Retry the original request with new token
-                const newRequest = new Request(request, {
-                    headers: new Headers(request.headers),
+                // Retry with the new token, using the pre-send clone so the
+                // body is still readable (the sent request's body is consumed)
+                const source = retryClones.get(request) ?? request;
+                const newRequest = new Request(source, {
+                    headers: new Headers(source.headers),
                 });
                 newRequest.headers.set("Authorization", `Bearer ${auth.token}`);
-                
+
                 // Make the retry request
                 const retryResponse = await fetch(newRequest);
                 return retryResponse;

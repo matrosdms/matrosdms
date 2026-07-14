@@ -29,9 +29,11 @@ import net.schwehla.matrosdms.config.model.AppServerSpringConfig;
 import net.schwehla.matrosdms.domain.api.EPipelineStatus;
 import net.schwehla.matrosdms.domain.core.EItemSource;
 import net.schwehla.matrosdms.domain.inbox.InboxFile;
+import net.schwehla.matrosdms.domain.inbox.Prediction;
 import net.schwehla.matrosdms.domain.inbox.SourceMetadata;
 import net.schwehla.matrosdms.service.InboxPipelineService;
 import net.schwehla.matrosdms.service.message.PipelineStatusMessage;
+import net.schwehla.matrosdms.service.pipeline.PipelineEvents.PipelineResultEvent;
 import net.schwehla.matrosdms.store.FileUtils;
 
 @Component
@@ -48,6 +50,8 @@ public class InboxFileManager {
 	FileUtils fileUtils;
 	@Autowired
 	InboxPipelineService pipelineService;
+	@Autowired
+	org.springframework.context.ApplicationEventPublisher publisher;
 
 	private static final Logger log = LoggerFactory.getLogger(InboxFileManager.class);
 
@@ -80,8 +84,8 @@ public class InboxFileManager {
 			// Prevent race conditions on concurrent identical uploads
 			Object lock = uploadLocks.computeIfAbsent(hash, k -> new Object());
 
-			synchronized (lock) {
-				try {
+			try {
+				synchronized (lock) {
 					if (Files.exists(stagingDir)) {
 						log.debug("Duplicate concurrent upload detected and skipped: {}", hash);
 						return getInboxFileDto(hash);
@@ -98,10 +102,12 @@ public class InboxFileManager {
 					pipelineService.triggerPipeline(hash);
 
 					return getInboxFileDto(hash);
-				} finally {
-					// Clean up memory
-					uploadLocks.remove(hash);
 				}
+			} finally {
+				// Clean up memory AFTER leaving the critical section, and only our own
+				// entry - removing inside the synchronized block let a third concurrent
+				// upload mint a fresh lock while another thread still waited on this one
+				uploadLocks.remove(hash, lock);
 			}
 
 		} catch (Exception e) {
@@ -154,6 +160,40 @@ public class InboxFileManager {
 			return findMainFile(jobDir, hash);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * Persists a manual context assignment into the inbox file's pipeline state
+	 * (pipeline.json), so it survives reloads, and broadcasts the update via SSE.
+	 */
+	public InboxFile assignContext(String hash, String contextUuid) {
+		Path resultFile = Paths.get(config.getServer().getTemp().getPath(), hash, "pipeline.json");
+		if (!Files.exists(resultFile)) {
+			throw new IllegalArgumentException("Inbox file not processed yet: " + hash);
+		}
+		try {
+			PipelineStatusMessage msg = objectMapper.readValue(resultFile.toFile(), PipelineStatusMessage.class);
+			InboxFile state = msg.getFileState();
+			if (state == null) {
+				throw new IllegalStateException("No file state stored for " + hash);
+			}
+
+			Prediction p = state.getPrediction();
+			if (p == null) {
+				p = new Prediction();
+				state.setPrediction(p);
+			}
+			p.setContext(contextUuid);
+			p.setManuallyAssigned(true);
+
+			objectMapper.writeValue(resultFile.toFile(), msg);
+			publisher.publishEvent(new PipelineResultEvent(msg));
+
+			log.info("Manual context assignment persisted: {} -> {}", hash, contextUuid);
+			return state;
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to persist assignment for " + hash, e);
 		}
 	}
 

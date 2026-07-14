@@ -42,6 +42,7 @@ public class AdminController {
 	Task<Void> exportTask; // NEW INJECTION
 
 	@PostMapping("/jobs/{type}")
+	@org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
 	@Operation(summary = "Start a system job manually")
 	public ResponseEntity<String> startJob(
 			@PathVariable EJobType type, @RequestParam(required = false) String config) {
@@ -66,8 +67,11 @@ public class AdminController {
 	}
 
 	@PostMapping("/backup")
+	@org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<String> triggerBackup() {
-		backupService.createBackup();
-		return ResponseEntity.ok("Backup initiated.");
+		if (backupService.createBackup()) {
+			return ResponseEntity.ok("Backup completed.");
+		}
+		return ResponseEntity.internalServerError().body("Backup FAILED - check server logs.");
 	}
 }

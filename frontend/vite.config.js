@@ -10,6 +10,16 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          pdfjs: ['pdfjs-dist'],
+          vendor: ['vue', 'pinia', '@tanstack/vue-query', '@tanstack/vue-table', '@tanstack/vue-virtual'],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {

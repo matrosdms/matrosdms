@@ -10,6 +10,8 @@ package net.schwehla.matrosdms.service.domain;
 import java.time.Instant;
 import java.time.LocalDateTime;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -45,6 +47,8 @@ import net.schwehla.matrosdms.store.util.FileExtensionService;
 @Transactional
 public class ItemService {
 
+	private static final Logger log = LoggerFactory.getLogger(ItemService.class);
+
 	@Autowired
 	ItemRepository itemRepository;
 	@Autowired
@@ -63,6 +67,8 @@ public class ItemService {
 	SearchService searchService;
 	@Autowired
 	FileExtensionService extensionService;
+	@Autowired
+	net.schwehla.matrosdms.service.SemanticSearchService semanticSearchService;
 
 	@Caching(evict = {
 			@CacheEvict(value = "items", key = "#uuid"),
@@ -197,7 +203,12 @@ public class ItemService {
 				try {
 					storeService.moveToTrash(uuid);
 				} catch (Exception e) {
-					System.err.println("WARN: Failed to move file to trash: " + uuid);
+					log.warn("Failed to move file to trash: {}", uuid, e);
+				}
+				try {
+					semanticSearchService.removeItem(uuid);
+				} catch (Exception e) {
+					log.warn("Failed to remove embedding for {}: {}", uuid, e.getMessage());
 				}
 			}
 		});

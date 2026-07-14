@@ -80,6 +80,13 @@ public class ItemController {
 			@RequestParam(name = "archiveState", defaultValue = "ACTIVE_ONLY") EArchiveFilter archiveState,
 			@PageableDefault(size = 20, sort = "issueDate", direction = Sort.Direction.DESC) Pageable pageable) {
 
+		// All backing queries filter on context - without it they silently
+		// matched nothing, which surfaced as a mysteriously empty folder
+		if (contextIdentifier == null || contextIdentifier.isBlank()) {
+			throw new org.springframework.web.server.ResponseStatusException(
+					HttpStatus.BAD_REQUEST, "'context' request parameter is required");
+		}
+
 		Sort mappedSort = Sort.unsorted();
 		for (Sort.Order order : pageable.getSort()) {
 			String prop = order.getProperty();

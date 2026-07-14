@@ -35,3 +35,4 @@ replay_pid*
 /.flattened-pom.xml
 /server/data
 .flattened-pom.xml
+/.claude

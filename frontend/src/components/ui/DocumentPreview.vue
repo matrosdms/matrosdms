@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted, computed } from 'vue'
+import { ref, watch, onUnmounted, computed, defineAsyncComponent } from 'vue'
 import { ItemService } from '@/services/ItemService'
 import { InboxService } from '@/services/InboxService'
 import type { components } from '@/types/schema'
 import { Loader2, FileX, Download, ExternalLink, FileText, AlignLeft, Image as ImageIcon, Info, Hash, Database } from 'lucide-vue-next'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { push } from 'notivue'
-import { useWorkflowStore } from '@/stores/workflow'
+import { queryKeys } from '@/composables/queries/queryKeys'
+import type { InboxFile } from '@/types/events'
 
 // ── Specialised viewers ──────────────────────────────────────────────────
-import PdfViewer from '@/components/viewers/PdfViewer.vue'
+// PdfViewer is lazy: it pulls in pdfjs-dist, which should not be in the main bundle
+const PdfViewer = defineAsyncComponent(() => import('@/components/viewers/PdfViewer.vue'))
 import ImageViewer from '@/components/viewers/ImageViewer.vue'
 import TextViewer from '@/components/viewers/TextViewer.vue'
 import EmailViewer from '@/components/viewers/EmailViewer.vue'
@@ -25,6 +27,7 @@ const props = defineProps<{
 type MFileMetadata = components['schemas']['MFileMetadata']
 
 // ── State ────────────────────────────────────────────────────────────────
+const queryClient = useQueryClient()
 const blobUrl = ref<string | null>(null)
 const viewMode = ref<'file' | 'text' | 'metadata'>('file')
 const textContent = ref<string | null>(null)
@@ -88,8 +91,8 @@ const toggleMetadataMode = async () => {
         if (props.source === 'item') {
             fileMetadata.value = await ItemService.getMetadata(props.identifier)
         } else {
-            const workflow = useWorkflowStore()
-            metadataObj.value = workflow.liveInboxFiles[props.identifier] || { sha256: props.identifier }
+            const cached = queryClient.getQueryData<InboxFile[]>(queryKeys.inbox.list)?.find(f => f.sha256 === props.identifier)
+            metadataObj.value = cached || { sha256: props.identifier }
         }
     } catch (e: any) {
         push.error(`Could not load metadata: ${e.message}`)

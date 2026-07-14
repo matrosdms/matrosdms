@@ -95,7 +95,7 @@ const { data: apiData, isLoading: isQueryLoading, refetch } = useQuery({
   queryKey: computed(() => queryDefinition.value.queryKey),
   queryFn: computed(() => queryDefinition.value.queryFn),
   enabled: computed(() => !!currentConfig.value),
-  refetchInterval: computed(() => activeTab.value === 'jobs' && (customFilter.value === 'RUNNING' || customFilter.value === '') ? 2000 : false),
+  refetchInterval: computed(() => activeTab.value === 'jobs' && (customFilter.value === 'RUNNING' || customFilter.value === '') ? 15000 : false),
   staleTime: 5 * 60 * 1000
 })
 

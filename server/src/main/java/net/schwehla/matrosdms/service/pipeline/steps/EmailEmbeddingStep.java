@@ -60,6 +60,7 @@ public class EmailEmbeddingStep implements PipelineStep {
 
 	private static final Logger log = LoggerFactory.getLogger(EmailEmbeddingStep.class);
 	private static final int MAX_RESOURCE_SIZE = 15 * 1024 * 1024; // 15MB
+	private static final int MAX_RESOURCES = 30; // per email
 
 	@Autowired
 	TikaService tikaService;
@@ -88,7 +89,15 @@ public class EmailEmbeddingStep implements PipelineStep {
 	private final RestClient restClient;
 
 	public EmailEmbeddingStep(RestClient.Builder builder) {
+		// Timeouts: these URLs come from untrusted inbound mail - a slow-loris
+		// host must not stall the ingest pipeline
+		org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory =
+				new org.springframework.http.client.SimpleClientHttpRequestFactory();
+		requestFactory.setConnectTimeout(5_000);
+		requestFactory.setReadTimeout(10_000);
+
 		this.restClient = builder
+				.requestFactory(requestFactory)
 				// FIX: Use a real browser User-Agent to avoid blocking by Temu/Amazon/etc.
 				.defaultHeader("User-Agent",
 						"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -191,6 +200,36 @@ public class EmailEmbeddingStep implements PipelineStep {
 		}
 	}
 
+	/**
+	 * Only plain http/https to publicly routable addresses. Blocks loopback,
+	 * private (RFC1918), link-local (incl. 169.254.169.254 cloud metadata) and
+	 * multicast targets.
+	 */
+	private boolean isSafeTarget(URI uri) {
+		String scheme = uri.getScheme();
+		if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+			return false;
+		}
+		String host = uri.getHost();
+		if (host == null) {
+			return false;
+		}
+		try {
+			for (java.net.InetAddress addr : java.net.InetAddress.getAllByName(host)) {
+				if (addr.isLoopbackAddress()
+						|| addr.isAnyLocalAddress()
+						|| addr.isSiteLocalAddress()
+						|| addr.isLinkLocalAddress()
+						|| addr.isMulticastAddress()) {
+					return false;
+				}
+			}
+			return true;
+		} catch (java.net.UnknownHostException e) {
+			return false;
+		}
+	}
+
 	private boolean isValidUrl(String url) {
 		if (url == null || url.isEmpty())
 			return false;
@@ -208,13 +247,27 @@ public class EmailEmbeddingStep implements PipelineStep {
 	private Map<String, ResourceData> downloadResources(Set<String> urls, PipelineContext ctx) {
 		Map<String, ResourceData> resources = new HashMap<>();
 
+		int fetched = 0;
 		for (String url : urls) {
+			if (fetched >= MAX_RESOURCES) {
+				log.warn("Email embeds more than {} remote resources, skipping the rest", MAX_RESOURCES);
+				break;
+			}
 			try {
 				// Decode HTML entities in URL (e.g. &amp; -> &)
 				String cleanUrl = url.replace("&amp;", "&");
 
+				URI uri = URI.create(cleanUrl);
+				// SSRF guard: URLs originate from untrusted inbound mail. Never let
+				// them point the server at itself, the LAN, or cloud metadata IPs.
+				if (!isSafeTarget(uri)) {
+					log.debug("Blocked non-public resource URL: {}", cleanUrl);
+					continue;
+				}
+				fetched++;
+
 				ResponseEntity<byte[]> response = restClient.get()
-						.uri(URI.create(cleanUrl))
+						.uri(uri)
 						.retrieve()
 						.toEntity(byte[].class);
 

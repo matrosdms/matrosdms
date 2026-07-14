@@ -55,7 +55,9 @@ public class ItemAiController {
 
 	@PostMapping("/{uuid}/ai/transform")
 	@Operation(summary = "Transform content using AI", description = "Generates summaries, tables, or extraction based on the instruction.")
-	@Cacheable(value = "ai_markdown", key = "#uuid + '-' + #instruction.name() + '-' + #format.name()")
+	// unless: never cache error responses, otherwise a transient Ollama outage
+	// would be served from cache forever for this uuid+instruction+format
+	@Cacheable(value = "ai_markdown", key = "#uuid + '-' + #instruction.name() + '-' + #format.name()", unless = "!#result.getStatusCode().is2xxSuccessful()")
 	public ResponseEntity<String> generateContent(
 			@PathVariable String uuid,
 			@Parameter(description = "What to do with the document") @RequestParam(defaultValue = "SUMMARY") EAiInstruction instruction,
@@ -93,7 +95,8 @@ public class ItemAiController {
 				return ResponseEntity.ok(resp.getResponse());
 			}
 		} catch (Exception e) {
-			return ResponseEntity.status(503).body("AI Service Unavailable: " + e.getMessage());
+			// 502, not 503: the SPA treats 503/504 as "whole backend offline"
+			return ResponseEntity.status(502).body("AI Service Unavailable: " + e.getMessage());
 		}
 
 		return ResponseEntity.status(500).body("AI failed to generate response.");

@@ -50,6 +50,7 @@ public class ConfigController {
 	}
 
 	@PostMapping
+	@org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
 	@Operation(summary = "Set a configuration value")
 	public ResponseEntity<Void> setConfig(@RequestBody ConfigMessage message) {
 		configService.setValue(message.getKey(), message.getValue());

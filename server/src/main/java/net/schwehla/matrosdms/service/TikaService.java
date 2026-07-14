@@ -36,21 +36,23 @@ import org.springframework.stereotype.Service;
 public class TikaService {
 
 	private static final Logger log = LoggerFactory.getLogger(TikaService.class);
-	private Tika tika;
-	private MimeTypes mimeRepository;
+	// Final + constructor init: the previous unsynchronized lazy-init raced when
+	// concurrent pipeline threads hit the service first. @Lazy on the class
+	// already defers the construction cost.
+	private final Tika tika;
+	private final MimeTypes mimeRepository;
+
+	public TikaService() {
+		this.tika = new Tika();
+		this.tika.setMaxStringLength(10 * 1024 * 1024); // 10MB text limit
+		this.mimeRepository = TikaConfig.getDefaultConfig().getMimeRepository();
+	}
 
 	private Tika getTika() {
-		if (this.tika == null) {
-			this.tika = new Tika();
-			this.tika.setMaxStringLength(10 * 1024 * 1024); // 10MB text limit
-		}
 		return this.tika;
 	}
 
 	private MimeTypes getMimeRepository() {
-		if (this.mimeRepository == null) {
-			this.mimeRepository = TikaConfig.getDefaultConfig().getMimeRepository();
-		}
 		return this.mimeRepository;
 	}
 

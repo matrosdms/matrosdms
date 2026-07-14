@@ -4,6 +4,7 @@ import { useUIStore } from '@/stores/ui'
 import { useStorage } from '@vueuse/core'
 import { UserService } from '@/services/UserService'
 import { client } from '@/api/client'
+import { EUserRole } from '@/enums'
 import type { components } from '@/types/schema'
 
 type User = components['schemas']['MUser'];
@@ -25,7 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isRefreshing = ref(false)
 
   const isAuthenticated = computed(() => !!currentUser.value)
-  const isAdmin = computed(() => !!currentUser.value)
+  const isAdmin = computed(() => currentUser.value?.role === EUserRole.ADMIN)
   
   const isConfigLoaded = ref(false)
 

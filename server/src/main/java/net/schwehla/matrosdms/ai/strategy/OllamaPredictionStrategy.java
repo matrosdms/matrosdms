@@ -89,10 +89,21 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 			String filename,
 			ClassificationCandidates candidates,
 			DigestResultMessage result) {
-		try {
-			log.debug("AI: Waiting for slot...");
-			gpuLock.acquire();
+		if (promptTemplate == null) {
+			log.error("AI: Classification prompt template not loaded, skipping Ollama prediction");
+			return;
+		}
 
+		log.debug("AI: Waiting for slot...");
+		try {
+			gpuLock.acquire();
+		} catch (InterruptedException e) {
+			// Not acquired -> must not release in a finally block, that would leak a permit
+			Thread.currentThread().interrupt();
+			return;
+		}
+
+		try {
 			String url = appConfig.getAi().getClassification().getOllama().getUrl();
 			String model = appConfig.getAi().getClassification().getOllama().getModel();
 
@@ -102,11 +113,9 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 			OllamaResponse response = callOllama(url, model, prompt);
 
 			if (response != null && response.getResponse() != null) {
-				parseJsonResult(response.getResponse(), result);
+				parseJsonResult(response.getResponse(), candidates, result);
 			}
 
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
 		} catch (Exception e) {
 			log.error("AI: Ollama failure", e);
 		} finally {
@@ -115,7 +124,8 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 	}
 
 	private OllamaResponse callOllama(String url, String model, String prompt) {
-		OllamaRequest req = new OllamaRequest(model, prompt, false);
+		// format=json forces Ollama into JSON mode -> no markdown fences, no prose
+		OllamaRequest req = new OllamaRequest(model, prompt, false, "json");
 		try {
 			ResponseEntity<OllamaResponse> resp = restTemplate.postForEntity(url + "/api/generate", req,
 					OllamaResponse.class);
@@ -126,7 +136,7 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 		}
 	}
 
-	private void parseJsonResult(String json, DigestResultMessage result) {
+	private void parseJsonResult(String json, ClassificationCandidates candidates, DigestResultMessage result) {
 		try {
 			int start = json.indexOf("{");
 			int end = json.lastIndexOf("}");
@@ -135,8 +145,9 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 				AiClassificationResult dto = jsonMapper.readValue(cleanJson, AiClassificationResult.class);
 
 				Prediction p = result.getPrediction();
-				p.setContext(dto.getContextUuid());
-				p.setKind(dto.getKindUuid());
+				// LLMs hallucinate IDs - only accept UUIDs that exist in the candidate lists
+				p.setContext(validateUuid(dto.getContextUuid(), candidates.contexts(), "context"));
+				p.setKind(validateUuid(dto.getKindUuid(), candidates.kinds(), "kind"));
 				p.setSummary(dto.getSummary());
 				p.setStrategyId("ollama");
 
@@ -153,13 +164,14 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 
 				// Build per-field confidences; use LLM-supplied overall or default 0.80
 				double overallConf = dto.getConfidence() != null ? dto.getConfidence() : 0.80;
+				overallConf = Math.max(0.0, Math.min(1.0, overallConf));
 				p.setConfidence(overallConf);
 				Map<String, Double> fieldConf = new LinkedHashMap<>();
-				if (dto.getContextUuid() != null)
+				if (p.getContext() != null)
 					fieldConf.put("context", overallConf);
-				if (dto.getKindUuid() != null)
+				if (p.getKind() != null)
 					fieldConf.put("kind", overallConf);
-				if (dto.getDate() != null)
+				if (p.getDocumentDate() != null)
 					fieldConf.put("documentDate", overallConf);
 				if (dto.getSummary() != null)
 					fieldConf.put("summary", overallConf);
@@ -168,6 +180,19 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 		} catch (JsonProcessingException e) {
 			log.warn("AI: Failed to parse JSON response. Raw: {}", json);
 		}
+	}
+
+	/** Returns the uuid only if it exists in the candidate list, otherwise null. */
+	private String validateUuid(String uuid, java.util.List<Candidate> allowed, String fieldName) {
+		if (uuid == null || uuid.isBlank() || "null".equalsIgnoreCase(uuid)) {
+			return null;
+		}
+		boolean known = allowed.stream().anyMatch(c -> uuid.equals(c.uuid()));
+		if (!known) {
+			log.warn("AI: LLM returned unknown {} uuid '{}', discarding", fieldName, uuid);
+			return null;
+		}
+		return uuid;
 	}
 
 	private String buildPrompt(String text, String filename, ClassificationCandidates candidates) {

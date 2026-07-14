@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,6 +38,7 @@ public class UserController {
 	// --- STANDARD CRUD ---
 
 	@PostMapping
+	@PreAuthorize("hasRole('ADMIN')")
 	@Operation(summary = "Create a new User")
 	public ResponseEntity<MUser> createUser(@Valid @RequestBody CreateUserMessage MUser) {
 		MUser user = userService.createUser(MUser);
@@ -44,6 +46,7 @@ public class UserController {
 	}
 
 	@PutMapping("/{id}")
+	@PreAuthorize("hasRole('ADMIN') or #id == principal.uuid")
 	@Operation(summary = "Update User")
 	public ResponseEntity<MUser> updateUser(
 			@PathVariable("id") String id, @Valid @RequestBody UpdateUserMessage msg) {
@@ -68,6 +71,7 @@ public class UserController {
 	}
 
 	@DeleteMapping("/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
 	@Operation(summary = "Delete user by id")
 	public ResponseEntity<HttpStatus> deleteUser(@PathVariable("id") String tsid) {
 		userService.deleteUser(tsid);

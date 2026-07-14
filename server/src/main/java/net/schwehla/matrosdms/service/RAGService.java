@@ -70,6 +70,8 @@ public class RAGService {
 		StringBuilder contextBuilder = new StringBuilder();
 		for (MSearchResult hit : hits) {
 			String content = StoreContext.readTextFile(hit.getUuid());
+			if (content == null || content.isBlank())
+				continue;
 			if (content.length() > 3000)
 				content = content.substring(0, 3000) + "...";
 			contextBuilder.append("--- DOCUMENT: ").append(hit.getName()).append(" ---\n");
@@ -89,12 +91,18 @@ public class RAGService {
 			OllamaRequest req = new OllamaRequest(model, fullPrompt, false);
 			ResponseEntity<OllamaResponse> resp = restTemplate.postForEntity(url + "/api/generate", req,
 					OllamaResponse.class);
-			if (resp.getBody() != null)
+			if (resp.getBody() != null && resp.getBody().getResponse() != null) {
 				return resp.getBody().getResponse();
+			}
 		} catch (Exception e) {
+			// Error status instead of a 200 chat reply: the client needs a real
+			// failure to trigger its ELIZA fallback. 502 (not 503!) because the
+			// SPA treats 503/504 as "whole backend offline" and blanks the app.
 			log.error("AI Chat failed", e);
-			return "I encountered an error (" + e.getMessage() + ")";
+			throw new org.springframework.web.server.ResponseStatusException(
+					org.springframework.http.HttpStatus.BAD_GATEWAY, "LLM backend unreachable", e);
 		}
-		return "No response from AI.";
+		throw new org.springframework.web.server.ResponseStatusException(
+				org.springframework.http.HttpStatus.BAD_GATEWAY, "LLM returned an empty response");
 	}
 }

@@ -55,6 +55,12 @@ public class MCacheConfig {
 				"categories",
 				Caffeine.newBuilder().maximumSize(10_000).expireAfterWrite(2, TimeUnit.HOURS).build());
 
+		// Per-context filename history for the heuristic classifier - keeps bulk
+		// ingest from running one Lucene search per context per document
+		manager.registerCustomCache(
+				"contextFilenameHistory",
+				Caffeine.newBuilder().maximumSize(3000).expireAfterWrite(5, TimeUnit.MINUTES).build());
+
 		manager.setCaffeine(
 				Caffeine.newBuilder().maximumSize(100).expireAfterWrite(10, TimeUnit.MINUTES));
 

@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.stereotype.Component;
 
+import net.schwehla.matrosdms.service.mail.common.MailAuthenticator;
 import net.schwehla.matrosdms.service.mail.common.MailboxManager;
 import net.schwehla.matrosdms.service.mail.common.MailboxManager.MailboxFolder;
 
@@ -34,8 +35,25 @@ public class SmtpServer {
 
 	private static final Logger log = LoggerFactory.getLogger(SmtpServer.class);
 
+	/** Advertised in EHLO and actually enforced during DATA. */
+	static final long MAX_MESSAGE_BYTES = 52428800L; // 50 MB
+
 	@Value("${app.mail.smtp.port:2525}")
 	private int port;
+
+	// Local-first: loopback by default (local Thunderbird/scanner-to-localhost).
+	// Set MATROS_MAIL_BIND=0.0.0.0 to accept clients from other hosts - and if
+	// you do, also set app.mail.require-auth=true.
+	@Value("${app.mail.bind-address:${MATROS_MAIL_BIND:127.0.0.1}}")
+	private String bindAddress;
+
+	// Off by default: on a loopback-only server real credential checks add
+	// little, and forcing them would break existing local mail client profiles
+	@Value("${app.mail.require-auth:false}")
+	private boolean requireAuth;
+
+	@Autowired
+	MailAuthenticator mailAuthenticator;
 
 	@Autowired
 	MailboxManager mailboxManager;
@@ -54,9 +72,9 @@ public class SmtpServer {
 
 	private void serverLoop() {
 		try {
-			serverSocket = new ServerSocket(port);
+			serverSocket = new ServerSocket(port, 50, InetAddress.getByName(bindAddress));
 			running = true;
-			log.info("🚀 SMTP Server listening on port {}", port);
+			log.info("🚀 SMTP Server listening on {}:{} (auth required: {})", bindAddress, port, requireAuth);
 			while (running) {
 				try {
 					Socket client = serverSocket.accept();
@@ -99,9 +117,16 @@ public class SmtpServer {
 			String line;
 			String from = "unknown";
 
-			// State for AUTH LOGIN sequence
+			boolean authenticated = false;
+			String pendingAuthUser = null;
+
+			// States for the AUTH dialogues (next line is a base64 payload)
 			boolean authLoginUsername = false;
 			boolean authLoginPassword = false;
+			boolean authPlainData = false;
+
+			long dataBytes = 0;
+			boolean dataOverflow = false;
 
 			while ((line = reader.readLine()) != null) {
 
@@ -111,32 +136,60 @@ public class SmtpServer {
 						dataMode = false;
 						if (fileOut != null)
 							fileOut.close();
-						finalizeEmail(tempFile, from);
-						tempFile = null;
-						writer.println("250 OK Message accepted");
+						if (dataOverflow) {
+							Files.deleteIfExists(tempFile);
+							tempFile = null;
+							log.warn("SMTP message from {} rejected: exceeds {} bytes", from, MAX_MESSAGE_BYTES);
+							writer.println("552 Message size exceeds maximum of " + MAX_MESSAGE_BYTES + " bytes");
+						} else {
+							finalizeEmail(tempFile, from);
+							tempFile = null;
+							writer.println("250 OK Message accepted");
+						}
 					} else {
 						if (line.startsWith(".."))
 							line = line.substring(1);
-						if (fileOut != null) {
-							fileOut.write(line.getBytes(StandardCharsets.UTF_8));
+						byte[] lineBytes = line.getBytes(StandardCharsets.UTF_8);
+						dataBytes += lineBytes.length + 2;
+						if (dataBytes > MAX_MESSAGE_BYTES) {
+							// Keep consuming until the terminating "." but stop persisting
+							dataOverflow = true;
+						} else if (fileOut != null) {
+							fileOut.write(lineBytes);
 							fileOut.write("\r\n".getBytes(StandardCharsets.UTF_8));
 						}
 					}
 					continue;
 				}
 
-				// 2. AUTH LOGIN SEQUENCE (Outlook specific)
+				// 2. AUTH DIALOGUE STATES (payloads are case-sensitive base64 - use raw line)
 				if (authLoginUsername) {
-					// Client sent username (Base64), ask for password
+					pendingAuthUser = mailAuthenticator.decodeBase64(line);
 					writer.println("334 UGFzc3dvcmQ6"); // "Password:" in Base64
 					authLoginUsername = false;
 					authLoginPassword = true;
 					continue;
 				}
 				if (authLoginPassword) {
-					// Client sent password, authenticate
-					writer.println("235 2.7.0 Authentication successful");
 					authLoginPassword = false;
+					String password = mailAuthenticator.decodeBase64(line);
+					if (!requireAuth || mailAuthenticator.authenticate(pendingAuthUser, password)) {
+						authenticated = true;
+						writer.println("235 2.7.0 Authentication successful");
+					} else {
+						writer.println("535 5.7.8 Authentication credentials invalid");
+					}
+					pendingAuthUser = null;
+					continue;
+				}
+				if (authPlainData) {
+					authPlainData = false;
+					if (!requireAuth || mailAuthenticator.authenticatePlain(line)) {
+						authenticated = true;
+						writer.println("235 2.7.0 Authentication successful");
+					} else {
+						writer.println("535 5.7.8 Authentication credentials invalid");
+					}
 					continue;
 				}
 
@@ -146,37 +199,49 @@ public class SmtpServer {
 				if (cmd.startsWith("HELO") || cmd.startsWith("EHLO")) {
 					writer.println("250-MatrosDMS");
 					writer.println("250-8BITMIME");
-					writer.println("250-SIZE 52428800"); // Advertise 50MB limit
+					writer.println("250-SIZE " + MAX_MESSAGE_BYTES);
 					writer.println("250 AUTH LOGIN PLAIN"); // Crucial for Outlook/Apple
 				} else if (cmd.startsWith("AUTH PLAIN")) {
-					// One-line authentication (Thunderbird/Apple)
-					// If the line is just "AUTH PLAIN", client waits for 334. If it has data, it's
-					// done.
-					if (cmd.equals("AUTH PLAIN")) {
-						writer.println("334 "); // Send empty challenge
-						// Next line will be the credentials, handled in next loop or we can just read
-						// it now if
-						// we blocked.
-						// But strictly, we just say "Success" to whatever they send next.
-						authLoginPassword = true; // Hack: reuse logic to accept next line as success
-					} else {
+					// One-line authentication (Thunderbird/Apple); base64 from RAW line
+					String payload = line.length() > 10 ? line.substring(10).trim() : "";
+					if (payload.isEmpty()) {
+						writer.println("334 "); // Empty challenge, credentials on next line
+						authPlainData = true;
+					} else if (!requireAuth || mailAuthenticator.authenticatePlain(payload)) {
+						authenticated = true;
 						writer.println("235 2.7.0 Authentication successful");
+					} else {
+						writer.println("535 5.7.8 Authentication credentials invalid");
 					}
 				} else if (cmd.startsWith("AUTH LOGIN")) {
 					// Multi-step authentication (Outlook)
 					writer.println("334 VXNlcm5hbWU6"); // "Username:" in Base64
 					authLoginUsername = true;
 				} else if (cmd.startsWith("MAIL FROM:")) {
-					from = cmd.substring(10).trim();
-					writer.println("250 OK");
+					if (requireAuth && !authenticated) {
+						writer.println("530 5.7.0 Authentication required");
+					} else {
+						from = cmd.substring(10).trim();
+						writer.println("250 OK");
+					}
 				} else if (cmd.startsWith("RCPT TO:")) {
-					writer.println("250 OK");
+					if (requireAuth && !authenticated) {
+						writer.println("530 5.7.0 Authentication required");
+					} else {
+						writer.println("250 OK");
+					}
 				} else if (cmd.equals("DATA")) {
-					dataMode = true;
-					MailboxFolder inbox = mailboxManager.resolve("INBOX");
-					tempFile = Files.createTempFile(inbox.path(), "smtp-", ".tmp");
-					fileOut = new BufferedOutputStream(Files.newOutputStream(tempFile));
-					writer.println("354 Start mail input; end with <CRLF>.<CRLF>");
+					if (requireAuth && !authenticated) {
+						writer.println("530 5.7.0 Authentication required");
+					} else {
+						dataMode = true;
+						dataBytes = 0;
+						dataOverflow = false;
+						MailboxFolder inbox = mailboxManager.resolve("INBOX");
+						tempFile = Files.createTempFile(inbox.path(), "smtp-", ".tmp");
+						fileOut = new BufferedOutputStream(Files.newOutputStream(tempFile));
+						writer.println("354 Start mail input; end with <CRLF>.<CRLF>");
+					}
 				} else if (cmd.equals("QUIT")) {
 					writer.println("221 Bye");
 					break;

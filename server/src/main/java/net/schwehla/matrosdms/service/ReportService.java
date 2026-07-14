@@ -96,10 +96,15 @@ public class ReportService {
 	 * 1. Wraps content in quotes if it contains separator, newline or quotes.
 	 * 2. Escapes existing quotes by doubling them (" -> "").
 	 */
-	private String escape(Object raw) {
+	/* package-private for testing */ String escape(Object raw) {
 		if (raw == null)
 			return "";
 		String val = String.valueOf(raw);
+		// Formula injection guard: spreadsheet apps execute cells starting with = + - @
+		// (real numbers are exempt so negative amounts stay sortable)
+		if (!(raw instanceof Number) && !val.isEmpty() && "=+-@".indexOf(val.charAt(0)) >= 0) {
+			val = "'" + val;
+		}
 		if (val.contains(SEP) || val.contains("\"") || val.contains("\n") || val.contains("\r")) {
 			val = val.replace("\"", "\"\"");
 			return "\"" + val + "\"";

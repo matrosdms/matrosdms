@@ -1,8 +1,8 @@
 import { onMounted, onUnmounted, watch } from 'vue'
-import { useWorkflowStore } from '@/stores/workflow'
 import { useUIStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useQueryClient } from '@tanstack/vue-query'
+import { upsertInboxFile } from '@/composables/queries/useInboxQueries'
 import { push } from 'notivue'
 import type { BroadcastMessage, InboxFile, ProgressMessage, PipelineStatusMessage } from '@/types/events'
 import type { components } from '@/types/schema'
@@ -10,7 +10,6 @@ import type { components } from '@/types/schema'
 type JobMessage = components['schemas']['JobMessage']
 
 export function useServerEvents() {
-    const workflow = useWorkflowStore()
     const ui = useUIStore()
     const auth = useAuthStore()
     const queryClient = useQueryClient()
@@ -40,7 +39,10 @@ export function useServerEvents() {
 
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) {
+                    // Token may be mid-refresh; retry with backoff instead of
+                    // killing the realtime channel for the rest of the session
                     isConnecting = false
+                    scheduleReconnect()
                     return
                 }
                 throw new Error(`SSE Status ${response.status}`)
@@ -81,6 +83,12 @@ export function useServerEvents() {
                     }
                 }
             }
+
+            // Graceful close (server restart, proxy idle timeout): the loop
+            // exits via `done` without throwing - reconnect or realtime
+            // updates silently stop for the rest of the session
+            ui.addLog('[SSE] Stream closed by server, reconnecting', 'debug')
+            scheduleReconnect()
         } catch (err: any) {
             if (err.name !== 'AbortError') {
                 scheduleReconnect()
@@ -106,7 +114,7 @@ export function useServerEvents() {
         if (process === 'INBOX' && type === 'FILE_ADDED') {
             const file = message as InboxFile;
             if (file.sha256) {
-                workflow.upsertLiveFile(file);
+                upsertInboxFile(queryClient, file);
                 // Invalidate query to eventually sync full list
                 queryClient.invalidateQueries({ queryKey: ['inbox'] })
             }
@@ -119,7 +127,7 @@ export function useServerEvents() {
             if (type === 'PROGRESS') {
                 const prog = message as ProgressMessage;
                 if (prog.sha256) {
-                    workflow.upsertLiveFile({
+                    upsertInboxFile(queryClient, {
                         sha256: prog.sha256,
                         status: 'PROCESSING',
                         progressMessage: prog.info,
@@ -151,7 +159,7 @@ export function useServerEvents() {
             const statusMsg = message as PipelineStatusMessage
             if (statusMsg.fileState) {
                 // Update the full file state (Metadata snap or Final Result)
-                workflow.upsertLiveFile(statusMsg.fileState)
+                upsertInboxFile(queryClient, statusMsg.fileState)
                     
                     // Show Toasts based on result
                     const fname = statusMsg.fileState.fileInfo?.originalFilename || statusMsg.fileState.displayName || statusMsg.sha256 || 'File';
@@ -165,7 +173,7 @@ export function useServerEvents() {
                     }
                 } else if (statusMsg.sha256) {
                     // Fallback if full fileState not present, update status minimally
-                    workflow.upsertLiveFile({ 
+                    upsertInboxFile(queryClient, {
                         sha256: statusMsg.sha256, 
                         status: statusMsg.status as any 
                     });

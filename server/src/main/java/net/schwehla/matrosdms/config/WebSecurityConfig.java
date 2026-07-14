@@ -23,10 +23,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+
+import org.springframework.beans.factory.annotation.Value;
+
 import net.schwehla.matrosdms.security.JwtAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class WebSecurityConfig {
 
 	private static final Logger log = LoggerFactory.getLogger(WebSecurityConfig.class);
@@ -34,26 +39,37 @@ public class WebSecurityConfig {
 	@Autowired
 	private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+	// H2 console is off by default. PathRequest.toH2Console() resolves the
+	// H2ConsoleProperties bean at request-match time; when the console is
+	// disabled that bean is absent and EVERY request 500s. So only register the
+	// matcher when the console is actually enabled.
+	@Value("${spring.h2.console.enabled:false}")
+	private boolean h2ConsoleEnabled;
+
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-		log.info("SECURITY: Manual CORS Filter Active.");
+		log.info("SECURITY: Manual CORS Filter Active. H2 console enabled: {}", h2ConsoleEnabled);
 
-		http.headers(headers -> headers.frameOptions(FrameOptionsConfig::disable))
+		// sameOrigin (not disable): enough for the H2 console iframe, still blocks
+		// cross-site clickjacking
+		http.headers(headers -> headers.frameOptions(FrameOptionsConfig::sameOrigin))
 				.csrf(AbstractHttpConfigurer::disable)
 				.sessionManagement(
 						session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.authorizeHttpRequests(
-						auth -> auth
-								// FIX: Allow Async/Error dispatches
-								.dispatcherTypeMatchers(
-										DispatcherType.ASYNC, DispatcherType.ERROR, DispatcherType.FORWARD)
-								.permitAll()
+				.authorizeHttpRequests(auth -> {
+					// FIX: Allow Async/Error dispatches
+					auth.dispatcherTypeMatchers(
+							DispatcherType.ASYNC, DispatcherType.ERROR, DispatcherType.FORWARD)
+							.permitAll();
 
-								// Allow H2
-								.requestMatchers(PathRequest.toH2Console())
-								.permitAll()
+					// Allow H2 console only when it is enabled (otherwise the matcher
+					// throws NoSuchBeanDefinitionException on every request)
+					if (h2ConsoleEnabled) {
+						auth.requestMatchers(PathRequest.toH2Console()).permitAll();
+					}
 
+					auth
 								// FIX: Allow Actuator (Kubernetes Health Checks) - Solves 403 Error
 								.requestMatchers("/actuator/**")
 								.permitAll()
@@ -90,7 +106,8 @@ public class WebSecurityConfig {
 
 								// Secure Everything Else
 								.anyRequest()
-								.authenticated())
+								.authenticated();
+				})
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();

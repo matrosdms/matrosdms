@@ -48,11 +48,14 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 	@Autowired
 	private SearchService searchService;
 
+	@Autowired
+	private ContextHistoryService contextHistoryService;
+
 	// Enhanced Date Pattern for ISO (YYYY-MM-DD) and German/English (DD.MM.YYYY /
 	// DD Month YYYY)
 	// Group 1-3: ISO | Group 4-6: European/Text
 	private static final Pattern DATE_PATTERN = Pattern.compile(
-			"\\b(?:(\\d{4})-(\\d{1,2})-(\\d{1,2}))|(?:(\\d{1,2})[\\.\\/\\-]\\s?(?:([a-zA-ZäöüÄÖÜß]{3,9})|(\\d{1,2}))[\\.\\/\\-]\\s?(\\d{2,4}))\\b",
+			"\\b(?:(\\d{4})-(\\d{1,2})-(\\d{1,2}))|(?:(\\d{1,2})[\\.\\/\\-]\\s?(?:([a-zA-ZäöüÄÖÜß]{3,9})|(\\d{1,2}))[\\.\\/\\-\\s]\\s?(\\d{2,4}))\\b",
 			Pattern.CASE_INSENSITIVE);
 
 	private static final Map<String, Integer> MONTH_MAP = new HashMap<>();
@@ -199,8 +202,11 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 		}
 
 		// ── PHASE C: Date extraction ─────────────────────────────────────────────────
-		if (!normalizedText.isBlank()) {
-			LocalDate date = findBestDate(normalizedText);
+		// Use the RAW text, not the OpenNLP-normalized text: the tokenizer inserts
+		// spaces around punctuation ("2024-03-05" -> "2024 - 03 - 05"), which the
+		// date regex can never match. (This silently broke ALL date extraction.)
+		if (fullText != null && !fullText.isBlank()) {
+			LocalDate date = findBestDate(fullText);
 			p.setDocumentDate(date);
 			if (date != null) {
 				fieldConf.put("documentDate", 0.80);
@@ -245,20 +251,9 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 
 		for (Candidate ctx : contexts) {
 			try {
-				SearchCriteria criteria = new SearchCriteria();
-				criteria.setField(ESearchDimension.CONTEXT);
-				criteria.setOperator(EOperator.EQ);
-				criteria.setValue(ctx.uuid());
-
-				Page<MSearchResult> results = searchService.search(criteria, 0, 15);
-				if (!results.hasContent())
-					continue;
-
-				List<String> histFilenames = results.getContent().stream()
-						.map(MSearchResult::getFilename)
-						.filter(f -> f != null && !f.isBlank())
-						.map(String::toLowerCase)
-						.collect(Collectors.toList());
+				// Cached (5 min TTL) - otherwise this is one Lucene search per
+				// context for every single ingested document
+				List<String> histFilenames = contextHistoryService.getRecentFilenames(ctx.uuid());
 
 				if (histFilenames.isEmpty())
 					continue;
@@ -519,7 +514,7 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 			// the query
 			String[] tokens = normalizedText.split("\\s+");
 			String queryTerms = java.util.Arrays.stream(tokens)
-					.filter(t -> t.length() >= 5 && t.matches("[a-zA-ZäöüÄÖÜßA-z]+"))
+					.filter(t -> t.length() >= 5 && t.matches("[a-zA-ZäöüÄÖÜß]+"))
 					.limit(5)
 					.collect(Collectors.joining(" "));
 

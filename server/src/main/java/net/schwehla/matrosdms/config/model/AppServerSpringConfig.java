@@ -110,9 +110,18 @@ public class AppServerSpringConfig {
 	}
 
 	public static class EmbeddingConfig {
+		private boolean enabled = false;
 		private String url;
 		private String model;
 		private int dimension = 768;
+
+		public boolean isEnabled() {
+			return enabled;
+		}
+
+		public void setEnabled(boolean enabled) {
+			this.enabled = enabled;
+		}
 
 		public String getUrl() {
 			return url;

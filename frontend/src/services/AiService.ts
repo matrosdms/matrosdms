@@ -214,22 +214,32 @@ class Eliza {
 const eliza = new Eliza()
 
 export const AiService = {
-  async ask(question: string) {
-    try {
-      // Try real AI endpoint first
-      const { data, error } = await client.POST("/api/ai/ask" as any, { 
-          body: { question } 
-      })
-      
-      if (error) throw new Error(getErrorMessage(error))
-      return data as { answer: string; sources?: string[] }
-    } catch {
-      // Easter egg: Fall back to ELIZA when no AI backend
-      await new Promise(r => setTimeout(r, 500 + Math.random() * 1000)) // Simulate thinking
-      return { 
-        answer: eliza.respond(question),
-        sources: ['ELIZA (Weizenbaum, 1966)']
-      }
+  async ask(question: string, conversationId?: string): Promise<{ answer: string; sources?: string[] }> {
+    // Explicit summon always works, even with a live LLM
+    if (/^eliza[:,]/i.test(question.trim())) {
+      return elizaReply(question.replace(/^eliza[:,]\s*/i, ''))
     }
+
+    try {
+      const { data, error } = await client.POST('/api/ai/chat', {
+        body: { message: question, conversationId },
+        signal: AbortSignal.timeout(120_000)
+      })
+      if (error) throw new Error(getErrorMessage(error))
+      if (!data?.reply) throw new Error('empty response')
+      return { answer: data.reply }
+    } catch {
+      // No LLM backend at home? ELIZA (1966) steps in - clearly credited via
+      // sources so the fallback is an easter egg, not an impersonation.
+      return elizaReply(question)
+    }
+  }
+}
+
+async function elizaReply(question: string): Promise<{ answer: string; sources: string[] }> {
+  await new Promise(r => setTimeout(r, 500 + Math.random() * 1000)) // "thinking"
+  return {
+    answer: eliza.respond(question),
+    sources: ['ELIZA (Weizenbaum, 1966) - no AI backend reachable']
   }
 }

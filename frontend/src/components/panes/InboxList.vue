@@ -3,12 +3,12 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import BasePane from '@/components/ui/BasePane.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import InboxItem from '@/components/panes/InboxItem.vue'
-import { useInboxQueries } from '@/composables/queries/useInboxQueries'
+import { useInboxQueries, upsertInboxFile, removeInboxFile, inboxUpdateTimes } from '@/composables/queries/useInboxQueries'
 import { useContextQueries } from '@/composables/queries/useContextQueries'
 import { useServerEvents } from '@/composables/useServerEvents'
 import { useListNavigation } from '@/composables/useListNavigation'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useDmsStore } from '@/stores/dms'
-import { useWorkflowStore } from '@/stores/workflow'
 import { useUIStore } from '@/stores/ui'
 import { ViewMode } from '@/enums'
 import { client } from '@/api/client'
@@ -23,7 +23,7 @@ interface StatusCheckData { sha256: string; status: InboxFileStatus; progressMes
 
 const dms = useDmsStore()
 const ui = useUIStore()
-const workflow = useWorkflowStore()
+const queryClient = useQueryClient()
 const { inboxFiles, isLoadingInbox, refetchInbox } = useInboxQueries()
 const { contexts } = useContextQueries()
 
@@ -41,16 +41,12 @@ const activeIndex = ref(-1)
 const listContainerRef = ref<HTMLDivElement | null>(null)
 let watchdogTimer: ReturnType<typeof setTimeout> | null = null
 
-const effectiveFiles = computed(() => {
-  const apiFiles = inboxFiles.value || []
-  const fileMap = new Map<string, InboxFile>()
-  apiFiles.forEach((file: any) => { if (file.sha256) fileMap.set(file.sha256, { ...file, sha256: file.sha256 } as InboxFile) })
-  for (const [hash, liveFile] of Object.entries(workflow.liveInboxFiles)) {
-    if (fileMap.has(hash)) fileMap.set(hash, { ...fileMap.get(hash), ...liveFile } as InboxFile)
-    else fileMap.set(hash, liveFile)
-  }
-  return Array.from(fileMap.values()).filter(file => file.sha256 && !ignoredSet.value.has(file.sha256))
-})
+// Single source of truth: SSE updates are patched straight into the ['inbox']
+// query cache (see useServerEvents + upsertInboxFile), so the query already
+// holds live progress. Only local "ignored" hiding stays component-side.
+const effectiveFiles = computed(() =>
+  (inboxFiles.value || []).filter(file => file.sha256 && !ignoredSet.value.has(file.sha256))
+)
 
 const filteredFiles = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
@@ -133,16 +129,20 @@ const setActiveIndex = (index: number) => activeIndex.value = index
 
 const checkStaleFiles = async () => {
   const now = Date.now()
-  for (const hash of workflow.processingInboxItems) {
-    if (now - (workflow.lastInboxUpdate[hash] || 0) <= WATCHDOG_CONFIG.staleThreshold) continue
+  // Derive "still processing" straight from the query data instead of a
+  // separate store set - one source of truth.
+  const processing = (inboxFiles.value || []).filter(f => f.status === 'PROCESSING' && f.sha256)
+  for (const file of processing) {
+    const hash = file.sha256!
+    if (now - (inboxUpdateTimes[hash] || 0) <= WATCHDOG_CONFIG.staleThreshold) continue
     try {
       const { data, error } = await client.GET("/api/inbox/{hash}/status", { params: { path: { hash } } })
       if (error || !data) continue
       const statusData = data as unknown as StatusCheckData
       if (['READY', 'ERROR', 'DUPLICATE'].includes(statusData.status)) {
-        workflow.upsertLiveFile(statusData); await refetchInbox()
+        upsertInboxFile(queryClient, statusData); await refetchInbox()
       } else {
-        workflow.lastInboxUpdate[hash] = now
+        inboxUpdateTimes[hash] = now
       }
     } catch (e) { console.error(`Failed check ${hash}`, e) }
   }
@@ -153,12 +153,12 @@ const stopWatchdog = () => { if (watchdogTimer) { clearInterval(watchdogTimer); 
 
 const triggerDigest = async (hash?: string) => {
   if (!hash) return
-  workflow.upsertLiveFile({ sha256: hash, status: 'PROCESSING', progressMessage: 'Starting Analysis...' })
+  upsertInboxFile(queryClient, { sha256: hash, status: 'PROCESSING', progressMessage: 'Starting Analysis...' })
   try {
     const { error } = await client.POST("/api/inbox/{hash}/digest", { params: { path: { hash } } })
     if (error) throw new Error("Request failed")
   } catch (error) {
-    workflow.upsertLiveFile({ sha256: hash, status: 'ERROR', progressMessage: 'Analysis Request Failed' })
+    upsertInboxFile(queryClient, { sha256: hash, status: 'ERROR', progressMessage: 'Analysis Request Failed' })
     push.error("Failed to start analysis")
   }
 }
@@ -169,7 +169,7 @@ const ignoreFile = async (hash?: string) => {
   try {
     await client.POST("/api/inbox/{hash}/ignore", { params: { path: { hash } } })
     push.success("File ignored")
-    workflow.removeLiveFile(hash)
+    removeInboxFile(queryClient, hash)
     await refetchInbox()
   } catch (error) {
     ignoredSet.value.delete(hash)
@@ -199,11 +199,18 @@ const openPreview = (file: InboxFile) => {
 }
 
 const handlePreviewClick = (file: InboxFile, index: number) => { setActiveIndex(index); openPreview(file) }
-const assignContextToFile = (hash: string | undefined, contextId: string) => {
+const assignContextToFile = async (hash: string | undefined, contextId: string) => {
   if (!hash) return
-  workflow.upsertLiveFile({ sha256: hash, prediction: { context: contextId, manuallyAssigned: true } })
+  // Optimistic cache update, then persist server-side so it survives reloads.
+  upsertInboxFile(queryClient, { sha256: hash, prediction: { context: contextId, manuallyAssigned: true } })
   const ctx = contexts.value.find((c: any) => c.uuid === contextId)
-  if (ctx) push.success(`Linked to ${ctx.name}`)
+  try {
+    await InboxService.assignContext(hash, contextId)
+    if (ctx) push.success(`Linked to ${ctx.name}`)
+  } catch (e: any) {
+    push.error(`Failed to save assignment: ${e.message}`)
+    await refetchInbox()
+  }
 }
 
 const handleDragEnter = (event: DragEvent) => { if (event.dataTransfer?.types.includes('Files')) isDragOver.value = true }

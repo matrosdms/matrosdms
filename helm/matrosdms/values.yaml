@@ -45,19 +45,20 @@ resources:
     memory: "512Mi"
     cpu: "250m"
 
-# FIX: Increased timeouts for Java Startup
-#livenessProbe:
-#  httpGet:
-#    path: /actuator/health/liveness
-#    port: 9090
-#  initialDelaySeconds: 45    # Was 15. Give it time to boot H2 and Liquibase.
-#  periodSeconds: 20
-#  failureThreshold: 3        # Allow 3 failures before restarting
+# Backed by spring-boot-starter-actuator with management.endpoint.health.probes.enabled=true.
+# Delays are generous because a cold JVM start also runs Flyway before the port answers.
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 9090
+  initialDelaySeconds: 45
+  periodSeconds: 20
+  failureThreshold: 3        # Allow 3 failures before restarting
 
-#readinessProbe:
-#  httpGet:
-#    path: /actuator/health/readiness
-#    port: 9090
-#  initialDelaySeconds: 30    # Was 10.
-#  periodSeconds: 10
-#  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 9090
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 3

@@ -157,7 +157,9 @@ public class AdminService {
 		String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
 		Path exportDir = targetDir.resolve("export-" + timestamp);
 
-		objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+		// copy(): never mutate the shared application-wide mapper from a job
+		ObjectMapper exportMapper = objectMapper.copy();
+		exportMapper.enable(SerializationFeature.INDENT_OUTPUT);
 
 		try {
 			Files.createDirectories(exportDir);
@@ -216,7 +218,7 @@ public class AdminService {
 					globalManifest.add(meta);
 
 					Path sidecarFile = contextDir.resolve(fileName + ".json");
-					objectMapper.writeValue(sidecarFile.toFile(), meta);
+					exportMapper.writeValue(sidecarFile.toFile(), meta);
 
 					exported++;
 					if (exported % 100 == 0) {
@@ -231,7 +233,7 @@ public class AdminService {
 			}
 
 			Path globalFile = exportDir.resolve("global_index.json");
-			objectMapper.writeValue(globalFile.toFile(), globalManifest);
+			exportMapper.writeValue(globalFile.toFile(), globalManifest);
 
 			log.info("Export completed: {} items exported, {} failed, target: {}",
 					exported, failed, exportDir);

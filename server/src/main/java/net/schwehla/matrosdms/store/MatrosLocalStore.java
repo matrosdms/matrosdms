@@ -156,7 +156,11 @@ public class MatrosLocalStore implements IMatrosStore {
 			}
 
 			MDocumentStream stream = new MDocumentStream(inputStream, fileSize);
-			String fileName = documentFile.getFileName().toString().replace(".enc", "");
+			// Strip only a trailing .enc - replace() would also mangle names like "report.enclosure.pdf"
+			String fileName = documentFile.getFileName().toString();
+			if (fileName.endsWith(".enc")) {
+				fileName = fileName.substring(0, fileName.length() - 4);
+			}
 			stream.setFilename(fileName);
 
 			log.debug("✓ Document loaded: uuid={}, size={} bytes", uuid, fileSize);

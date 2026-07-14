@@ -48,7 +48,20 @@ window.addEventListener('unhandledrejection', (event) => {
 })
 
 app.use(pinia)
-app.use(VueQueryPlugin)
+app.use(VueQueryPlugin, {
+  queryClientConfig: {
+    defaultOptions: {
+      queries: {
+        // Don't retry client errors (4xx) — services attach `status` to thrown errors
+        retry: (failureCount, error: any) => {
+          const status = error?.status ?? error?.response?.status
+          if (status && status >= 400 && status < 500) return false
+          return failureCount < 2
+        }
+      }
+    }
+  }
+})
 app.use(notivue)
 
 app.mount('#app')

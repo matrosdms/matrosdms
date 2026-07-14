@@ -258,12 +258,14 @@ public class SearchService {
 		};
 	}
 
-	@Transactional
+	// No @Transactional: the mass indexer manages its own sessions/transactions,
+	// an outer transaction only pins a connection for the whole reindex run
 	public void reindexAll() {
 		try {
 			org.hibernate.search.mapper.orm.Search.session(entityManager).massIndexer().startAndWait();
 		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
+			Thread.currentThread().interrupt();
+			throw new RuntimeException("Reindexing was interrupted", e);
 		}
 	}
 }

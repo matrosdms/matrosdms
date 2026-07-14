@@ -1,8 +1,9 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useDmsStore } from '@/stores/dms'
 import { useAuthStore } from '@/stores/auth'
-import { useWorkflowStore } from '@/stores/workflow'
+import { removeInboxFile } from '@/composables/queries/useInboxQueries'
 import { useQueryClient, useQuery } from '@tanstack/vue-query'
+import type { InboxFile } from '@/types/events'
 import { ItemService } from '@/services/ItemService'
 import { ActionService } from '@/services/ActionService'
 import { AttributeTypeService } from '@/services/AttributeTypeService'
@@ -49,7 +50,6 @@ export interface ItemFormData {
 export function useItemForm(isEdit: boolean) {
     const dms = useDmsStore()
     const auth = useAuthStore()
-    const workflow = useWorkflowStore()
     const queryClient = useQueryClient()
 
     const form = ref<ItemFormData>({ 
@@ -88,8 +88,9 @@ export function useItemForm(isEdit: boolean) {
 
     const file = computed(() => {
         const f = dms.pendingInboxFile
-        if (f && f.sha256 && workflow.liveInboxFiles[f.sha256]) {
-            return { ...f, ...workflow.liveInboxFiles[f.sha256] }
+        if (f && f.sha256) {
+            const cached = queryClient.getQueryData<InboxFile[]>(queryKeys.inbox.list)?.find(x => x.sha256 === f.sha256)
+            if (cached) return { ...f, ...cached }
         }
         return f
     })
@@ -293,7 +294,7 @@ export function useItemForm(isEdit: boolean) {
                 
                 // Remove from live list immediately
                 if (fileHash) {
-                    workflow.removeLiveFile(fileHash);
+                    removeInboxFile(queryClient, fileHash);
                 }
                 
                 push.success('Document assigned')

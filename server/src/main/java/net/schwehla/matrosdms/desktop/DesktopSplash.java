@@ -17,6 +17,8 @@ import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.RenderingHints;
 import java.awt.Window;
+import java.io.InputStream;
+import java.util.Properties;
 
 /**
  * A splash window shown from {@code main()} <em>before</em> Spring boots.
@@ -33,7 +35,29 @@ public final class DesktopSplash {
 	private static volatile Window window;
 	private static volatile Frame owner;
 
+	/**
+	 * Read once at class-load: the splash paints before Spring exists, so a {@code BuildProperties}
+	 * bean is not an option — but the same file that backs it is a plain classpath resource, and the
+	 * {@code build-info} goal writes it for both the fat jar and {@code target/classes} in dev.
+	 * Empty when absent (e.g. an IDE run that skipped the goal), in which case no version is drawn.
+	 */
+	private static final String VERSION = readVersion();
+
 	private DesktopSplash() {
+	}
+
+	private static String readVersion() {
+		try (InputStream in = DesktopSplash.class.getResourceAsStream("/META-INF/build-info.properties")) {
+			if (in == null) {
+				return "";
+			}
+			Properties p = new Properties();
+			p.load(in);
+			String v = p.getProperty("build.version", "").trim();
+			return v.isEmpty() ? "" : "v" + v;
+		} catch (Exception ignored) {
+			return "";
+		}
 	}
 
 	/** Shows the splash, or does nothing at all when there is no desktop (jar, container, CI). */
@@ -110,6 +134,9 @@ public final class DesktopSplash {
 
 			centered(g2, "MatrosDMS", new Font(Font.SANS_SERIF, Font.BOLD, 24), new Color(0xDE, 0xEA, 0xF5), w, 154);
 			centered(g2, "Starting…", new Font(Font.SANS_SERIF, Font.PLAIN, 13), new Color(0x6E, 0x94, 0xB0), w, 182);
+			if (!VERSION.isEmpty()) {
+				centered(g2, VERSION, new Font(Font.SANS_SERIF, Font.PLAIN, 11), new Color(0x45, 0x5E, 0x74), w, 206);
+			}
 		}
 
 		private void centered(Graphics2D g2, String text, Font font, Color color, int width, int y) {

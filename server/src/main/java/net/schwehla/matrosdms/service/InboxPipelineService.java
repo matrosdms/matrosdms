@@ -11,7 +11,10 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Stream;
+
+import jakarta.annotation.PostConstruct;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +45,34 @@ public class InboxPipelineService {
 	@Autowired
 	ApplicationEventPublisher publisher;
 
+	// Bounds parallel Tika/OCR jobs. Without this, bulk-dropping N files spawns
+	// N concurrent pipelines on the unbounded virtual-thread executor.
+	private Semaphore pipelineSlots;
+
+	@PostConstruct
+	void initConcurrency() {
+		int permits = Math.max(1, config.getProcessing().getConcurrency());
+		pipelineSlots = new Semaphore(permits);
+		log.info("Pipeline concurrency limited to {} parallel jobs", permits);
+	}
+
 	@Async("taskExecutor")
 	public void triggerPipeline(String hash) {
+		try {
+			pipelineSlots.acquire();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			publisher.publishEvent(new PipelineErrorEvent(hash, "Interrupted while waiting for a processing slot"));
+			return;
+		}
+		try {
+			runPipeline(hash);
+		} finally {
+			pipelineSlots.release();
+		}
+	}
+
+	private void runPipeline(String hash) {
 		Path jobDir = Paths.get(config.getServer().getTemp().getPath(), hash);
 
 		String originalName = hash;

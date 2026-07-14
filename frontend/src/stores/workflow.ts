@@ -1,14 +1,18 @@
 import { defineStore } from 'pinia'
-import { ref, reactive, computed } from 'vue'
+import { ref } from 'vue'
 import { useUIStore } from '@/stores/ui'
 import { ViewMode } from '@/enums'
 import type { components } from '@/types/schema'
-import type { InboxAnalysis } from '@/types/analysis'
 import type { InboxFile } from '@/types/events'
 
 type MContext = components['schemas']['MContext'];
 type MAction = components['schemas']['MAction'];
 
+// NOTE: live inbox file state used to live here (liveInboxFiles + a parallel
+// set of processing/progress/analysis maps). It now lives solely in the
+// TanStack Query ['inbox'] cache (see composables/queries/useInboxQueries),
+// patched from SSE events - one source of truth. This store keeps only the
+// creation-flow / drag UI state that has no server representation.
 export const useWorkflowStore = defineStore('workflow', () => {
   const ui = useUIStore()
 
@@ -16,111 +20,23 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const parentCategoryForCreation = ref<string | null>(null)
   const pendingInboxFile = ref<InboxFile | null>(null)
   const targetContextForDrop = ref<MContext | null>(null)
-  const itemFormDraft = ref<any>({}) 
-  const suspendedView = ref<string | null>(null) 
-  
+  const itemFormDraft = ref<any>({})
+  const suspendedView = ref<string | null>(null)
+
   // Action Context
   const pendingActionTarget = ref<{ itemId?: string; contextId?: string }>({})
 
-  // --- NEW: Live Inbox State (Progressive Updates) ---
-  const liveInboxFiles = ref<Record<string, InboxFile>>({})
-  
-  // Legacy Analysis State
-  const inboxAnalysis = ref<Record<string, InboxAnalysis>>({})
-  const processingInboxItems = reactive(new Set<string>())
-  
-  // Track real-time progress messages
-  const inboxProgress = ref<Record<string, string>>({})
-  
-  // Track last update timestamp for Watchdog
-  const lastInboxUpdate = ref<Record<string, number>>({})
-  
   // Drag State
   const isDraggingGlobal = ref(false)
   const currentDragType = ref<string | null>(null)
 
   // --- ACTIONS ---
 
-  function setDragging(bool: boolean, type: string | null = null) { 
-      isDraggingGlobal.value = bool 
+  function setDragging(bool: boolean, type: string | null = null) {
+      isDraggingGlobal.value = bool
       currentDragType.value = bool ? type : null
   }
 
-  // --- NEW: Progressive Update Action ---
-  function upsertLiveFile(file: Partial<InboxFile>) {
-      if (!file.sha256) return
-      
-      const hash = file.sha256
-      const existing = liveInboxFiles.value[hash] || {}
-      
-      // Merge Strategy: Overlay new fields onto existing state, preserving metadata
-      liveInboxFiles.value = {
-          ...liveInboxFiles.value,
-          [hash]: {
-              ...existing,
-              ...file,
-              // Deep merge nested objects to avoid losing metadata during SSE progress updates
-              fileInfo: { ...(existing.fileInfo || {}), ...(file.fileInfo || {}) },
-              emailInfo: { ...(existing.emailInfo || {}), ...(file.emailInfo || {}) },
-              prediction: { ...(existing.prediction || {}), ...(file.prediction || {}) }
-          } as InboxFile
-      }
-      
-      // Update legacy processing set for UI spinners
-      if (file.status === 'PROCESSING') {
-          addProcessingItem(hash)
-          if (file.progressMessage) setInboxProgress(hash, file.progressMessage)
-      } else if (file.status === 'READY' || file.status === 'DUPLICATE' || file.status === 'ERROR') {
-          removeProcessingItem(hash)
-      }
-      
-      lastInboxUpdate.value = { ...lastInboxUpdate.value, [hash]: Date.now() }
-  }
-
-  function removeLiveFile(hash: string) {
-      if (liveInboxFiles.value[hash]) {
-          const newFiles = { ...liveInboxFiles.value }
-          delete newFiles[hash]
-          liveInboxFiles.value = newFiles
-      }
-      removeProcessingItem(hash)
-  }
-
-  // Legacy Support Mappers
-  function setInboxAnalysis(hash: string, result: InboxAnalysis) { 
-      inboxAnalysis.value = { ...inboxAnalysis.value, [hash]: result } 
-      if (inboxProgress.value[hash]) {
-          const newProgress = { ...inboxProgress.value }
-          delete newProgress[hash]
-          inboxProgress.value = newProgress
-      }
-      lastInboxUpdate.value = { ...lastInboxUpdate.value, [hash]: Date.now() }
-  }
-
-  function setInboxProgress(hash: string, message: string) {
-      inboxProgress.value = { ...inboxProgress.value, [hash]: message }
-      lastInboxUpdate.value = { ...lastInboxUpdate.value, [hash]: Date.now() }
-  }
-
-  function addProcessingItem(hash: string) { 
-      processingInboxItems.add(hash) 
-      lastInboxUpdate.value = { ...lastInboxUpdate.value, [hash]: Date.now() }
-  }
-
-  function removeProcessingItem(hash: string) { 
-      processingInboxItems.delete(hash) 
-      if (inboxProgress.value[hash]) {
-          const newProgress = { ...inboxProgress.value }
-          delete newProgress[hash]
-          inboxProgress.value = newProgress
-      }
-      if (lastInboxUpdate.value[hash]) {
-          const newUpdates = { ...lastInboxUpdate.value }
-          delete newUpdates[hash]
-          lastInboxUpdate.value = newUpdates
-      }
-  }
-  
   // --- VIEW SWITCHING ACTIONS ---
 
   function startCategoryCreation(parentId: string) {
@@ -138,13 +54,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     suspendedView.value = null
     targetContextForDrop.value = contextObj
     pendingInboxFile.value = inboxFile
-    
-    // REFACTORED: Rely solely on sha256
-    const hash = inboxFile.sha256;
-    if (hash && liveInboxFiles.value[hash]) {
-        // Form will read from liveInboxFiles if necessary
-    }
-    
+    // The item form reads live inbox data from the ['inbox'] query cache by sha256.
     ui.setRightPanel(ViewMode.ADD_ITEM)
   }
   
@@ -180,74 +90,26 @@ export const useWorkflowStore = defineStore('workflow', () => {
       }
   }
 
-  const duplicateContentFileHashes = computed(() => {
-      const counts: Record<string, number> = {}
-      const analysis = inboxAnalysis.value
-      
-      // Merge Legacy Analysis + Live Files status
-      const allHashes = new Set([...Object.keys(analysis), ...Object.keys(liveInboxFiles.value)])
-      
-      // Calculate Content Hash collisions
-      Object.values(analysis).forEach((r) => {
-          if(r.contentHash) counts[r.contentHash] = (counts[r.contentHash] || 0) + 1
-      })
-      
-      const contentHashDuplicates = new Set<string>()
-      for (const [hash, count] of Object.entries(counts)) {
-          if (count > 1) contentHashDuplicates.add(hash)
-      }
-      
-      const result = new Set<string>()
-      
-      // 1. Check Legacy
-      for (const [fHash, r] of Object.entries(analysis)) {
-          if ((r.contentHash && contentHashDuplicates.has(r.contentHash)) || r.isDuplicate) {
-              result.add(fHash)
-          }
-      }
-      
-      // 2. Check Live State
-      for (const [fHash, file] of Object.entries(liveInboxFiles.value)) {
-          if (file.status === 'DUPLICATE') result.add(fHash)
-      }
-      
-      return result
-  })
-
   return {
     // State
-    parentCategoryForCreation, 
-    pendingInboxFile, 
+    parentCategoryForCreation,
+    pendingInboxFile,
     targetContextForDrop,
-    itemFormDraft, 
-    suspendedView, 
-    isDraggingGlobal, 
+    itemFormDraft,
+    suspendedView,
+    isDraggingGlobal,
     currentDragType,
-    inboxAnalysis, 
-    inboxProgress, 
-    processingInboxItems, 
     pendingActionTarget,
-    lastInboxUpdate, 
-    liveInboxFiles, 
-    
-    // Computeds
-    duplicateContentFileHashes,
-    
+
     // Methods
-    setDragging, 
-    startCategoryCreation, 
-    startContextCreation, 
-    startItemCreation, 
-    startActionCreation, 
-    startActionEditing, 
-    startContextEditing, 
-    cancelCreation, 
-    finishTask,
-    setInboxAnalysis, 
-    setInboxProgress, 
-    addProcessingItem, 
-    removeProcessingItem,
-    upsertLiveFile, 
-    removeLiveFile 
+    setDragging,
+    startCategoryCreation,
+    startContextCreation,
+    startItemCreation,
+    startActionCreation,
+    startActionEditing,
+    startContextEditing,
+    cancelCreation,
+    finishTask
   }
 })

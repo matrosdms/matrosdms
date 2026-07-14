@@ -107,7 +107,7 @@ const sendMessage = async () => {
     scrollToBottom()
 
     try {
-        const res = await AiService.ask(question)
+        const res = await AiService.ask(question, activeSessionId.value ?? undefined)
         const aiMsg: ChatMessage = {
             id: crypto.randomUUID(),
             role: 'ai',

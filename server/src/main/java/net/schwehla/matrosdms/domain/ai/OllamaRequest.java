@@ -7,8 +7,13 @@
  */
 package net.schwehla.matrosdms.domain.ai;
 
-public record OllamaRequest(String model, String prompt, boolean stream) {
+@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+public record OllamaRequest(String model, String prompt, boolean stream, String format) {
   public OllamaRequest(String model, String prompt) {
-    this(model, prompt, false);
+    this(model, prompt, false, null);
+  }
+
+  public OllamaRequest(String model, String prompt, boolean stream) {
+    this(model, prompt, stream, null);
   }
 }
