@@ -7,15 +7,19 @@
  */
 package net.schwehla.matrosdms.desktop;
 
+import java.awt.CheckboxMenuItem;
 import java.awt.Desktop;
 import java.awt.GraphicsEnvironment;
+import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.PopupMenu;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,18 +112,76 @@ public class TrayLauncher {
 
 		menu.add(open);
 		menu.add(logs);
+		Menu profiles = profilesMenu();
+		if (profiles != null) {
+			menu.addSeparator();
+			menu.add(profiles);
+		}
 		menu.addSeparator();
 		menu.add(quit);
 
+		String activeLabel = System.getProperty(ProfileManager.ACTIVE_PROFILE_LABEL_PROPERTY);
+		String tooltip = activeLabel == null ? "MatrosDMS" : "MatrosDMS — " + activeLabel;
+
 		// Render at the size this desktop actually wants, so the icon stays crisp.
-		trayIcon = new TrayIcon(MatrosBadge.image(tray.getTrayIconSize().width), "MatrosDMS", menu);
+		trayIcon = new TrayIcon(MatrosBadge.image(tray.getTrayIconSize().width), tooltip, menu);
 		trayIcon.setImageAutoSize(true);
 		trayIcon.addActionListener(e -> openBrowser(url));
 
 		tray.add(trayIcon);
 	}
 
+	/**
+	 * A "Switch Profile" submenu, present only when {@code ~/.matrosdms/profiles.properties}
+	 * defines profiles. Selecting one saves it as last-active and restarts the server, which then
+	 * boots on that profile's data directory.
+	 */
+	private Menu profilesMenu() {
+		List<ProfileManager.Profile> profiles = ProfileManager.load().profiles();
+		if (profiles.isEmpty()) {
+			return null;
+		}
+		String active = System.getProperty(ProfileManager.ACTIVE_PROFILE_PROPERTY);
+		Menu menu = new Menu("Switch Profile");
+		for (ProfileManager.Profile profile : profiles) {
+			boolean current = profile.name().equals(active);
+			CheckboxMenuItem item = new CheckboxMenuItem(profile.label() + "   (" + profile.port() + ")", current);
+			item.addItemListener(e -> {
+				if (current) {
+					// Clicking the active profile is a no-op, not an uncheck.
+					item.setState(true);
+					return;
+				}
+				switchProfile(profile.name());
+			});
+			menu.add(item);
+		}
+		return menu;
+	}
+
+	private void switchProfile(String name) {
+		try {
+			ProfileManager.saveLastActive(name);
+		} catch (IOException e) {
+			log.warn("Could not save profile switch to {}: {}", ProfileManager.configFile(), e.getMessage());
+			return;
+		}
+		log.info("Switching to profile '{}' — restarting MatrosDMS.", name);
+		shutdown(() -> {
+			try {
+				// The user just chose a tenant, so surface it: the successor opens the browser once ready.
+				ProfileManager.relaunch("--app.start-browser=true");
+			} catch (Exception e) {
+				log.error("Could not relaunch MatrosDMS after profile switch: {}", e.getMessage());
+			}
+		});
+	}
+
 	private void quit() {
+		shutdown(null);
+	}
+
+	private void shutdown(Runnable afterContextClosed) {
 		// Drop the icon first: a graceful shutdown waits for in-flight requests, and a tray icon that
 		// lingers through it looks like a hang.
 		if (trayIcon != null) {
@@ -127,6 +189,10 @@ public class TrayLauncher {
 		}
 		new Thread(() -> {
 			int code = SpringApplication.exit(context, () -> 0);
+			// The context is closed and the port is free — now a relauncher can start the successor.
+			if (afterContextClosed != null) {
+				afterContextClosed.run();
+			}
 			System.exit(code);
 		}, "matrosdms-shutdown").start();
 	}

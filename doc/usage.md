@@ -270,6 +270,47 @@ Access via sidebar → Settings icon
 
 ### Multi Tenancy
 
+#### Profiles (recommended for desktop builds)
+
+Create a `profiles.properties`. It is looked up in two places, first match wins:
+
+1. the working directory MatrosDMS is started from (e.g. `D:\cloud\matrosdms` next to the jar —
+   handy when that folder is cloud-synced, the tenant list travels with the install)
+2. `~/.matrosdms/profiles.properties` (Windows: `C:\Users\<you>\.matrosdms\profiles.properties`)
+
+```properties
+last-active=household
+profile.household.data-dir=D:/cloud/matrosdms/household
+profile.invest.data-dir=D:/cloud/matrosdms/invest
+# optional per profile: separate repository (keeps backups clean), a pinned port,
+# and a display label for the tray/splash (defaults to a prettified name:
+# "demo-a" becomes "Demo A")
+profile.invest.repository-path=D:/cloud/matrosdms/repository/invest
+profile.invest.port=9191
+profile.invest.label=Family Invest
+```
+
+Use forward slashes in paths (`.properties` treats backslash as an escape). On start, MatrosDMS
+boots the `last-active` profile. The tray icon gets a **Switch Profile** submenu — picking another
+profile saves it as last-active and restarts the server on that data directory. The tray tooltip
+shows which profile is running.
+
+**Every profile gets its own port**, so tenants never share a browser origin (no leaked JWT /
+localStorage between tenants) and their URLs stay bookmarkable per tenant. An explicit
+`profile.<name>.port` is honored; profiles without one are assigned the next free port from 9090
+upward, in alphabetical order. Auto-assigned ports can shift when you add or remove profiles —
+pin the port if you rely on a bookmark. The tray menu shows each profile's port.
+
+Precedence: an explicit data directory always wins over the profile config, so existing setups
+keep working unchanged:
+
+1. a bare program argument — a desktop shortcut like `MatrosDMS.exe D:\matrosdms\household`
+2. the `MATROS_DATA_DIR` environment variable (the `startMatros.cmd` way below)
+3. `last-active` from `~/.matrosdms/profiles.properties`
+4. the `./data` default
+
+#### Batch file (classic way)
+
 create a batch-file startMatros.cmd
 
 ```

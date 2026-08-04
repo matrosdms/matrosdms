@@ -7,6 +7,7 @@
  */
 package net.schwehla.matrosdms.controller;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import jakarta.validation.Valid;
@@ -17,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import net.schwehla.matrosdms.desktop.ProfileManager;
 import net.schwehla.matrosdms.domain.core.EUserRole;
 import net.schwehla.matrosdms.domain.core.MUser;
 import net.schwehla.matrosdms.entity.management.DBUser;
@@ -73,9 +75,18 @@ public class AuthController {
 	}
 
 	@GetMapping("/auth/status")
-	public ResponseEntity<Map<String, Boolean>> getSystemStatus() {
+	public ResponseEntity<Map<String, Object>> getSystemStatus() {
 		boolean initialized = userService.getUserCount() > 0;
-		return ResponseEntity.ok(Map.of("initialized", initialized));
+		Map<String, Object> status = new HashMap<>();
+		status.put("initialized", initialized);
+		// The tenant this instance serves — pre-auth on purpose, so the login screen can show which
+		// profile the user is about to sign in to. The label is not a secret (it names a local data
+		// dir choice), and this endpoint is loopback-served in the desktop setup anyway.
+		String profile = System.getProperty(ProfileManager.ACTIVE_PROFILE_LABEL_PROPERTY);
+		if (profile != null) {
+			status.put("profile", profile);
+		}
+		return ResponseEntity.ok(status);
 	}
 
 	@PostMapping("/auth/register")

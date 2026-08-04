@@ -132,11 +132,14 @@ public final class DesktopSplash {
 			MatrosBadge.paint(badgeG, badge, false);
 			badgeG.dispose();
 
-			centered(g2, "MatrosDMS", new Font(Font.SANS_SERIF, Font.BOLD, 24), new Color(0xDE, 0xEA, 0xF5), w, 154);
-			centered(g2, "Starting…", new Font(Font.SANS_SERIF, Font.PLAIN, 13), new Color(0x6E, 0x94, 0xB0), w, 182);
+			centered(g2, "MatrosDMS", new Font(Font.SANS_SERIF, Font.BOLD, 24), new Color(0xDE, 0xEA, 0xF5), w, 150);
 			if (!VERSION.isEmpty()) {
-				centered(g2, VERSION, new Font(Font.SANS_SERIF, Font.PLAIN, 11), new Color(0x45, 0x5E, 0x74), w, 206);
+				centered(g2, VERSION, new Font(Font.SANS_SERIF, Font.PLAIN, 12), new Color(0x8F, 0xAD, 0xC6), w, 170);
 			}
+			// The profile is resolved in main() before the splash shows, so the label is already set.
+			String profile = System.getProperty(ProfileManager.ACTIVE_PROFILE_LABEL_PROPERTY, "");
+			String starting = profile.isEmpty() ? "Starting…" : "Starting " + profile + "…";
+			centered(g2, starting, new Font(Font.SANS_SERIF, Font.PLAIN, 13), new Color(0x6E, 0x94, 0xB0), w, 200);
 		}
 
 		private void centered(Graphics2D g2, String text, Font font, Color color, int width, int y) {

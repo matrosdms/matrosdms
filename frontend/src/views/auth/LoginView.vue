@@ -17,6 +17,7 @@ const auth = useAuthStore()
 const { isBackendDisconnected } = useMatrosData()
 
 const viewMode = ref('checking')
+const profileName = ref('')
 const loginForm = ref({ username: '', password: '' })
 const setupForm = ref({ name: 'admin', firstname: 'Admin', email: '', password: '' })
 const isLoading = ref(false)
@@ -37,6 +38,8 @@ onMounted(async () => {
         viewMode.value = 'login' 
         return
     }
+
+    profileName.value = (data as any)?.profile || ''
 
     if (data && (data as any).initialized === false) {
         viewMode.value = 'setup'
@@ -134,6 +137,9 @@ const acceptLegal = () => {
                   MatrosDMS
                   <Sparkles v-if="viewMode === 'setup'" class="text-yellow-500" :size="24" />
               </h1>
+              <p v-if="profileName" class="mt-1.5">
+                  <span class="text-xs font-semibold text-primary bg-primary/10 border border-primary/20 rounded-full px-3 py-0.5 inline-block">{{ profileName }}</span>
+              </p>
               <p v-if="viewMode === 'login'" class="text-sm text-muted-foreground mt-1">Sign in to your account</p>
               <p v-else class="text-sm text-primary mt-1 font-medium bg-primary/10 py-1 px-2 rounded inline-block">Welcome! Let's set up your Admin account.</p>
           </div>

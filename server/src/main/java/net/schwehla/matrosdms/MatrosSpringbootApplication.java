@@ -21,6 +21,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import net.schwehla.matrosdms.desktop.DesktopSplash;
+import net.schwehla.matrosdms.desktop.ProfileManager;
 import net.schwehla.matrosdms.util.UUIDProvider;
 
 @SpringBootApplication(exclude = { UserDetailsServiceAutoConfiguration.class })
@@ -46,6 +47,10 @@ public class MatrosSpringbootApplication {
 	}
 
 	public static void main(String[] args) throws Exception {
+		// Pick the data directory before Spring boots: an explicit directory (program argument or
+		// MATROS_DATA_DIR) wins; otherwise the last active profile from ~/.matrosdms/profiles.properties.
+		ProfileManager.resolveDataDir(args);
+
 		// The desktop build has no console window, so show the splash before Spring boots: once it
 		// does, it forces java.awt.headless=true and no window can be created any more. No-ops on a
 		// headless JVM (plain jar, container, CI). TrayLauncher dismisses it when we are ready.
