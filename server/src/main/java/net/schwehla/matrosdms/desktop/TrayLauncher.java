@@ -15,6 +15,8 @@ import java.awt.MenuItem;
 import java.awt.PopupMenu;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -126,7 +128,17 @@ public class TrayLauncher {
 		// Render at the size this desktop actually wants, so the icon stays crisp.
 		trayIcon = new TrayIcon(MatrosBadge.image(tray.getTrayIconSize().width), tooltip, menu);
 		trayIcon.setImageAutoSize(true);
-		trayIcon.addActionListener(e -> openBrowser(url));
+		// A single left click opens the browser; the click-count guard keeps a double click from
+		// opening two tabs (its second event arrives with clickCount == 2). Right click stays the
+		// popup menu.
+		trayIcon.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 1) {
+					openBrowser(url);
+				}
+			}
+		});
 
 		tray.add(trayIcon);
 	}

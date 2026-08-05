@@ -15,7 +15,6 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,7 +27,10 @@ import net.schwehla.matrosdms.util.UUIDProvider;
 @EnableAsync
 @EnableCaching
 @EntityScan("net.schwehla.matrosdms.entity")
-@EnableJpaRepositories("net.schwehla.matrosdms.repository")
+// No @EnableJpaRepositories: the repositories live under this package, so Boot's auto-configuration
+// finds them on its own — and only the auto-configuration honors bootstrap-mode: deferred AND wires
+// the bootstrap executor that builds the Hibernate EntityManagerFactory on a background thread. A
+// manual annotation makes it back off, and the EMF build lands on the main thread again.
 public class MatrosSpringbootApplication {
 
 	Logger logger = LoggerFactory.getLogger(MatrosSpringbootApplication.class);

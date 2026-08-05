@@ -8,6 +8,7 @@
 package net.schwehla.matrosdms.bootstrap;
 
 import java.awt.Desktop;
+import java.awt.GraphicsEnvironment;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
@@ -112,8 +113,10 @@ public class SpringBootAfterStarter implements ApplicationListener<ApplicationRe
 
 		log.info("Background tasks scheduled.");
 
-		// 4. Auto-open Browser (development convenience)
-		if (startBrowser) {
+		// 4. Auto-open Browser: explicit opt-in (--app.start-browser=true), or any desktop build —
+		// only the jpackage launchers pass -Djava.awt.headless=false, so a double-clicked app
+		// surfaces its UI while the plain jar, Docker and the Maven profiles stay browserless.
+		if (startBrowser || !GraphicsEnvironment.isHeadless()) {
 			CompletableFuture.runAsync(this::openBrowser);
 		}
 

@@ -565,7 +565,38 @@
                                 </configuration>
                             </execution>
 
-                            <!-- 3. Wrap it up. No win-console flag: the app launches windowed and lives in the
+                            <!-- 3. Train the Java 25 AOT cache (JEP 483/514): one throwaway boot that exits
+                                 on context refresh records the app's classes and their linked state into
+                                 app.aot inside jpackage-input, which the packaged launcher memory-maps
+                                 instead of re-loading and verifying — a substantially faster cold start.
+                                 MATROS_DATA_DIR pins a scratch data dir so the training boot can never
+                                 resolve a real tenant from a profiles.properties on the build machine. -->
+                            <execution>
+                                <id>aot-cache-train</id>
+                                <goals><goal>exec</goal></goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <executable>${java.home}/bin/java</executable>
+                                    <environmentVariables>
+                                        <MATROS_DATA_DIR>${project.build.directory}/aot-train</MATROS_DATA_DIR>
+                                    </environmentVariables>
+                                    <arguments>
+                                        <argument>-XX:AOTCacheOutput=${project.build.directory}/jpackage-input/app.aot</argument>
+                                        <argument>-Dspring.context.exit=onRefresh</argument>
+                                        <argument>-Dspring.profiles.active=prod</argument>
+                                        <argument>-Djava.awt.headless=true</argument>
+                                        <argument>-jar</argument>
+                                        <argument>${project.build.directory}/jpackage-input/${project.build.finalName}.jar</argument>
+                                        <argument>--server.port=0</argument>
+                                        <argument>--app.start-browser=false</argument>
+                                        <argument>--app.system-tray=false</argument>
+                                        <argument>--app.mail.smtp.port=0</argument>
+                                        <argument>--app.mail.imap.port=0</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- 4. Wrap it up. No win-console flag: the app launches windowed and lives in the
                                  system tray (see TrayLauncher); the tray's log window replaces the console. -->
                             <execution>
                                 <id>jpackage-portable</id>
@@ -600,6 +631,10 @@
                                              forces headless=true and AWT can never open a window. -->
                                         <argument>--java-options</argument>
                                         <argument>-Djava.awt.headless=false</argument>
+                                        <!-- The cache from aot-cache-train. $APPDIR is a jpackage runtime
+                                             token (not a Maven property), resolved to the app-image dir. -->
+                                        <argument>--java-options</argument>
+                                        <argument>-XX:AOTCache=$APPDIR/app.aot</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -682,6 +717,32 @@
                                 </configuration>
                             </execution>
 
+                            <!-- 3. Train the Java 25 AOT cache — same recipe as windows-portable. -->
+                            <execution>
+                                <id>aot-cache-train</id>
+                                <goals><goal>exec</goal></goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <executable>${java.home}/bin/java</executable>
+                                    <environmentVariables>
+                                        <MATROS_DATA_DIR>${project.build.directory}/aot-train</MATROS_DATA_DIR>
+                                    </environmentVariables>
+                                    <arguments>
+                                        <argument>-XX:AOTCacheOutput=${project.build.directory}/jpackage-input/app.aot</argument>
+                                        <argument>-Dspring.context.exit=onRefresh</argument>
+                                        <argument>-Dspring.profiles.active=prod</argument>
+                                        <argument>-Djava.awt.headless=true</argument>
+                                        <argument>-jar</argument>
+                                        <argument>${project.build.directory}/jpackage-input/${project.build.finalName}.jar</argument>
+                                        <argument>--server.port=0</argument>
+                                        <argument>--app.start-browser=false</argument>
+                                        <argument>--app.system-tray=false</argument>
+                                        <argument>--app.mail.smtp.port=0</argument>
+                                        <argument>--app.mail.imap.port=0</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
                             <execution>
                                 <id>jpackage-linux-portable</id>
                                 <goals><goal>exec</goal></goals>
@@ -715,6 +776,9 @@
                                              forces headless=true and AWT can never open a window. -->
                                         <argument>--java-options</argument>
                                         <argument>-Djava.awt.headless=false</argument>
+                                        <!-- The cache from aot-cache-train; $APPDIR is a jpackage runtime token. -->
+                                        <argument>--java-options</argument>
+                                        <argument>-XX:AOTCache=$APPDIR/app.aot</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -775,6 +839,32 @@
                                 </configuration>
                             </execution>
 
+                            <!-- 3. Train the Java 25 AOT cache — same recipe as windows-portable. -->
+                            <execution>
+                                <id>aot-cache-train</id>
+                                <goals><goal>exec</goal></goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <executable>${java.home}/bin/java</executable>
+                                    <environmentVariables>
+                                        <MATROS_DATA_DIR>${project.build.directory}/aot-train</MATROS_DATA_DIR>
+                                    </environmentVariables>
+                                    <arguments>
+                                        <argument>-XX:AOTCacheOutput=${project.build.directory}/jpackage-input/app.aot</argument>
+                                        <argument>-Dspring.context.exit=onRefresh</argument>
+                                        <argument>-Dspring.profiles.active=prod</argument>
+                                        <argument>-Djava.awt.headless=true</argument>
+                                        <argument>-jar</argument>
+                                        <argument>${project.build.directory}/jpackage-input/${project.build.finalName}.jar</argument>
+                                        <argument>--server.port=0</argument>
+                                        <argument>--app.start-browser=false</argument>
+                                        <argument>--app.system-tray=false</argument>
+                                        <argument>--app.mail.smtp.port=0</argument>
+                                        <argument>--app.mail.imap.port=0</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
                             <execution>
                                 <id>jpackage-linux</id>
                                 <goals><goal>exec</goal></goals>
@@ -809,6 +899,9 @@
                                              forces headless=true and AWT can never open a window. -->
                                         <argument>--java-options</argument>
                                         <argument>-Djava.awt.headless=false</argument>
+                                        <!-- The cache from aot-cache-train; $APPDIR is a jpackage runtime token. -->
+                                        <argument>--java-options</argument>
+                                        <argument>-XX:AOTCache=$APPDIR/app.aot</argument>
                                         <argument>--linux-shortcut</argument>
                                         <argument>--linux-menu-group</argument>
                                         <argument>Office</argument>
