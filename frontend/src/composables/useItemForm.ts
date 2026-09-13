@@ -52,21 +52,23 @@ export function useItemForm(isEdit: boolean) {
     const auth = useAuthStore()
     const queryClient = useQueryClient()
 
-    const form = ref<ItemFormData>({ 
+    const emptyForm = (): ItemFormData => ({
         uuid: undefined,
-        name: '', 
-        description: '', 
-        issueDate: '', 
-        dateExpire: '', 
-        kindId: '', 
-        kindName: '', 
-        storeId: '', 
+        name: '',
+        description: '',
+        issueDate: '',
+        dateExpire: '',
+        kindId: '',
+        kindName: '',
+        storeId: '',
         storeItemNumber: '',
         icon: '',
-        stage: EStage.ACTIVE, 
-        attributes:[], 
-        version: 0 
+        stage: EStage.ACTIVE,
+        attributes:[],
+        version: 0
     })
+
+    const form = ref<ItemFormData>(emptyForm())
 
     const hasReminder = ref(false)
     const reminderForm = ref({
@@ -205,10 +207,33 @@ export function useItemForm(isEdit: boolean) {
         }
     })
 
+    /**
+     * The inbox file the fields currently describe. The panel is NOT remounted between drops —
+     * dragging a second inbox file onto a context while the form is still open only swaps the
+     * store's pendingInboxFile — so without tracking this, the "already filled" guard below would
+     * keep the previous document's name, date, kind and attributes while the header already shows
+     * the new file, and saving would file the new document under the old one's metadata.
+     */
+    const describedFile = ref<string | null>(null)
+
     // Reactively fill form from file as soon as it is available (or when live data arrives).
     // AI prediction has priority; original filename is the fallback.
     watch(file, (f) => {
-        if (!isEdit && f && !form.value.name) {
+        if (isEdit || !f) return
+
+        const hash = f.sha256 || null
+        if (hash !== describedFile.value) {
+            // A different document: start from scratch rather than inheriting the last one's values.
+            form.value = emptyForm()
+            aiProposal.value = {}
+            aiHighlights.value = { name: false, date: false, category: false, context: false, store: false }
+            touched.value = false
+            hasReminder.value = false
+            reminderForm.value = { name: '', dueDate: '', assigneeIdentifier: auth.currentUser?.uuid || '' }
+            describedFile.value = hash
+        }
+
+        if (!form.value.name) {
             if (f.prediction) applyPrediction(f.prediction)
             if (!form.value.name) {
                 form.value.name = f.fileInfo?.originalFilename || f.displayName || (f as any).name || ''
