@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import net.schwehla.matrosdms.desktop.DesktopSplash;
 import net.schwehla.matrosdms.desktop.ProfileManager;
+import net.schwehla.matrosdms.desktop.SingleInstance;
 import net.schwehla.matrosdms.util.UUIDProvider;
 
 @SpringBootApplication(exclude = { UserDetailsServiceAutoConfiguration.class })
@@ -53,11 +54,27 @@ public class MatrosSpringbootApplication {
 		// MATROS_DATA_DIR) wins; otherwise the last active profile from ~/.matrosdms/profiles.properties.
 		ProfileManager.resolveDataDir(args);
 
+		// A second start of the same profile folds into the running instance: open its browser and
+		// quit. Other profiles use other ports, so tenants still run side by side. Before the splash,
+		// so a folded start never flashes a window. System.exit because Desktop.browse may have
+		// started AWT threads that would keep the JVM alive.
+		if (SingleInstance.handleExistingInstance(args)) {
+			System.exit(0);
+		}
+
 		// The desktop build has no console window, so show the splash before Spring boots: once it
 		// does, it forces java.awt.headless=true and no window can be created any more. No-ops on a
 		// headless JVM (plain jar, container, CI). TrayLauncher dismisses it when we are ready.
 		DesktopSplash.showIfDesktop();
 
-		SpringApplication.run(MatrosSpringbootApplication.class, args);
+		try {
+			SpringApplication.run(MatrosSpringbootApplication.class, args);
+		} catch (Throwable failure) {
+			// Letting this escape main() would hang the desktop build rather than end it: the splash
+			// holds AWT's non-daemon threads, so the JVM would stay alive with a "Starting…" window
+			// nobody can close and no console to show what went wrong. Say why, then really quit.
+			DesktopSplash.fail(failure);
+			System.exit(1);
+		}
 	}
 }

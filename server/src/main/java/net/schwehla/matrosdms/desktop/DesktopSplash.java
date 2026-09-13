@@ -7,18 +7,30 @@
  */
 package net.schwehla.matrosdms.desktop;
 
+import java.awt.BorderLayout;
+import java.awt.Button;
 import java.awt.Color;
 import java.awt.EventQueue;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
+import java.awt.Label;
+import java.awt.Panel;
 import java.awt.RenderingHints;
+import java.awt.TextArea;
 import java.awt.Window;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A splash window shown from {@code main()} <em>before</em> Spring boots.
@@ -28,9 +40,12 @@ import java.util.Properties;
  * {@code java.awt.headless=true} early in startup, after which no window can be created at all.
  *
  * <p>Pure sugar — every failure path is swallowed. {@link TrayLauncher} dismisses it when the
- * application is ready.
+ * application is ready, {@link #fail} when the boot dies instead.
  */
 public final class DesktopSplash {
+
+	/** Cap on the failure notice: a start nobody is watching must not trade one hang for another. */
+	private static final Duration FAILURE_NOTICE_TIMEOUT = Duration.ofMinutes(5);
 
 	private static volatile Window window;
 	private static volatile Frame owner;
@@ -87,6 +102,84 @@ public final class DesktopSplash {
 				o.dispose();
 			}
 		});
+	}
+
+	/**
+	 * Reports a boot failure: dismisses the splash and, on a desktop, shows the reason until the
+	 * user closes it. Returns so the caller can exit.
+	 *
+	 * <p>Every failure path out of {@code SpringApplication.run} must come through here. The splash
+	 * owns AWT's <em>non-daemon</em> threads, so a start that dies inside Spring otherwise leaves a
+	 * "Starting…" window on screen and a JVM that never exits — and the desktop build has no console,
+	 * so the stack trace Spring printed goes nowhere and the app simply appears to hang forever.
+	 */
+	public static void fail(Throwable failure) {
+		close();
+		try {
+			if (GraphicsEnvironment.isHeadless()) {
+				return;
+			}
+			CountDownLatch dismissed = new CountDownLatch(1);
+			EventQueue.invokeLater(() -> showFailureNotice(describe(failure), dismissed));
+			dismissed.await(FAILURE_NOTICE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		} catch (Throwable ignored) {
+			// Same contract as the splash itself: a broken display must not shadow the real failure.
+		}
+	}
+
+	/**
+	 * The innermost cause carries the sentence a user can act on ("Database may be already in use"),
+	 * where the outermost is Spring's bean-creation wrapper. The log file is named too: it is the
+	 * only place the full stack trace survives a console-less start.
+	 */
+	static String describe(Throwable failure) {
+		Throwable cause = failure;
+		while (cause.getCause() != null && cause.getCause() != cause) {
+			cause = cause.getCause();
+		}
+		String message = cause.getMessage();
+		StringBuilder text = new StringBuilder(
+				message == null || message.isBlank() ? cause.toString() : message.strip());
+
+		String dataDir = System.getProperty("MATROS_DATA_DIR");
+		if (dataDir != null && !dataDir.isBlank()) {
+			text.append("\n\nFull details: ").append(Path.of(dataDir, "workspace", "log", "matrosdms.log"));
+		}
+		return text.toString();
+	}
+
+	private static void showFailureNotice(String message, CountDownLatch dismissed) {
+		Frame frame = new Frame("MatrosDMS");
+		frame.setLayout(new BorderLayout(12, 12));
+		frame.add(new Label("MatrosDMS could not start."), BorderLayout.NORTH);
+
+		TextArea details = new TextArea(message, 8, 70, TextArea.SCROLLBARS_VERTICAL_ONLY);
+		details.setEditable(false);
+		frame.add(details, BorderLayout.CENTER);
+
+		Button close = new Button("Close");
+		Panel buttons = new Panel(new FlowLayout(FlowLayout.RIGHT));
+		buttons.add(close);
+		frame.add(buttons, BorderLayout.SOUTH);
+
+		Runnable dismiss = () -> {
+			frame.dispose();
+			dismissed.countDown();
+		};
+		close.addActionListener(e -> dismiss.run());
+		frame.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				dismiss.run();
+			}
+		});
+
+		frame.pack();
+		frame.setLocationRelativeTo(null);
+		frame.setVisible(true);
+		frame.toFront();
 	}
 
 	private static void build() {
