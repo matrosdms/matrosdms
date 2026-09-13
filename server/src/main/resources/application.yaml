@@ -33,6 +33,17 @@ app:
   templates:
     location: "classpath*:templates/local/"
 
+  # Database snapshots into <repository-path>/db-backup. Retention is by date, not by file count:
+  # every start writes a snapshot (a tray profile switch is a start too), so counting files let one
+  # evening of restarts evict weeks of history. Inside keep-all-days nothing is dropped; beyond it
+  # each calendar day keeps its newest snapshot until retention-days; min-keep is the floor for an
+  # install that is started rarely.
+  backup:
+    on-startup: true
+    retention-days: 90
+    keep-all-days: 3
+    min-keep: 10
+
   mail:
     smtp:
       port: 2525
