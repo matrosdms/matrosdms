@@ -37,6 +37,11 @@
 
         <bouncycastle.version>1.78.1</bouncycastle.version>
 
+        <!-- Newer than Spring Boot's 2.3.232: H2 issue #4247 (fixed in 2.4.240) - compaction on close
+             could truncate the file before the new chunk layout was saved, and the next open silently
+             fell back to an old state. That is what reset the household database to 2026-02-28 twice. -->
+        <h2.version>2.5.252</h2.version>
+
         <!-- Test Config -->
         <skipITs>true</skipITs>
         <skipTests>false</skipTests>
@@ -44,6 +49,13 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Before the Spring Boot BOM: the first declaration wins, and an imported BOM's
+                 properties cannot be overridden -->
+            <dependency>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>${h2.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
