@@ -35,6 +35,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import net.schwehla.matrosdms.config.database.DatabaseGeneration;
+import net.schwehla.matrosdms.config.database.StartupSnapshot;
+
 @Service
 @Lazy(false)
 public class H2BackupService {
@@ -45,6 +48,12 @@ public class H2BackupService {
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
+
+	@Autowired
+	private DatabaseGeneration generation;
+
+	@Autowired
+	private StartupSnapshot startupSnapshot;
 
 	@Value("${app.server.repository-path}/db-backup")
 	private String backupBasePath;
@@ -68,23 +77,38 @@ public class H2BackupService {
 	@Value("${app.backup.min-keep:10}")
 	private int minKeep;
 
+	/**
+	 * The startup backup is the copy {@link StartupSnapshot} took before H2 opened the file (so: the
+	 * state before this start, before H2's repair and Flyway's migrations), zipped now that the start
+	 * succeeded. Only when there is none (first start, or the copy failed) a {@code BACKUP TO} of the
+	 * open database stands in.
+	 */
 	@Async
 	@EventListener(ApplicationReadyEvent.class)
 	public void onStartup() {
 		if (backupOnStartup) {
 			log.info("[Backup] Application Started. Creating Snapshot (Async)...");
-			if (createBackup("startup")) {
-				cleanupOldBackups("startup");
+			boolean created = startupSnapshot.publish().isPresent() || createBackup(StartupSnapshot.STARTUP);
+			if (created) {
+				cleanupOldBackups(StartupSnapshot.STARTUP);
 			}
 		}
+		// Kept from refused starts (see StartupSnapshot#onRefused); same retention as everything else
+		cleanupOldBackups(StartupSnapshot.INCIDENT);
 	}
 
 	// Users tend to just close the console window (hard kill, no graceful
-	// shutdown) - fsync committed work every interval so nothing older is lost
+	// shutdown) - fsync committed work every interval so nothing older is lost.
+	// With an H2 file database this also raises the save point the startup
+	// guard compares against (DatabaseGeneration), which fsyncs as well.
 	@Scheduled(
 			fixedDelayString = "${app.database.checkpoint-interval-ms:300000}",
 			initialDelayString = "${app.database.checkpoint-interval-ms:300000}")
 	public void checkpointDatabase() {
+		if (generation.isEnabled()) {
+			generation.advance(jdbcTemplate.getDataSource());
+			return;
+		}
 		try {
 			jdbcTemplate.execute("CHECKPOINT SYNC");
 			log.debug("[DB] CHECKPOINT SYNC completed");
@@ -186,7 +210,7 @@ public class H2BackupService {
 	 * cloud client that re-downloads a backup rewrites mtime, and retention must not treat a
 	 * re-synced copy as if it were made today.
 	 */
-	static LocalDateTime backupTime(Path backup) {
+	public static LocalDateTime backupTime(Path backup) {
 		String name = backup.getFileName().toString();
 		if (name.endsWith(".zip") && name.length() > 23) {
 			String stamp = name.substring(name.length() - 23, name.length() - 4);

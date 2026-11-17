@@ -275,6 +275,56 @@ account under **My Profile**. Setup and details: [google-sync.md](google-sync.md
 2. Ensure file type is supported
 3. Check network connectivity
 
+### "MatrosDMS could not start" because of the database
+
+Before it touches the database, MatrosDMS checks that it may run on it. The window says which
+case it is and nothing has been changed yet:
+
+| Message | What happened | What to do |
+|---|---|---|
+| *MatrosDMS x.y is too old for this database* | A newer MatrosDMS already updated this database | Install the current version |
+| *The database is older than the last time MatrosDMS ran* | The database file was set back to an older state, e.g. H2 fell back to an old state after an unclean shutdown, or an old copy was put in its place | [Restore the newest backup](#restoring-a-backup) |
+| *The database does not match this MatrosDMS version* | The migration history differs: an old copy, or a development build used this database | [Restore the newest backup](#restoring-a-backup) |
+
+For the second case, MatrosDMS keeps a small file `matros.generation` next to the database. It
+holds the newest save point the database had on disk, raised at every start and every 5 minutes.
+A database behind that file has lost data, so MatrosDMS stops instead of working on, and
+overwriting the good backups with, the old state.
+
+The startup backup is taken from the database file **before** H2 opens it. H2 repairs an
+uncleanly closed file while opening it, and if that sets it back, the file is rewritten within
+seconds, so a backup taken after the open could only capture the result. MatrosDMS copies the file
+next to itself (100 MB: about 50 ms on an SSD) and zips the copy into `db-backup` once the start
+succeeded. So `matros-db-startup-…zip` holds the state before that start, also before any
+database migration of a new version. When MatrosDMS refuses to start, the copy becomes
+`matros-db-incident-…zip` instead: the file as it was, possibly with data newer than the last
+backup. Do not restore it, but keep it. Repeated refused starts do not add more of them.
+
+Startup and incident backups are cleaned up like all others (see `app.backup` in
+`application.yaml`): everything from the last 3 days, then the newest of each day up to 90 days,
+never fewer than 10. Switch the startup backup off with `app.backup.on-startup: false` or
+`MATROS_BACKUP_ON_STARTUP=false`.
+
+### Restoring a backup
+
+MatrosDMS writes a database snapshot at every start and every night to
+`<repository>/db-backup` (`matros-db-startup-…zip`, `matros-db-daily-…zip`). Do not use a
+`matros-db-incident-…zip`: that is the file a refused start found. To go back to a backup:
+
+1. Quit MatrosDMS (tray icon → Quit).
+2. In `<data dir>/workspace/db`, move `matros.mv.db` and `matros.generation` into a new folder,
+   e.g. `<data dir>/workspace/db-quarantine-<date>`. Do not delete them until everything works.
+3. Unzip the backup into `<data dir>/workspace/db`. It contains one file, `matros.mv.db`.
+4. Start MatrosDMS. It records a new save point and runs as before. The documents themselves live
+   in the repository and are not part of the database backup, so nothing else needs restoring.
+
+### Working on a copy (developers)
+
+Never point a development build at a production data directory: it migrates the database to
+schema versions no release knows yet, and a jar rebuilt while it runs can crash H2 while it
+closes the file. Give the development build its own data directory and repository, for example
+a copy made from the newest backup, and its own port (`--server.port=9199`).
+
 ---
 
 ### Multi Tenancy

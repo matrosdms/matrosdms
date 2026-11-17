@@ -38,8 +38,15 @@ app:
   # evening of restarts evict weeks of history. Inside keep-all-days nothing is dropped; beyond it
   # each calendar day keeps its newest snapshot until retention-days; min-keep is the floor for an
   # install that is started rarely.
+  #
+  # on-startup: the startup backup is taken from the database file BEFORE H2 opens it (copied next
+  # to it, then zipped once the start succeeded), so it holds the state before this start: before
+  # H2 repairs an uncleanly closed file - which can set it back and rewrites it within seconds
+  # (2026-11-16) - and before Flyway migrates. When the startup guard refuses to start, the copy is
+  # kept as matros-db-incident-<time>.zip instead, rotated like the others. The copy costs well
+  # under 0.1 s per 100 MB on an SSD at start; zipping runs in the background afterwards.
   backup:
-    on-startup: true
+    on-startup: ${MATROS_BACKUP_ON_STARTUP:true}
     retention-days: 90
     keep-all-days: 3
     min-keep: 10
