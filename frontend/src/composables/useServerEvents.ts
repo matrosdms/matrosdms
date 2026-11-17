@@ -1,10 +1,11 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useUIStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
+import { useActionStore } from '@/stores/action'
 import { useQueryClient } from '@tanstack/vue-query'
 import { upsertInboxFile } from '@/composables/queries/useInboxQueries'
 import { push } from 'notivue'
-import type { BroadcastMessage, InboxFile, ProgressMessage, PipelineStatusMessage } from '@/types/events'
+import type { BroadcastMessage, InboxFile, ProgressMessage, PipelineStatusMessage, ActionChangedMessage } from '@/types/events'
 import type { components } from '@/types/schema'
 
 type JobMessage = components['schemas']['JobMessage']
@@ -12,8 +13,9 @@ type JobMessage = components['schemas']['JobMessage']
 export function useServerEvents() {
     const ui = useUIStore()
     const auth = useAuthStore()
+    const actionStore = useActionStore()
     const queryClient = useQueryClient()
-    
+
     let abortController: AbortController | null = null
     let reconnectTimer: any = null
     let retryCount = 0
@@ -109,6 +111,18 @@ export function useServerEvents() {
 
     const handleEvent = (wrapper: BroadcastMessage) => {
         const { process, type, message } = wrapper;
+
+        // 0. ACTION: a task changed outside the UI (e.g. ticked off in Google Tasks).
+        // Reload, or the UI keeps a stale version and its next save of that task conflicts.
+        if (process === 'ACTION') {
+            const change = message as ActionChangedMessage
+            actionStore.refresh()
+            queryClient.invalidateQueries({ queryKey: ['actions'] })
+            const text = `${change.name ?? 'Task'}: ${change.summary ?? 'updated'}`
+            ui.addLog(text, 'info')
+            push.info({ title: change.source ?? 'Task updated', message: text })
+            return
+        }
 
         // 1. INBOX: File Detected
         if (process === 'INBOX' && type === 'FILE_ADDED') {

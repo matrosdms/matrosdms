@@ -36,6 +36,11 @@ public interface ActionRepository extends JpaRepository<DBAction, Long> {
 
 	List<DBAction> findByItemUuid(String itemUuid);
 
+	@Query("SELECT a.uuid FROM DBAction a WHERE a.assignee.uuid = :assigneeUuid AND a.status IN :statuses")
+	List<String> findUuidsByAssigneeAndStatusIn(
+			@Param("assigneeUuid") String assigneeUuid,
+			@Param("statuses") List<EActionStatus> statuses);
+
 	@Query("SELECT a FROM DBAction a " +
 			"JOIN FETCH a.item " +
 			"JOIN FETCH a.assignee " +

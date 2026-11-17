@@ -223,6 +223,15 @@ Access via sidebar → Settings icon
 
 ---
 
+## Google Tasks & Calendar
+
+Tasks assigned to you can be pushed to Google Tasks, and optionally their due dates into an extra
+"MatrosDMS" Google calendar. Ticking a task off or moving its date in Google comes back to MatrosDMS. It is
+off until an administrator adds Google OAuth credentials; then each user connects their own
+account under **My Profile**. Setup and details: [google-sync.md](google-sync.md).
+
+---
+
 ## Tips & Best Practices
 
 ### Organization

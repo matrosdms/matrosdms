@@ -7,6 +7,7 @@
  */
 package net.schwehla.matrosdms.config.model;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,6 +24,15 @@ public class AppServerSpringConfig {
 	private Processing processing = new Processing();
 	private AiConfig ai = new AiConfig();
 	private TemplateConfig templates = new TemplateConfig();
+	private Integrations integrations = new Integrations();
+
+	public Integrations getIntegrations() {
+		return integrations;
+	}
+
+	public void setIntegrations(Integrations integrations) {
+		this.integrations = integrations;
+	}
 
 	public Server getServer() {
 		return server;
@@ -54,6 +64,71 @@ public class AppServerSpringConfig {
 
 	public void setTemplates(TemplateConfig templates) {
 		this.templates = templates;
+	}
+
+	public static class Integrations {
+		private GoogleConfig google = new GoogleConfig();
+
+		public GoogleConfig getGoogle() {
+			return google;
+		}
+
+		public void setGoogle(GoogleConfig google) {
+			this.google = google;
+		}
+	}
+
+	/**
+	 * OAuth client of the user's own Google Cloud project. Opt-in: while client-id or
+	 * client-secret is empty, MatrosDMS never contacts Google.
+	 */
+	public static class GoogleConfig {
+		private String clientId;
+		private String clientSecret;
+		// Optional. Default: derived from the browser origin, which a "Desktop app"
+		// client accepts for any loopback port. A server install with a "Web
+		// application" client sets the registered callback URL here.
+		private String redirectUri;
+		// How often to ask Google for tasks ticked off / dates moved there. Each poll
+		// is one or two small requests per connected account.
+		private Duration pollInterval = Duration.ofMinutes(2);
+
+		public Duration getPollInterval() {
+			return pollInterval;
+		}
+
+		public void setPollInterval(Duration pollInterval) {
+			this.pollInterval = pollInterval;
+		}
+
+		public boolean isConfigured() {
+			return clientId != null && !clientId.isBlank()
+					&& clientSecret != null && !clientSecret.isBlank();
+		}
+
+		public String getClientId() {
+			return clientId;
+		}
+
+		public void setClientId(String clientId) {
+			this.clientId = clientId;
+		}
+
+		public String getClientSecret() {
+			return clientSecret;
+		}
+
+		public void setClientSecret(String clientSecret) {
+			this.clientSecret = clientSecret;
+		}
+
+		public String getRedirectUri() {
+			return redirectUri;
+		}
+
+		public void setRedirectUri(String redirectUri) {
+			this.redirectUri = redirectUri;
+		}
 	}
 
 	public static class TemplateConfig {

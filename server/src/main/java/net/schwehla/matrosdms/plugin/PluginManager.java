@@ -16,7 +16,13 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
+
+import jakarta.annotation.PreDestroy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +33,7 @@ import org.springframework.stereotype.Service;
 
 import net.schwehla.matrosdms.config.model.AppServerSpringConfig;
 import net.schwehla.matrosdms.domain.action.MAction;
+import net.schwehla.matrosdms.util.AfterCommit;
 
 @Service
 public class PluginManager {
@@ -36,7 +43,10 @@ public class PluginManager {
 	@Autowired
 	AppServerSpringConfig appConfig;
 
-	private final List<ActionSyncPlugin> actionPlugins = new ArrayList<>();
+	private final List<ActionSyncPlugin> actionPlugins = new CopyOnWriteArrayList<>();
+
+	private final ExecutorService pluginExecutor = Executors
+			.newSingleThreadExecutor(Thread.ofVirtual().name("action-plugins").factory());
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void loadPlugins() {
@@ -88,15 +98,33 @@ public class PluginManager {
 	}
 
 	public void notifyActionCreated(MAction action) {
-		actionPlugins.forEach(p -> safeExec(() -> p.onActionCreated(action)));
+		dispatch(p -> p.onActionCreated(action));
 	}
 
 	public void notifyActionUpdated(MAction action) {
-		actionPlugins.forEach(p -> safeExec(() -> p.onActionUpdated(action)));
+		dispatch(p -> p.onActionUpdated(action));
 	}
 
 	public void notifyActionDeleted(String uuid) {
-		actionPlugins.forEach(p -> safeExec(() -> p.onActionDeleted(uuid)));
+		dispatch(p -> p.onActionDeleted(uuid));
+	}
+
+	/**
+	 * Plugins run after the commit (a rolled-back change never reaches them) on one
+	 * background thread: a slow external system cannot block the request or hold the
+	 * transaction open, and events still arrive in order.
+	 */
+	private void dispatch(Consumer<ActionSyncPlugin> call) {
+		if (actionPlugins.isEmpty()) {
+			return;
+		}
+		List<ActionSyncPlugin> plugins = List.copyOf(actionPlugins);
+		AfterCommit.run(() -> pluginExecutor.execute(() -> plugins.forEach(p -> safeExec(() -> call.accept(p)))));
+	}
+
+	@PreDestroy
+	void shutdown() {
+		pluginExecutor.shutdown();
 	}
 
 	private void safeExec(Runnable r) {

@@ -33,6 +33,11 @@ export const useActionStore = defineStore('action', () => {
         }
     }
 
+    /** Reload with the filters currently shown, e.g. after a change made in Google. */
+    function refresh() {
+        return fetchActions(currentFilters.value)
+    }
+
     async function fetchActionsForItem(itemId: string) {
         if (!auth.isAuthenticated) return [];
         return await ActionService.getByItem(itemId)
@@ -84,6 +89,7 @@ export const useActionStore = defineStore('action', () => {
         isLoading,
         myPendingCount,
         fetchActions,
+        refresh,
         fetchActionsForItem,
         toggleComplete
     }

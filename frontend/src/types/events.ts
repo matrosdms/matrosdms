@@ -13,3 +13,13 @@ export type InboxFile = Omit<components['schemas']['InboxFile'], 'prediction'> &
 export type ProgressMessage = components['schemas']['ProgressMessage'];
 export type PipelineStatusMessage = components['schemas']['PipelineStatusMessage'];
 export type BroadcastMessage = components['schemas']['BroadcastMessage'];
+
+/** SSE payload (process ACTION): a task changed outside the UI, e.g. ticked off in Google Tasks. */
+export type ActionChangedMessage = {
+  actionUuid: string;
+  name?: string;
+  /** e.g. "Google Tasks" */
+  source?: string;
+  /** e.g. "Completed in Google Tasks" */
+  summary?: string;
+};

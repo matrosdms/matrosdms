@@ -10,9 +10,10 @@ package net.schwehla.matrosdms.plugin;
 import net.schwehla.matrosdms.domain.action.MAction;
 
 /**
- * Service Provider Interface (SPI) for external Action Syncs. Implement this in
- * a separate JAR to
- * add Google/Outlook sync.
+ * Service Provider Interface (SPI) for external action syncs, loaded from JARs in
+ * {@code workspace/plugins}. Callbacks run after the commit on a single background
+ * thread, in order; they are best effort, with no retry. Google Tasks/Calendar is
+ * built in instead (see {@code integration.google}), with persistent retrying jobs.
  */
 public interface ActionSyncPlugin {
 	String getName();

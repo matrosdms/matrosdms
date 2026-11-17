@@ -96,6 +96,12 @@ public class WebSecurityConfig {
 										"/auth/register")
 								.permitAll()
 
+								// --- GOOGLE OAUTH CALLBACK ---
+								// Google's browser redirect carries no MatrosDMS login; the
+								// single-use state parameter ties it to the user instead.
+								.requestMatchers("/api/integrations/google/callback", "/integrations/google/callback")
+								.permitAll()
+
 								// --- ALLOW SYSTEM INFO (Version Check) ---
 								.requestMatchers("/api/system/**")
 								.permitAll()

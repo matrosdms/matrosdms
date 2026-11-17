@@ -73,6 +73,17 @@ app:
       url: ${MATROS_AI_CHAT_URL:}
       model: ${MATROS_AI_CHAT_MODEL:}
 
+  # Tasks to Google Tasks, optionally a "MatrosDMS" Google calendar; ticked-off tasks and
+  # moved due dates come back. Opt-in: with no client id/secret MatrosDMS never
+  # contacts Google. Each user then connects their own account under My Profile.
+  # Setup: doc/google-sync.md
+  integrations:
+    google:
+      client-id: ${MATROS_GOOGLE_CLIENT_ID:}
+      client-secret: ${MATROS_GOOGLE_CLIENT_SECRET:}
+      redirect-uri: ${MATROS_GOOGLE_REDIRECT_URI:}
+      poll-interval: ${MATROS_GOOGLE_POLL_INTERVAL:2m}
+
   processing:
     convert-text-to-pdf: true
     concurrency: 2 

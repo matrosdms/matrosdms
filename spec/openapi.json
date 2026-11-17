@@ -994,6 +994,87 @@
         }
       }
     },
+    "/api/integrations/google/settings": {
+      "put": {
+        "tags": [
+          "google-integration-controller"
+        ],
+        "summary": "Switch Google Tasks / Calendar sync on or off for the current user",
+        "operationId": "updateSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleSyncSettingsMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleIntegrationStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/contexts/{id}": {
       "get": {
         "tags": [
@@ -3333,6 +3414,164 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integrations/google/resync": {
+      "post": {
+        "tags": [
+          "google-integration-controller"
+        ],
+        "summary": "Queue a sync of all of the current user's tasks; returns how many",
+        "operationId": "resync",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integrations/google/connect": {
+      "post": {
+        "tags": [
+          "google-integration-controller"
+        ],
+        "summary": "Start connecting a Google account; returns the consent URL to open",
+        "operationId": "connect",
+        "parameters": [
+          {
+            "name": "calendar",
+            "in": "query",
+            "description": "Also ask for the calendar permission and switch the calendar on",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleConnectResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request",
@@ -6514,6 +6753,77 @@
         }
       }
     },
+    "/api/integrations/google/status": {
+      "get": {
+        "tags": [
+          "google-integration-controller"
+        ],
+        "summary": "Google sync state of the current user",
+        "operationId": "status",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleIntegrationStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/inbox": {
       "get": {
         "tags": [
@@ -7071,7 +7381,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": {
-                    "type": "boolean"
+                    "type": "object"
                   }
                 }
               }
@@ -7608,6 +7918,77 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integrations/google": {
+      "delete": {
+        "tags": [
+          "google-integration-controller"
+        ],
+        "summary": "Disconnect the current user's Google account (pauses the sync)",
+        "operationId": "disconnect",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleIntegrationStatus"
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request",
@@ -8367,6 +8748,62 @@
           "uuid"
         ]
       },
+      "GoogleSyncSettingsMessage": {
+        "type": "object",
+        "properties": {
+          "tasksEnabled": {
+            "type": "boolean"
+          },
+          "calendarEnabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GoogleIntegrationStatus": {
+        "type": "object",
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "string"
+          },
+          "tasksEnabled": {
+            "type": "boolean"
+          },
+          "calendarEnabled": {
+            "type": "boolean"
+          },
+          "tasksGranted": {
+            "type": "boolean"
+          },
+          "calendarGranted": {
+            "type": "boolean"
+          },
+          "lastError": {
+            "type": "string"
+          },
+          "lastErrorAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastPulledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "syncedTasks": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "syncedEvents": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "UpdateContextMessage": {
         "type": "object",
         "properties": {
@@ -8937,13 +9374,13 @@
       "PageMSearchResult": {
         "type": "object",
         "properties": {
-          "totalElements": {
-            "type": "integer",
-            "format": "int64"
-          },
           "totalPages": {
             "type": "integer",
             "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
           },
           "size": {
             "type": "integer",
@@ -8959,10 +9396,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "first": {
+          "last": {
             "type": "boolean"
           },
-          "last": {
+          "first": {
             "type": "boolean"
           },
           "numberOfElements": {
@@ -8990,11 +9427,11 @@
           "sort": {
             "$ref": "#/components/schemas/SortObject"
           },
-          "pageSize": {
+          "pageNumber": {
             "type": "integer",
             "format": "int32"
           },
-          "pageNumber": {
+          "pageSize": {
             "type": "integer",
             "format": "int32"
           },
@@ -9132,6 +9569,14 @@
         "required": [
           "itemUuids"
         ]
+      },
+      "GoogleConnectResponse": {
+        "type": "object",
+        "properties": {
+          "authorizationUrl": {
+            "type": "string"
+          }
+        }
       },
       "CreateContextMessage": {
         "type": "object",
@@ -9584,13 +10029,13 @@
       "PageJobMessage": {
         "type": "object",
         "properties": {
-          "totalElements": {
-            "type": "integer",
-            "format": "int64"
-          },
           "totalPages": {
             "type": "integer",
             "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
           },
           "size": {
             "type": "integer",
@@ -9606,10 +10051,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "first": {
+          "last": {
             "type": "boolean"
           },
-          "last": {
+          "first": {
             "type": "boolean"
           },
           "numberOfElements": {
@@ -9630,13 +10075,13 @@
       "PageMItem": {
         "type": "object",
         "properties": {
-          "totalElements": {
-            "type": "integer",
-            "format": "int64"
-          },
           "totalPages": {
             "type": "integer",
             "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
           },
           "size": {
             "type": "integer",
@@ -9652,10 +10097,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "first": {
+          "last": {
             "type": "boolean"
           },
-          "last": {
+          "first": {
             "type": "boolean"
           },
           "numberOfElements": {
@@ -9701,7 +10146,8 @@
         "description": "The subsystem originating the event",
         "enum": [
           "INBOX",
-          "PIPELINE"
+          "PIPELINE",
+          "ACTION"
         ]
       },
       "EBroadcastType": {
@@ -9718,13 +10164,13 @@
       "PageMAction": {
         "type": "object",
         "properties": {
-          "totalElements": {
-            "type": "integer",
-            "format": "int64"
-          },
           "totalPages": {
             "type": "integer",
             "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
           },
           "size": {
             "type": "integer",
@@ -9740,10 +10186,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "first": {
+          "last": {
             "type": "boolean"
           },
-          "last": {
+          "first": {
             "type": "boolean"
           },
           "numberOfElements": {

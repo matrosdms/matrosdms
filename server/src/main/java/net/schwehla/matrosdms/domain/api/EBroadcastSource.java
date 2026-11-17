@@ -11,5 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(enumAsRef = true, description = "The subsystem originating the event")
 public enum EBroadcastSource {
-	INBOX, PIPELINE
+	INBOX, PIPELINE,
+	/** A task changed outside the UI (e.g. ticked off in Google Tasks): reload task lists. */
+	ACTION
 }

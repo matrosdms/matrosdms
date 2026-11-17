@@ -35,6 +35,10 @@
         <ahocorasick.version>0.6.3</ahocorasick.version>
 
         <!-- Note: Caffeine, H2, Flyway, and base Jakarta APIs ARE managed by Spring Boot -->
+
+        <!-- Port of the throwaway app the spec/ddl profiles boot. Override with
+             -Dspec.port=9199 while a real instance already listens on 9099. -->
+        <spec.port>9099</spec.port>
     </properties>
     <dependencies>
         <!-- Spring Boot Starters -->
@@ -384,7 +388,7 @@
     </build>
     <profiles>
         <!-- `mvn -Pspec verify -DskipTests` → boots the app on a throwaway in-memory
-             (H2/PostgreSQL-mode) DB on port 9099, pulls /v3/api-docs, writes
+             (H2/PostgreSQL-mode) DB on port ${spec.port} (9099), pulls /v3/api-docs, writes
              ../spec/openapi.json, then stops. Refreshes the OpenAPI spec without a
              manual run+curl and without touching the real workspace/DB. Feed
              `npm run generate` afterwards for the TS types. -->
@@ -403,7 +407,7 @@
                                 <goals><goal>start</goal></goals>
                                 <configuration>
                                     <arguments>
-                                        <argument>--server.port=9099</argument>
+                                        <argument>--server.port=${spec.port}</argument>
                                         <argument>--spring.datasource.url=jdbc:h2:mem:specgen;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1</argument>
                                         <argument>--app.base-path=./target/specgen-data</argument>
                                         <argument>--app.start-browser=false</argument>
@@ -431,7 +435,7 @@
                         <configuration>
                             <!-- WebConfig adds /api to every @RestController, including
                                  springdoc's own docs controller, so the spec lives under /api -->
-                            <apiDocsUrl>http://localhost:9099/api/v3/api-docs</apiDocsUrl>
+                            <apiDocsUrl>http://localhost:${spec.port}/api/v3/api-docs</apiDocsUrl>
                             <outputFileName>openapi.json</outputFileName>
                             <outputDir>${project.basedir}/../spec</outputDir>
                         </configuration>
@@ -441,7 +445,7 @@
         </profile>
 
         <!-- `mvn -Pddl verify -DskipTests` → boots the app on a throwaway in-memory
-             (H2/PostgreSQL-mode) DB on port 9099, has Hibernate export the
+             (H2/PostgreSQL-mode) DB on port ${spec.port} (9099), has Hibernate export the
              entity-derived schema to ../spec/matros.ddl, then stops. Flyway still
              owns the live schema (ddl-auto=none); this profile only flips the JPA
              schema-generation script action from `none` to `create` so the DDL is
@@ -482,7 +486,7 @@
                                 <goals><goal>start</goal></goals>
                                 <configuration>
                                     <arguments>
-                                        <argument>--server.port=9099</argument>
+                                        <argument>--server.port=${spec.port}</argument>
                                         <argument>--spring.datasource.url=jdbc:h2:mem:ddlgen;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1</argument>
                                         <argument>--spring.jpa.properties.jakarta.persistence.schema-generation.scripts.action=create</argument>
                                         <argument>--spring.jpa.properties.jakarta.persistence.schema-generation.scripts.create-target=${project.basedir}/../spec/matros.ddl</argument>

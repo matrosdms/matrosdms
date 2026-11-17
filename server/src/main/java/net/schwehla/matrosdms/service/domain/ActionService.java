@@ -27,6 +27,7 @@ import net.schwehla.matrosdms.domain.action.EActionStatus;
 import net.schwehla.matrosdms.domain.action.MAction;
 import net.schwehla.matrosdms.entity.DBAction;
 import net.schwehla.matrosdms.entity.management.DBUser;
+import net.schwehla.matrosdms.integration.google.ActionSyncDispatcher;
 import net.schwehla.matrosdms.plugin.PluginManager;
 import net.schwehla.matrosdms.repository.ActionRepository;
 import net.schwehla.matrosdms.repository.ContextRepository;
@@ -54,7 +55,9 @@ public class ActionService {
 	@Autowired
 	UUIDProvider uuidProvider;
 	@Autowired
-	PluginManager pluginManager; // NEW
+	PluginManager pluginManager;
+	@Autowired
+	ActionSyncDispatcher actionSync;
 
 	@CacheEvict(value = "actionList", allEntries = true)
 	public MAction createAction(CreateActionMessage msg, String creatorUuid) {
@@ -99,8 +102,9 @@ public class ActionService {
 		action = actionRepository.save(action);
 		MAction result = actionMapper.entityToModel(action);
 
-		// Notify Plugins
+		// Both fire only after the commit and never block this request
 		pluginManager.notifyActionCreated(result);
+		actionSync.actionChanged(action.getUuid());
 
 		return result;
 	}
@@ -144,8 +148,8 @@ public class ActionService {
 		DBAction saved = actionRepository.save(action);
 		MAction result = actionMapper.entityToModel(saved);
 
-		// Notify Plugins
 		pluginManager.notifyActionUpdated(result);
+		actionSync.actionChanged(uuid);
 
 		return result;
 	}
@@ -175,6 +179,7 @@ public class ActionService {
 						() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Action not found"));
 		actionRepository.delete(action);
 		pluginManager.notifyActionDeleted(uuid);
+		actionSync.actionChanged(uuid);
 	}
 
 	@Transactional(readOnly = true)
