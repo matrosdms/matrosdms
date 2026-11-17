@@ -28,8 +28,10 @@ public interface MActionMapper extends BasicMapper {
 	@Mapping(target = "lifecycle", ignore = true)
 	MAction entityToModel(DBAction entity);
 
-	// CREATION: Maps 'status' from BaseActionMessage.
-	// If null in msg, DBAction default (OPEN) is used.
+	// CREATION: Maps 'status' and 'priority' from BaseActionMessage.
+	// nullValuePropertyMappingStrategy only applies to @MappingTarget updates, so
+	// on creation a null in the message would overwrite the DBAction field
+	// initializers and hit the NOT NULL columns. defaultValue restores them.
 	@Mapping(target = "id", ignore = true)
 	@Mapping(target = "uuid", ignore = true)
 	@Mapping(target = "version", ignore = true)
@@ -46,7 +48,8 @@ public interface MActionMapper extends BasicMapper {
 	@Mapping(target = "externalActionTracker", ignore = true)
 	@Mapping(target = "description", ignore = true)
 	@Mapping(target = "icon", ignore = true)
-	@Mapping(target = "status")
+	@Mapping(target = "status", defaultValue = "OPEN")
+	@Mapping(target = "priority", defaultValue = "NORMAL")
 	DBAction modelToEntity(CreateActionMessage msg);
 
 	// UPDATE: Maps 'status' if provided.

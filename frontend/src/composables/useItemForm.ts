@@ -10,7 +10,7 @@ import { AttributeTypeService } from '@/services/AttributeTypeService'
 import { CategoryService } from '@/services/CategoryService'
 import { ItemMapper } from '@/api/mappers/ItemMapper'
 import { push } from 'notivue'
-import { EStage, type EStageType, EActionPriority, ERootCategory } from '@/enums'
+import { EStage, type EStageType, EActionPriority, EActionStatus, ERootCategory } from '@/enums'
 import { formatDateForInput } from '@/lib/utils'
 import { queryKeys } from '@/composables/queries/queryKeys'
 
@@ -325,17 +325,25 @@ export function useItemForm(isEdit: boolean) {
                 push.success('Document assigned')
             }
             
+            // The document is committed at this point. A failing reminder must not
+            // keep the form open: re-submitting would re-ingest an inbox file the
+            // server has already consumed, and fail with "processing failed".
             if (hasReminder.value && reminderForm.value.name && itemUuid) {
-                await ActionService.create({
-                    name: reminderForm.value.name,
-                    description: `Follow-up for document: ${form.value.name}`,
-                    priority: EActionPriority.NORMAL,
-                    dueDate: reminderForm.value.dueDate ? new Date(reminderForm.value.dueDate).toISOString() : undefined,
-                    assigneeIdentifier: reminderForm.value.assigneeIdentifier,
-                    itemIdentifier: itemUuid,
-                    contextIdentifier: context.value?.uuid
-                })
-                push.success('Follow-up task created')
+                try {
+                    await ActionService.create({
+                        name: reminderForm.value.name,
+                        description: `Follow-up for document: ${form.value.name}`,
+                        priority: EActionPriority.NORMAL,
+                        status: EActionStatus.OPEN,
+                        dueDate: reminderForm.value.dueDate ? new Date(reminderForm.value.dueDate).toISOString() : undefined,
+                        assigneeIdentifier: reminderForm.value.assigneeIdentifier,
+                        itemIdentifier: itemUuid,
+                        contextIdentifier: context.value?.uuid
+                    })
+                    push.success('Follow-up task created')
+                } catch (e: any) {
+                    push.warning('Document saved, but the follow-up task failed: ' + (e.message || 'Unknown Error'))
+                }
             }
 
             queryClient.invalidateQueries({ queryKey: queryKeys.inbox.list })
