@@ -11,7 +11,7 @@ import { CategoryService } from '@/services/CategoryService'
 import { ItemMapper } from '@/api/mappers/ItemMapper'
 import { push } from 'notivue'
 import { EStage, type EStageType, EActionPriority, EActionStatus, ERootCategory } from '@/enums'
-import { formatDateForInput } from '@/lib/utils'
+import { formatDateForInput, stripExtension } from '@/lib/utils'
 import { queryKeys } from '@/composables/queries/queryKeys'
 
 /** Per-field AI suggestion with confidence for diff display */
@@ -217,7 +217,7 @@ export function useItemForm(isEdit: boolean) {
     const describedFile = ref<string | null>(null)
 
     // Reactively fill form from file as soon as it is available (or when live data arrives).
-    // AI prediction has priority; original filename is the fallback.
+    // AI prediction has priority; the original filename without its extension is the fallback.
     watch(file, (f) => {
         if (isEdit || !f) return
 
@@ -236,7 +236,8 @@ export function useItemForm(isEdit: boolean) {
         if (!form.value.name) {
             if (f.prediction) applyPrediction(f.prediction)
             if (!form.value.name) {
-                form.value.name = f.fileInfo?.originalFilename || f.displayName || (f as any).name || ''
+                const original = f.fileInfo?.originalFilename
+                form.value.name = (original ? stripExtension(original) : '') || f.displayName || (f as any).name || ''
             }
         }
     }, { immediate: true })

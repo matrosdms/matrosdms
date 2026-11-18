@@ -123,13 +123,13 @@ onMounted(() => {
 <template>
   <div class="flex flex-col gap-4 relative" @click="isTypeDropdownOpen = false">
       
-      <!-- Filename (Smart Highlight) -->
+      <!-- Title (Smart Highlight). The original filename is kept separately in the file metadata. -->
       <div>
-        <BaseInput 
-            :model-value="modelValue.name" 
+        <BaseInput
+            :model-value="modelValue.name"
             @update:model-value="updateField('name', $event)"
-            label="Filename" 
-            :error="touched && !modelValue.name ? 'Name is required' : ''"
+            label="Title"
+            :error="touched && !modelValue.name ? 'Title is required' : ''"
             :suggestion="aiHighlights?.name"
             autofocus 
         />

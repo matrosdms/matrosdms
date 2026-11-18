@@ -115,5 +115,14 @@ export function stringToBorderColor(str: string): string {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
     const h = Math.abs(hash) % 360;
-    return `hsl(${h}, 70%, 40%)`; 
+    return `hsl(${h}, 70%, 40%)`;
+}
+
+/**
+ * A file name without its extension, for use as a document title: "Rente 2014.pdf" -> "Rente 2014".
+ * Only a trailing extension that starts with a letter is removed, so "Rechnung 2024.11" stays as it is.
+ */
+export function stripExtension(filename: string): string {
+    const stripped = filename.replace(/\.[a-z][a-z0-9]{0,4}$/i, '')
+    return stripped.trim() ? stripped : filename
 }
