@@ -143,7 +143,10 @@ The inbox shows files pending organization:
 
 1. **Upload**: Drag files onto the inbox or use the upload button
 2. **Process**: Drag inbox items onto a context to file them
-3. **AI Suggestions**: Items with AI predictions show suggested categories
+3. **AI Suggestions**: Items with AI predictions show a suggested context, type, issue date and title.
+   - **Issue date**: the date the document was written, from the date line of the letter ("Karlsruhe, 22.02.2016", "Karlsruhe August 2015"), a "Datum:" label or the date column of the reference line. Periods, "Stand … zum", due dates, birth dates and the date of a letter it answers are passed over; a month without a day becomes the first of the month. E-mails keep their sent date. With no date in the text, a date in a scanner's file name is used.
+   - **Title**: an e-mail's subject; for a document that continues a series in its context, the title of the earlier one with the years moved on (so the suggestions follow the way you name things, and each title you correct is the example for the next document); else the subject line of the letter, the line before "Sehr geehrte…"; for scanner file names ("Scan0001") type, context and year. Without a suggestion, the title starts as the original filename without its extension; the original filename itself stays under *Technical Details* and is used for downloads.
+   - With a local Ollama model (`app.ai.classification.ollama.enabled`) the model makes these suggestions instead.
 
 ### Contexts (Folders)
 

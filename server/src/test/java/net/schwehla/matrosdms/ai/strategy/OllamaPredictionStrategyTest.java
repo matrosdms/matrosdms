@@ -111,6 +111,65 @@ class OllamaPredictionStrategyTest {
 	}
 
 	@Test
+	void takesOverTheTitleWithoutQuotesOrFileExtension() {
+		stubOllama("{\"kindUuid\":\"kind-1\",\"title\":\" \\\"VBL Renteninformation 2014.pdf\\\" \",\"confidence\":0.9}");
+		var p = analyze().getPrediction();
+		assertThat(p.getTitle()).isEqualTo("VBL Renteninformation 2014");
+		assertThat(p.getFieldConfidences()).containsEntry("title", 0.9);
+	}
+
+	@Test
+	void noTitleMeansNoTitleConfidence() {
+		stubOllama("{\"kindUuid\":\"kind-1\",\"title\":null,\"confidence\":0.9}");
+		var p = analyze().getPrediction();
+		assertThat(p.getTitle()).isNull();
+		assertThat(p.getFieldConfidences()).doesNotContainKey("title");
+	}
+
+	@Test
+	void whatTheMailItselfSaysStaysWhenTheLlmHasNothingBetter() {
+		stubOllama("{\"kindUuid\":\"kind-1\",\"date\":\"2020-01-01\",\"customAttributes\":{\"ATTR_AMOUNT\":12.5}}");
+		DigestResultMessage result = new DigestResultMessage();
+		result.getPrediction().setTitle("Termin Zahnarzt");
+		result.getPrediction().setDocumentDate(LocalDate.of(2024, 3, 5));
+		result.getPrediction().setAttributes(new java.util.HashMap<>(java.util.Map.of("SENDER", "praxis@example.org")));
+
+		strategy.analyze("some document text", "mail.eml", new ClassificationCandidates(List.of(ctx), List.of(kind)),
+				result);
+
+		var p = result.getPrediction();
+		assertThat(p.getTitle()).isEqualTo("Termin Zahnarzt");
+		assertThat(p.getDocumentDate()).isEqualTo(LocalDate.of(2024, 3, 5));
+		assertThat(p.getAttributes()).containsEntry("SENDER", "praxis@example.org").containsEntry("ATTR_AMOUNT", 12.5);
+	}
+
+	@Test
+	void theLlmNeverSeesTheDayTheFileWasRead() {
+		stubOllama("{\"kindUuid\":\"kind-1\"}");
+		var prompt = org.mockito.ArgumentCaptor.forClass(Object.class);
+
+		strategy.analyze("<meta>\n    <processed_date>2026-11-18</processed_date>\n</meta>\nBrief vom 05.03.2024",
+				"scan.pdf", new ClassificationCandidates(List.of(ctx), List.of(kind)), new DigestResultMessage());
+
+		Mockito.verify(restTemplate).postForEntity(anyString(), prompt.capture(), eq(OllamaResponse.class));
+		String sent = ((net.schwehla.matrosdms.domain.ai.OllamaRequest) prompt.getValue()).prompt();
+		assertThat(sent).doesNotContain("2026-11-18").doesNotContain("processed_date").contains("05.03.2024");
+	}
+
+	@Test
+	void aTitleIsOneLineAndNeverTooLong() {
+		assertThat(OllamaPredictionStrategy.cleanTitle(null)).isNull();
+		assertThat(OllamaPredictionStrategy.cleanTitle("  ")).isNull();
+		assertThat(OllamaPredictionStrategy.cleanTitle("null")).isNull();
+		assertThat(OllamaPredictionStrategy.cleanTitle("„Allianz Beitragsanpassung“")).isEqualTo("Allianz Beitragsanpassung");
+		assertThat(OllamaPredictionStrategy.cleanTitle("Stadtwerke\nJahresabrechnung  2023")).isEqualTo("Stadtwerke Jahresabrechnung 2023");
+		// abbreviations are not file extensions
+		assertThat(OllamaPredictionStrategy.cleanTitle("Kündigung z.Hd. Frau Meier")).isEqualTo("Kündigung z.Hd. Frau Meier");
+		assertThat(OllamaPredictionStrategy.cleanTitle("Vertrag Nr. 2024.11")).isEqualTo("Vertrag Nr. 2024.11");
+		assertThat(OllamaPredictionStrategy.cleanTitle("x".repeat(300))).hasSize(OllamaPredictionStrategy.MAX_TITLE);
+	}
+
+	@Test
 	void ignoresInvalidDate() {
 		stubOllama("{\"kindUuid\":\"kind-1\",\"date\":\"not-a-date\"}");
 		assertThat(analyze().getPrediction().getDocumentDate()).isNull();

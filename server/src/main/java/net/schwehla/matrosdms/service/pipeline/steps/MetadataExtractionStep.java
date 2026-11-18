@@ -26,6 +26,7 @@ import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import net.schwehla.matrosdms.ai.strategy.TitleProposer;
 import net.schwehla.matrosdms.domain.attribute.ESystemAttribute;
 import net.schwehla.matrosdms.domain.core.EItemSource;
 import net.schwehla.matrosdms.domain.inbox.EmailMetadata;
@@ -92,6 +93,8 @@ public class MetadataExtractionStep implements PipelineStep {
 			if (sentDate != null) {
 				getOrCreatePrediction(ctx).setDocumentDate(sentDate.toLocalDate());
 			}
+			// the subject is the title the sender gave it; the prediction strategies keep it
+			getOrCreatePrediction(ctx).setTitle(TitleProposer.fromEmailSubject(subject));
 
 		} catch (Exception e) {
 			ctx.addWarning("Email metadata extraction failed: " + e.getMessage());

@@ -22,13 +22,16 @@ public class Prediction implements Serializable {
 	@Schema(description = "UUID of the suggested Context/Folder")
 	private String context;
 
+	@Schema(description = "Suggested document title, e.g. 'VBL Versicherungsnachweis 2014': from the LLM, or from an e-mail subject, the naming of similar documents or a letter's subject line.")
+	private String title;
+
 	private LocalDate documentDate;
 	private String summary;
 
 	@Schema(description = "Overall confidence score 0.0-1.0 for the entire prediction")
 	private Double confidence;
 
-	@Schema(description = "Per-field confidence scores: keys are field names (context, kind, documentDate, summary), values 0.0-1.0")
+	@Schema(description = "Per-field confidence scores: keys are field names (context, kind, title, documentDate, summary), values 0.0-1.0")
 	private Map<String, Double> fieldConfidences;
 
 	@Schema(description = "ID of the strategy that produced this prediction: 'ollama', 'heuristic'")
@@ -57,6 +60,14 @@ public class Prediction implements Serializable {
 
 	public void setContext(String context) {
 		this.context = context;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
 	}
 
 	public LocalDate getDocumentDate() {

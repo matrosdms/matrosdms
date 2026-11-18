@@ -9370,6 +9370,10 @@
             "type": "string",
             "description": "UUID of the suggested Context/Folder"
           },
+          "title": {
+            "type": "string",
+            "description": "Suggested document title, e.g. 'VBL Versicherungsnachweis 2014': from the LLM, or from an e-mail subject, the naming of similar documents or a letter's subject line."
+          },
           "documentDate": {
             "type": "string",
             "format": "date"
@@ -9388,7 +9392,7 @@
               "type": "number",
               "format": "double"
             },
-            "description": "Per-field confidence scores: keys are field names (context, kind, documentDate, summary), values 0.0-1.0"
+            "description": "Per-field confidence scores: keys are field names (context, kind, title, documentDate, summary), values 0.0-1.0"
           },
           "strategyId": {
             "type": "string",

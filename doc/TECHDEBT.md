@@ -107,8 +107,10 @@ Architecture audit + fix rounds of 2026-07-05 (GUI → backend, deep dive into a
 
 Was: effectively zero (one scratch probe). Now: a focused unit suite under `server/src/test`, **35 tests, all green** (`mvn -pl server test`). Deliberately no `@SpringBootTest` — the app binds mail-server ports at startup, so context tests would be flaky/port-bound.
 
-- `HeuristicPredictionStrategyTest` (8) — date extraction (ISO / `05.03.2024` / `5. März 2024` / 2-digit year / invalid / none), Aho-Corasick context frequency, null-text safety. **This suite caught the 100%-broken date parser.**
-- `OllamaPredictionStrategyTest` (7) — valid mapping, hallucinated-UUID rejection, confidence clamping, JSON-in-prose extraction, unparseable/empty response safety, invalid-date handling.
+- `HeuristicPredictionStrategyTest` (12) — date extraction (ISO / `05.03.2024` / `5. März 2024` / 2-digit year / invalid / none), Aho-Corasick context frequency, null-text safety, text layer's `processed_date` ignored, title from the subject line and from the context's naming, e-mail sent date and subject kept. **This suite caught the 100%-broken date parser.**
+- `IssueDateFinderTest` (16) — date line / label / DIN reference line beat periods, "Stand … zum", deadlines, birth dates, first registration, "Ihr Schreiben vom"; month-only date lines; letters dated ahead; appointments; today counts little; file-name fallback.
+- `TitleProposerTest` (10) — e-mail subject without reply marks, DIN subject line (not date line, address, page frame, info block), the context's naming with years moved on, scanner file names, type/context/year fallback.
+- `OllamaPredictionStrategyTest` (12) — valid mapping, hallucinated-UUID rejection, confidence clamping, JSON-in-prose extraction, unparseable/empty response safety, invalid-date handling, title cleanup (quotes, file extension, length), the mail's own subject/date/sender kept, no `processed_date` in the prompt.
 - `MailAuthenticatorTest` (6) — correct/incorrect creds, blank/null, SASL PLAIN decode, malformed base64.
 - `ReportServiceTest` (5) — CSV formula-injection prefixing, numbers exempt, quote doubling, null.
 - `VectorMathTest` (5) — byte round-trip, cosine identity/orthogonal/opposite/zero-vector.

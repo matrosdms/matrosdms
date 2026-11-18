@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import jakarta.annotation.PostConstruct;
@@ -38,6 +39,7 @@ import net.schwehla.matrosdms.domain.ai.OllamaRequest;
 import net.schwehla.matrosdms.domain.ai.OllamaResponse;
 import net.schwehla.matrosdms.domain.inbox.Prediction;
 import net.schwehla.matrosdms.service.message.DigestResultMessage;
+import net.schwehla.matrosdms.util.TextLayerUtils;
 
 @Component
 public class OllamaPredictionStrategy implements IPredictionStrategy {
@@ -148,14 +150,22 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 				// LLMs hallucinate IDs - only accept UUIDs that exist in the candidate lists
 				p.setContext(validateUuid(dto.getContextUuid(), candidates.contexts(), "context"));
 				p.setKind(validateUuid(dto.getKindUuid(), candidates.kinds(), "kind"));
+				// What the metadata step read from the file itself (an e-mail's subject, sent date,
+				// sender and recipient) stays unless the LLM has something to put in its place.
+				String title = cleanTitle(dto.getTitle());
+				if (title != null)
+					p.setTitle(title);
 				p.setSummary(dto.getSummary());
 				p.setStrategyId("ollama");
 
 				if (dto.getCustomAttributes() != null) {
-					p.setAttributes(dto.getCustomAttributes());
+					Map<String, Object> attributes = p.getAttributes() != null ? new LinkedHashMap<>(p.getAttributes())
+							: new LinkedHashMap<>();
+					attributes.putAll(dto.getCustomAttributes());
+					p.setAttributes(attributes);
 				}
 
-				if (dto.getDate() != null) {
+				if (p.getDocumentDate() == null && dto.getDate() != null) {
 					try {
 						p.setDocumentDate(java.time.LocalDate.parse(dto.getDate()));
 					} catch (Exception ignored) {
@@ -171,6 +181,8 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 					fieldConf.put("context", overallConf);
 				if (p.getKind() != null)
 					fieldConf.put("kind", overallConf);
+				if (p.getTitle() != null)
+					fieldConf.put("title", overallConf);
 				if (p.getDocumentDate() != null)
 					fieldConf.put("documentDate", overallConf);
 				if (dto.getSummary() != null)
@@ -180,6 +192,28 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 		} catch (JsonProcessingException e) {
 			log.warn("AI: Failed to parse JSON response. Raw: {}", json);
 		}
+	}
+
+	/** Longest title taken over; the name column holds 255 characters. */
+	static final int MAX_TITLE = 120;
+
+	private static final Pattern QUOTES = Pattern.compile("^[\"'„“”‚‘’«»]+|[\"'„“”‚‘’«»]+$");
+	private static final Pattern FILE_EXTENSION = Pattern.compile(
+			"\\.(pdf|docx?|xlsx?|odt|ods|rtf|txt|eml|msg|html?|jpe?g|png|tiff?|heic)$", Pattern.CASE_INSENSITIVE);
+
+	/**
+	 * The LLM's title as a document name: one line, without surrounding quotes or a file extension,
+	 * at most {@link #MAX_TITLE} characters. Null when nothing usable is left.
+	 */
+	static String cleanTitle(String raw) {
+		if (raw == null)
+			return null;
+		String title = raw.replaceAll("\\s+", " ").trim();
+		title = QUOTES.matcher(title).replaceAll("").trim();
+		title = FILE_EXTENSION.matcher(title).replaceAll("").trim();
+		if (title.length() > MAX_TITLE)
+			title = title.substring(0, MAX_TITLE).trim();
+		return title.isEmpty() || "null".equalsIgnoreCase(title) ? null : title;
 	}
 
 	/** Returns the uuid only if it exists in the candidate list, otherwise null. */
@@ -196,7 +230,9 @@ public class OllamaPredictionStrategy implements IPredictionStrategy {
 	}
 
 	private String buildPrompt(String text, String filename, ClassificationCandidates candidates) {
-		String safeText = text.length() > 6000 ? text.substring(0, 6000) : text;
+		// the day the file was read is no date of the document; the LLM would take it for one
+		String withoutReadDate = TextLayerUtils.withoutProcessedDate(text);
+		String safeText = withoutReadDate.length() > 6000 ? withoutReadDate.substring(0, 6000) : withoutReadDate;
 		String contextList = formatList(candidates.contexts());
 		String kindList = formatList(candidates.kinds());
 		return promptTemplate.formatted(contextList, kindList, filename, safeText);

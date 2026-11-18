@@ -149,6 +149,15 @@ export function useItemForm(isEdit: boolean) {
             }
         }
 
+        // 2. Title — without a suggestion the file name is the fallback (see the watcher below)
+        if (p.title) {
+            snapshot.name = { value: p.title, confidence: fieldConf.title ?? overall }
+            if (!form.value.name) {
+                form.value.name = p.title
+                aiHighlights.value.name = true
+            }
+        }
+
         // 3. Kind (document type) — backend field is p.kind
         const kindUuid = p.kind || p.predictedCategory
         if (kindUuid) {

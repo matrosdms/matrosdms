@@ -17,10 +17,14 @@ Content:
 ### INSTRUCTIONS:
 1. Choose the most fitting CONTEXT (folder) from the AVAILABLE CONTEXTS list.
 2. Choose the most fitting DOCUMENT KIND (type) from the AVAILABLE DOCUMENT KINDS list.
-3. Extract the Document Date (ISO 8601 YYYY-MM-DD). If unsure, use null.
-4. Write a short 1-sentence summary in the language of the document.
-5. Rate your overall confidence from 0.0 (guessing) to 1.0 (very confident).
-6. EXTRACT SPECIFIC ATTRIBUTES if found:
+3. Write a short TITLE in the language of the document, the way a person labels it in a folder:
+   who issued it, what it is, and the period or reference it covers.
+   Examples: "VBL Renteninformation 2014", "Stadtwerke Jahresabrechnung Strom 2023", "Allianz Beitragsanpassung Hausrat".
+   At most 8 words. Do not repeat the filename, no file extension, no full date.
+4. Extract the Document Date (ISO 8601 YYYY-MM-DD): the date the document was issued, not a date it mentions. If unsure, use null.
+5. Write a short 1-sentence summary in the language of the document.
+6. Rate your overall confidence from 0.0 (guessing) to 1.0 (very confident).
+7. EXTRACT SPECIFIC ATTRIBUTES if found:
    - "ATTR_AMOUNT": Total amount (number) if invoice/receipt.
    - "ATTR_VENDOR": Vendor name if invoice/receipt.
    - "ATTR_TAXYEAR": Tax year if relevant.
@@ -29,6 +33,7 @@ Content:
 {
   "contextUuid": "UUID from CONTEXTS list or null",
   "kindUuid": "UUID from DOCUMENT KINDS list or null",
+  "title": "Short title in document language",
   "date": "YYYY-MM-DD or null",
   "summary": "Short 1-sentence description in document language",
   "confidence": 0.85,

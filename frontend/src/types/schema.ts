@@ -1645,6 +1645,8 @@ export interface components {
             kind?: string;
             /** @description UUID of the suggested Context/Folder */
             context?: string;
+            /** @description Suggested document title, e.g. 'VBL Versicherungsnachweis 2014': from the LLM, or from an e-mail subject, the naming of similar documents or a letter's subject line. */
+            title?: string;
             /** Format: date */
             documentDate?: string;
             summary?: string;
@@ -1653,7 +1655,7 @@ export interface components {
              * @description Overall confidence score 0.0-1.0 for the entire prediction
              */
             confidence?: number;
-            /** @description Per-field confidence scores: keys are field names (context, kind, documentDate, summary), values 0.0-1.0 */
+            /** @description Per-field confidence scores: keys are field names (context, kind, title, documentDate, summary), values 0.0-1.0 */
             fieldConfidences?: {
                 [key: string]: number;
             };

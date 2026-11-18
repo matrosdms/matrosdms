@@ -1,6 +1,10 @@
 package net.schwehla.matrosdms.ai.strategy;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -8,9 +12,13 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mockito;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import net.schwehla.matrosdms.domain.ai.ClassificationCandidates;
 import net.schwehla.matrosdms.domain.ai.ClassificationCandidates.Candidate;
+import net.schwehla.matrosdms.domain.search.MSearchResult;
+import net.schwehla.matrosdms.service.SearchService;
 import net.schwehla.matrosdms.service.message.DigestResultMessage;
 
 /**
@@ -87,5 +95,59 @@ class HeuristicPredictionStrategyTest {
 		DigestResultMessage m = new DigestResultMessage();
 		strategy.analyze(null, "file.pdf", new ClassificationCandidates(List.of(), List.of()), m);
 		assertThat(m.getPrediction().getDocumentDate()).isNull();
+	}
+
+	@Test
+	void theDayTheFileWasReadIsNotTheDocumentsDate() {
+		DigestResultMessage m = new DigestResultMessage();
+		strategy.analyze(IssueDateFinderTest.DIN_LETTER, "12_30_2016_02_22_VBL_2014.pdf",
+				new ClassificationCandidates(List.of(), List.of()), m);
+
+		assertThat(m.getPrediction().getDocumentDate()).isEqualTo(LocalDate.of(2015, 8, 1));
+		assertThat(m.getPrediction().getFieldConfidences()).containsEntry("documentDate", 0.70);
+	}
+
+	@Test
+	void withoutAContextTheTitleIsTheLettersSubjectLine() {
+		DigestResultMessage m = new DigestResultMessage();
+		strategy.analyze(IssueDateFinderTest.DIN_LETTER, "scan.pdf", new ClassificationCandidates(List.of(), List.of()),
+				m);
+
+		assertThat(m.getPrediction().getTitle()).isEqualTo("Versicherungsnachweis VBLklassik 2014");
+		assertThat(m.getPrediction().getFieldConfidences()).containsEntry("title", 0.65);
+	}
+
+	@Test
+	void theTitleFollowsTheNamingOfTheContext() {
+		SearchService searchService = Mockito.mock(SearchService.class);
+		ContextHistoryService history = Mockito.mock(ContextHistoryService.class);
+		ReflectionTestUtils.setField(strategy, "searchService", searchService);
+		ReflectionTestUtils.setField(strategy, "contextHistoryService", history);
+		List<MSearchResult> filed = List.of(TitleProposerTest.filed("VBL Versicherungsnachweis 2013",
+				LocalDate.of(2014, 8, 1), "12_30_2015_03_01_VBL_2013.pdf"));
+		when(history.getRecentFilenames(anyString())).thenReturn(List.of());
+		when(searchService.search(any(), anyInt(), anyInt())).thenReturn(new PageImpl<>(filed));
+
+		DigestResultMessage m = new DigestResultMessage();
+		strategy.analyze(IssueDateFinderTest.DIN_LETTER, "12_30_2016_02_22_VBL_2014.pdf",
+				new ClassificationCandidates(List.of(new Candidate("ctx-vbl", "VBL", "")), List.of()), m);
+
+		assertThat(m.getPrediction().getContext()).isEqualTo("ctx-vbl");
+		assertThat(m.getPrediction().getTitle()).isEqualTo("VBL Versicherungsnachweis 2014");
+	}
+
+	@Test
+	void theSentDateAndSubjectOfAnEmailAreKept() {
+		DigestResultMessage m = new DigestResultMessage();
+		m.getPrediction().setDocumentDate(LocalDate.of(2024, 3, 5));
+		m.getPrediction().setTitle("Termin Zahnarzt");
+
+		strategy.analyze("Am 01.01.2020 schrieb Max:\nSehr geehrter Herr Muster,", "mail.eml",
+				new ClassificationCandidates(List.of(), List.of()), m);
+
+		assertThat(m.getPrediction().getDocumentDate()).isEqualTo(LocalDate.of(2024, 3, 5));
+		assertThat(m.getPrediction().getTitle()).isEqualTo("Termin Zahnarzt");
+		assertThat(m.getPrediction().getFieldConfidences()).containsEntry("documentDate", 0.95)
+				.containsEntry("title", 0.90);
 	}
 }

@@ -23,6 +23,16 @@ public class TextLayerUtils {
 	// Fallback: Strip all XML-like tags
 	private static final Pattern TAG_STRIP_PATTERN = Pattern.compile("<[^>]+>");
 
+	private static final Pattern PROCESSED_DATE = Pattern.compile("[ \\t]*<processed_date>[^<]*</processed_date>\\R?");
+
+	/**
+	 * The text layer without its processed_date: the day the file was read says nothing about the
+	 * document, and a classifier that sees it takes it for the document's date.
+	 */
+	public static String withoutProcessedDate(String xmlTextLayer) {
+		return xmlTextLayer == null ? null : PROCESSED_DATE.matcher(xmlTextLayer).replaceAll("");
+	}
+
 	public static String extractCleanText(String xmlTextLayer) {
 		if (xmlTextLayer == null || xmlTextLayer.isEmpty())
 			return "";

@@ -15,8 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.ahocorasick.trie.Emit;
@@ -51,51 +49,6 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 	@Autowired
 	private ContextHistoryService contextHistoryService;
 
-	// Enhanced Date Pattern for ISO (YYYY-MM-DD) and German/English (DD.MM.YYYY /
-	// DD Month YYYY)
-	// Group 1-3: ISO | Group 4-6: European/Text
-	private static final Pattern DATE_PATTERN = Pattern.compile(
-			"\\b(?:(\\d{4})-(\\d{1,2})-(\\d{1,2}))|(?:(\\d{1,2})[\\.\\/\\-]\\s?(?:([a-zA-ZäöüÄÖÜß]{3,9})|(\\d{1,2}))[\\.\\/\\-\\s]\\s?(\\d{2,4}))\\b",
-			Pattern.CASE_INSENSITIVE);
-
-	private static final Map<String, Integer> MONTH_MAP = new HashMap<>();
-	static {
-		MONTH_MAP.put("jan", 1);
-		MONTH_MAP.put("januar", 1);
-		MONTH_MAP.put("january", 1);
-		MONTH_MAP.put("feb", 2);
-		MONTH_MAP.put("februar", 2);
-		MONTH_MAP.put("february", 2);
-		MONTH_MAP.put("mär", 3);
-		MONTH_MAP.put("märz", 3);
-		MONTH_MAP.put("mar", 3);
-		MONTH_MAP.put("march", 3);
-		MONTH_MAP.put("apr", 4);
-		MONTH_MAP.put("april", 4);
-		MONTH_MAP.put("mai", 5);
-		MONTH_MAP.put("may", 5);
-		MONTH_MAP.put("jun", 6);
-		MONTH_MAP.put("juni", 6);
-		MONTH_MAP.put("june", 6);
-		MONTH_MAP.put("jul", 7);
-		MONTH_MAP.put("juli", 7);
-		MONTH_MAP.put("july", 7);
-		MONTH_MAP.put("aug", 8);
-		MONTH_MAP.put("august", 8);
-		MONTH_MAP.put("sep", 9);
-		MONTH_MAP.put("september", 9);
-		MONTH_MAP.put("okt", 10);
-		MONTH_MAP.put("oktober", 10);
-		MONTH_MAP.put("oct", 10);
-		MONTH_MAP.put("october", 10);
-		MONTH_MAP.put("nov", 11);
-		MONTH_MAP.put("november", 11);
-		MONTH_MAP.put("dez", 12);
-		MONTH_MAP.put("dezember", 12);
-		MONTH_MAP.put("dec", 12);
-		MONTH_MAP.put("december", 12);
-	}
-
 	@Override
 	public String getId() {
 		return "heuristic";
@@ -108,6 +61,11 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 
 		Prediction p = result.getPrediction();
 		Map<String, Double> fieldConf = new LinkedHashMap<>();
+		LocalDate today = LocalDate.now();
+		// Set by the metadata step from the file itself (sent date and subject of an e-mail):
+		// more reliable than anything guessed from the text, so it is kept.
+		LocalDate dateFromFile = p.getDocumentDate();
+		String titleFromFile = p.getTitle();
 
 		// 1. Normalize text if available
 		String normalizedText = (fullText != null && !fullText.isBlank()) ? normalizeText(fullText) : "";
@@ -201,16 +159,32 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 			}
 		}
 
-		// ── PHASE C: Date extraction ─────────────────────────────────────────────────
+		// ── PHASE C: Issue date ──────────────────────────────────────────────────────
 		// Use the RAW text, not the OpenNLP-normalized text: the tokenizer inserts
 		// spaces around punctuation ("2024-03-05" -> "2024 - 03 - 05"), which the
-		// date regex can never match. (This silently broke ALL date extraction.)
-		if (fullText != null && !fullText.isBlank()) {
-			LocalDate date = findBestDate(fullText);
-			p.setDocumentDate(date);
-			if (date != null) {
-				fieldConf.put("documentDate", 0.80);
-			}
+		// date regex can never match. IssueDateFinder skips the text layer's own
+		// processed_date, which used to be taken as the date of every document.
+		if (dateFromFile != null) {
+			fieldConf.put("documentDate", 0.95);
+		} else {
+			Optional<IssueDateFinder.Found> found = IssueDateFinder.find(fullText, today)
+					.or(() -> IssueDateFinder.fromFilename(filename, today));
+			p.setDocumentDate(found.map(IssueDateFinder.Found::date).orElse(null));
+			found.ifPresent(f -> {
+				fieldConf.put("documentDate", f.confidence());
+				appendSummary(p, "Date: " + f.evidence());
+			});
+		}
+
+		// ── PHASE E: Title ───────────────────────────────────────────────────────────
+		if (titleFromFile != null) {
+			fieldConf.put("title", 0.90);
+		} else {
+			proposeTitle(fullText, filename, selectedContext, candidates, p).ifPresent(t -> {
+				p.setTitle(t.title());
+				fieldConf.put("title", t.confidence());
+				appendSummary(p, "Title: " + t.evidence());
+			});
 		}
 
 		// ── PHASE D: Metadata ────────────────────────────────────────────────────────
@@ -221,6 +195,52 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 		log.debug("Heuristic: {}ms '{}' → context={} kind={} conf={}",
 				System.currentTimeMillis() - start, filename,
 				p.getContext(), p.getKind(), String.format("%.2f", p.getConfidence()));
+	}
+
+	/** How many documents of the target context are compared for the title. */
+	static final int TITLE_NEIGHBOURS = 30;
+
+	/**
+	 * Your own naming first when the document clearly continues a series in its context, else the
+	 * letter's subject line, else a weaker match from the context, else (for scanner file names only)
+	 * type, context and year. Without a suggestion the form starts from the file name.
+	 */
+	private Optional<TitleProposer.Proposal> proposeTitle(String fullText, String filename, Candidate context,
+			ClassificationCandidates candidates, Prediction p) {
+		Optional<TitleProposer.Proposal> similar = Optional.empty();
+		if (context != null) {
+			try {
+				SearchCriteria criteria = new SearchCriteria();
+				criteria.setField(ESearchDimension.CONTEXT);
+				criteria.setOperator(EOperator.EQ);
+				criteria.setValue(context.uuid());
+				List<MSearchResult> neighbours = searchService.search(criteria, 0, TITLE_NEIGHBOURS).getContent();
+				similar = TitleProposer.fromSimilarDocument(neighbours, fullText, filename, p.getDocumentDate());
+			} catch (Exception e) {
+				log.warn("Title from similar documents failed: {}", e.getMessage());
+			}
+		}
+		if (similar.isPresent() && similar.get().confidence() >= 0.70)
+			return similar;
+
+		Optional<TitleProposer.Proposal> subject = TitleProposer.fromSubjectLine(fullText);
+		if (subject.isPresent())
+			return subject;
+		if (similar.isPresent())
+			return similar;
+
+		if (filename != null && TitleProposer.looksGenerated(filename)) {
+			String kindName = candidates.kinds().stream()
+					.filter(k -> k.uuid().equals(p.getKind()))
+					.map(Candidate::name)
+					.findFirst().orElse(null);
+			return TitleProposer.composed(kindName, context != null ? context.name() : null, p.getDocumentDate());
+		}
+		return Optional.empty();
+	}
+
+	private static void appendSummary(Prediction p, String text) {
+		p.setSummary(p.getSummary() == null || p.getSummary().isBlank() ? text : p.getSummary() + "; " + text);
 	}
 
 	/**
@@ -369,44 +389,6 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 			// Fallback if OpenNLP fails for any reason
 			return rawText.replaceAll("\\s+", " ");
 		}
-	}
-
-	private LocalDate findBestDate(String text) {
-		Matcher m = DATE_PATTERN.matcher(text);
-		if (m.find()) {
-			try {
-				int year, month, day;
-
-				// Check ISO Group (YYYY-MM-DD)
-				if (m.group(1) != null) {
-					year = Integer.parseInt(m.group(1));
-					month = Integer.parseInt(m.group(2));
-					day = Integer.parseInt(m.group(3));
-				} else {
-					// Check European/Text Group
-					day = Integer.parseInt(m.group(4));
-					String monthStr = m.group(5);
-					String monthNum = m.group(6);
-					year = Integer.parseInt(m.group(7));
-
-					if (monthStr != null) {
-						String key = monthStr.toLowerCase().substring(0, 3);
-						if (!MONTH_MAP.containsKey(key))
-							return null;
-						month = MONTH_MAP.get(key);
-					} else {
-						month = Integer.parseInt(monthNum);
-					}
-				}
-
-				if (year < 100)
-					year += 2000; // Handle 2-digit years
-				return LocalDate.of(year, month, day);
-			} catch (Exception e) {
-				// Ignore invalid dates
-			}
-		}
-		return null;
 	}
 
 	/**
