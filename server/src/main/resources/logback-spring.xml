@@ -47,6 +47,34 @@
         <discardingThreshold>0</discardingThreshold>
     </appender>
 
+    <!-- 5b. Change journal: every successful change through the API to documents, contexts,
+         categories, attribute types and tasks, one JSON line each (ChangeJournalFilter). It lives
+         next to the database backups in the repository, so after restoring a backup the lines
+         after the backup's time are what is missing. Synchronous on purpose: a journal line must
+         not wait in a queue when the process dies. One file per month, packed as .gz when the month
+         ends or the active file grows past maxFileSize, so the file a sync client re-uploads stays
+         small. Kept for app.journal.keep-months (default 10 years); totalSizeCap guards the disk. -->
+    <springProperty scope="context" name="REPOSITORY_PATH" source="app.server.repository-path" defaultValue="${APP_BASE_PATH}/repository"/>
+    <springProperty scope="context" name="JOURNAL_KEEP_MONTHS" source="app.journal.keep-months" defaultValue="120"/>
+
+    <appender name="JOURNAL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${REPOSITORY_PATH}/journal/changes.jsonl</file>
+        <encoder>
+            <pattern>%msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${REPOSITORY_PATH}/journal/changes-%d{yyyy-MM}.%i.jsonl.gz</fileNamePattern>
+            <maxFileSize>5MB</maxFileSize>
+            <maxHistory>${JOURNAL_KEEP_MONTHS}</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <logger name="matrosdms.journal" level="INFO" additivity="false">
+        <appender-ref ref="JOURNAL"/>
+    </logger>
+
     <!-- 6. Log Levels -->
     <root level="INFO">
         <appender-ref ref="CONSOLE" />

@@ -340,6 +340,25 @@ MatrosDMS writes a database snapshot at every start and every night to
    in the repository and are not part of the database backup, so nothing else needs restoring.
    Documents added after the backup are still in the store but have no entry any more: the yellow
    note says how many, and the Integrity Check lists them (see [Document store check](#document-store-check)).
+5. What changed after the backup is in the [change journal](#change-journal): every line later than
+   the time in the backup's file name.
+
+### Change journal
+
+Every successful change made in MatrosDMS to documents, contexts, categories, attribute types and
+tasks is written as one line to `<repository>/journal/changes.jsonl`, next to the database backups
+and never into the database. Whatever happens to the database, the journal still says what was
+done: after restoring a backup, the lines after the backup's time are what is missing.
+
+Each line is a JSON object: `time`, `user`, `method`, `path`, `status`, and the `request` and
+`response` bodies (passwords, secrets and tokens blanked out). The response of a create holds the
+id the new object got, which later lines refer to. Logins, users, stores and settings are not
+journaled.
+
+At the end of each month, or when the active file passes 5 MB, it is packed as
+`changes-<yyyy-MM>.<n>.jsonl.gz`. Files are kept for `app.journal.keep-months` (default 120, i.e. ten
+years; a household writes a few MB a year), at most 1 GB in total. `MATROS_JOURNAL_ENABLED=false`
+switches it off.
 
 ### Working on a copy (developers)
 

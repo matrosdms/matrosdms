@@ -51,6 +51,14 @@ app:
     keep-all-days: 3
     min-keep: 10
 
+  # Change journal in <repository-path>/journal: every successful change through the API to
+  # documents, contexts, categories, attribute types and tasks, one JSON line each, written next
+  # to the database backups and never into the database. After restoring a backup, the lines
+  # after its time are what is missing. A household writes a few MB a year, so it is kept long.
+  journal:
+    enabled: ${MATROS_JOURNAL_ENABLED:true}
+    keep-months: 120
+
   mail:
     smtp:
       port: 2525
