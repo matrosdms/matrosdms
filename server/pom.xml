@@ -406,10 +406,17 @@
                                 <phase>pre-integration-test</phase>
                                 <goals><goal>start</goal></goals>
                                 <configuration>
+                                    <!-- An explicit data dir, so ProfileManager does not load the last active
+                                         profile from ~/.matrosdms/profiles.properties: that set the real
+                                         repository path (documents, db-backup) for this throwaway app. -->
+                                    <systemPropertyVariables>
+                                        <MATROS_DATA_DIR>${project.build.directory}/specgen-data</MATROS_DATA_DIR>
+                                    </systemPropertyVariables>
                                     <arguments>
                                         <argument>--server.port=${spec.port}</argument>
                                         <argument>--spring.datasource.url=jdbc:h2:mem:specgen;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1</argument>
                                         <argument>--app.base-path=./target/specgen-data</argument>
+                                        <argument>--app.server.repository-path=./target/specgen-data/repository</argument>
                                         <argument>--app.start-browser=false</argument>
                                     </arguments>
                                 </configuration>
@@ -485,12 +492,17 @@
                                 <phase>pre-integration-test</phase>
                                 <goals><goal>start</goal></goals>
                                 <configuration>
+                                    <!-- Explicit data dir: see the spec profile -->
+                                    <systemPropertyVariables>
+                                        <MATROS_DATA_DIR>${project.build.directory}/ddlgen-data</MATROS_DATA_DIR>
+                                    </systemPropertyVariables>
                                     <arguments>
                                         <argument>--server.port=${spec.port}</argument>
                                         <argument>--spring.datasource.url=jdbc:h2:mem:ddlgen;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1</argument>
                                         <argument>--spring.jpa.properties.jakarta.persistence.schema-generation.scripts.action=create</argument>
                                         <argument>--spring.jpa.properties.jakarta.persistence.schema-generation.scripts.create-target=${project.basedir}/../spec/matros.ddl</argument>
                                         <argument>--app.base-path=./target/ddlgen-data</argument>
+                                        <argument>--app.server.repository-path=./target/ddlgen-data/repository</argument>
                                         <argument>--app.start-browser=false</argument>
                                     </arguments>
                                 </configuration>
