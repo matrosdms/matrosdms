@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 
 import org.hibernate.search.engine.search.common.BooleanOperator;
 import org.hibernate.search.engine.search.predicate.dsl.PredicateFinalStep;
@@ -38,6 +39,9 @@ public class SearchService {
 
 	@Autowired
 	private EntityManager entityManager;
+
+	@Autowired
+	private EntityManagerFactory entityManagerFactory;
 
 	@Autowired
 	private AttributeLookupService attributeLookupService;
@@ -259,10 +263,15 @@ public class SearchService {
 	}
 
 	// No @Transactional: the mass indexer manages its own sessions/transactions,
-	// an outer transaction only pins a connection for the whole reindex run
+	// an outer transaction only pins a connection for the whole reindex run. Without one,
+	// Search.session(entityManager) fails (HSEARCH800016: the shared EntityManager only exists
+	// inside a transaction), so the indexer comes from the mapping, which needs no session.
 	public void reindexAll() {
 		try {
-			org.hibernate.search.mapper.orm.Search.session(entityManager).massIndexer().startAndWait();
+			org.hibernate.search.mapper.orm.Search.mapping(entityManagerFactory)
+					.scope(DBItem.class)
+					.massIndexer()
+					.startAndWait();
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			throw new RuntimeException("Reindexing was interrupted", e);
