@@ -19,13 +19,16 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import net.schwehla.matrosdms.domain.admin.EJobStatus;
+import net.schwehla.matrosdms.domain.admin.MAdminJob;
 import net.schwehla.matrosdms.entity.admin.DBAdminJob;
 import net.schwehla.matrosdms.repository.AdminJobRepository;
+import net.schwehla.matrosdms.service.mapper.MAdminJobMapper;
 import net.schwehla.matrosdms.service.message.JobMessage;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,6 +39,8 @@ public class JobController {
 
 	@Autowired
 	AdminJobRepository adminJobRepository;
+	@Autowired
+	MAdminJobMapper jobMapper;
 
 	@GetMapping
 	@Operation(summary = "Browse job history log")
@@ -67,6 +72,15 @@ public class JobController {
 
 		Page<JobMessage> dtoPage = page.map(this::mapDbEntity);
 		return ResponseEntity.ok(dtoPage);
+	}
+
+	@GetMapping("/{id}")
+	@Operation(summary = "One job with its result and log lines")
+	public ResponseEntity<MAdminJob> getJob(@PathVariable Long id) {
+		return adminJobRepository.findWithLogsById(id)
+				.map(jobMapper::entityToModel)
+				.map(ResponseEntity::ok)
+				.orElse(ResponseEntity.notFound().build());
 	}
 
 	private JobMessage mapDbEntity(DBAdminJob e) {

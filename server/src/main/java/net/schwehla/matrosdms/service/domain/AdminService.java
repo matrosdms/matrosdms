@@ -41,6 +41,7 @@ import net.schwehla.matrosdms.entity.DBItem;
 import net.schwehla.matrosdms.repository.ItemRepository;
 import net.schwehla.matrosdms.service.SearchService;
 import net.schwehla.matrosdms.service.TikaService;
+import net.schwehla.matrosdms.service.management.StoreConsistencyService;
 import net.schwehla.matrosdms.service.message.IntegrityReport;
 import net.schwehla.matrosdms.store.FileUtils;
 import net.schwehla.matrosdms.store.IMatrosStore;
@@ -66,6 +67,8 @@ public class AdminService {
 	ObjectMapper objectMapper;
 	@Autowired
 	TikaService tikaService;
+	@Autowired
+	StoreConsistencyService storeConsistency;
 
 	@Value("${app.base-path}/export")
 	private String exportBasePath;
@@ -141,11 +144,17 @@ public class AdminService {
 			}
 		}
 
+		// Phase 3: Check store → DB (documents the database does not know, e.g. after it fell back)
+		report.setStoreCheck(storeConsistency.check());
+
 		log.info(
-				"Integrity Check Complete. Scanned {} items. Missing: {}, Corrupt: {}, Orphaned Index: {}.",
+				"Integrity Check Complete. Scanned {} items. Missing: {}, Corrupt: {}, Unknown in store: {},"
+						+ " Stray files: {}, Orphaned Index: {}.",
 				report.getTotalDbItems(),
 				report.getMissingCount(),
 				report.getCorruptCount(),
+				report.getUnknownInStore().size(),
+				report.getStrayFiles().size(),
 				report.getOrphanedIndexCount());
 
 		return report;

@@ -10,6 +10,8 @@ package net.schwehla.matrosdms.service.message;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.schwehla.matrosdms.service.management.StoreConsistencyService;
+
 public class IntegrityReport {
 	private int totalDbItems;
 	private int missingCount;
@@ -19,6 +21,34 @@ public class IntegrityReport {
 	private List<MissingItem> missingItems = new ArrayList<>();
 	private List<CorruptItem> corruptItems = new ArrayList<>();
 	private List<OrphanedIndexItem> orphanedIndexItems = new ArrayList<>();
+
+	// The other direction: what is in the document store but not in the database
+	private int storeDocuments;
+	private List<StoreConsistencyService.UnknownDocument> unknownInStore = List.of();
+	private List<String> strayFiles = List.of();
+
+	public void setStoreCheck(StoreConsistencyService.Result storeCheck) {
+		this.storeDocuments = storeCheck.storeDocuments();
+		this.unknownInStore = storeCheck.unknownInStore();
+		this.strayFiles = storeCheck.strayFiles();
+	}
+
+	public int getStoreDocuments() {
+		return storeDocuments;
+	}
+
+	public List<StoreConsistencyService.UnknownDocument> getUnknownInStore() {
+		return unknownInStore;
+	}
+
+	public List<String> getStrayFiles() {
+		return strayFiles;
+	}
+
+	public boolean hasProblems() {
+		return missingCount > 0 || corruptCount > 0 || orphanedIndexCount > 0 || !unknownInStore.isEmpty()
+				|| !strayFiles.isEmpty();
+	}
 
 	public void addMissingItem(String uuid, String name) {
 		missingItems.add(new MissingItem(uuid, name));

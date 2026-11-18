@@ -8,9 +8,11 @@
 package net.schwehla.matrosdms.repository;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -27,4 +29,7 @@ public interface AdminJobRepository extends JpaRepository<DBAdminJob, Long> {
 			+ "(cast(:to as timestamp) IS NULL OR j.startTime <= :to)")
 	Page<DBAdminJob> findHistory(
 			@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
+
+	@EntityGraph(attributePaths = "logs")
+	Optional<DBAdminJob> findWithLogsById(Long id);
 }

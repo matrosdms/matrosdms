@@ -20,6 +20,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
 import net.schwehla.matrosdms.domain.admin.EJobType;
@@ -49,7 +50,11 @@ public class DBAdminJob extends DBBaseEntity {
 	private String progressInfo;
 
 	@OneToMany(mappedBy = "job", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+	@OrderBy("id")
 	private List<DBAdminJobLog> logs = new ArrayList<>();
+
+	/** admin_job_log.message is varchar(255); a longer value would fail saving the whole job. */
+	static final int MAX_LOG_MESSAGE = 255;
 
 	public enum JobStatus {
 		QUEUED, RUNNING, COMPLETED, FAILED
@@ -57,6 +62,9 @@ public class DBAdminJob extends DBBaseEntity {
 
 	// --- Helpers ---
 	public void addLog(String severity, String message) {
+		if (message != null && message.length() > MAX_LOG_MESSAGE) {
+			message = message.substring(0, MAX_LOG_MESSAGE - 1) + "…";
+		}
 		logs.add(new DBAdminJobLog(this, severity, message));
 	}
 
@@ -114,6 +122,10 @@ public class DBAdminJob extends DBBaseEntity {
 	}
 
 	public void setProgressInfo(String progressInfo) {
+		// varchar(255) as well - "Error: " + an exception message easily exceeds it
+		if (progressInfo != null && progressInfo.length() > MAX_LOG_MESSAGE) {
+			progressInfo = progressInfo.substring(0, MAX_LOG_MESSAGE - 1) + "…";
+		}
 		this.progressInfo = progressInfo;
 	}
 

@@ -3,6 +3,15 @@ import { getErrorMessage } from '@/lib/utils'
 import type { components } from '@/types/schema'
 
 export const JobService = {
+  /** One job with its result (progressInfo) and log lines */
+  async getJob(id: number) {
+    const { data, error } = await client.GET("/api/jobs/{id}", {
+      params: { path: { id } }
+    })
+    if (error) throw new Error(getErrorMessage(error))
+    return data as components['schemas']['MAdminJob']
+  },
+
   async getUnifiedJobs(filter: any) {
     // 1. Parse Filter (Object or String)
     const statusVal = typeof filter === 'object' ? filter.status : filter

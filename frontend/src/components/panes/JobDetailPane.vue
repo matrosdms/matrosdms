@@ -1,14 +1,36 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Terminal, CheckCircle2, XCircle, Clock, Play, Timer, CalendarClock, AlertOctagon } from 'lucide-vue-next'
+import { useQuery } from '@tanstack/vue-query'
+import { CheckCircle2, XCircle, Clock, Play, Timer, CalendarClock, AlertOctagon, ClipboardList } from 'lucide-vue-next'
 import { parseBackendDate } from '@/lib/utils'
 import { EJobStatus } from '@/enums'
+import { JobService } from '@/services/JobService'
+import { queryKeys } from '@/composables/queries/queryKeys'
 import type { components } from '@/types/schema'
 
 const props = defineProps<{
   // Allow UI appended logs while preserving strict core types
   item: components['schemas']['JobMessage'] & { logs?: any[] }
 }>()
+
+// The job list carries no result and no log lines; load them for the selected job.
+// Job ids from the history are numeric; anything else is a UI placeholder.
+const jobId = computed(() => props.item?.uuid ?? '')
+const { data: detail, isLoading: detailLoading } = useQuery({
+  queryKey: computed(() => queryKeys.admin.job(jobId.value, props.item?.status)),
+  queryFn: () => JobService.getJob(Number(jobId.value)),
+  enabled: computed(() => /^\d+$/.test(jobId.value)),
+})
+
+const result = computed(() => detail.value?.progressInfo)
+const endDate = computed(() => parseBackendDate(detail.value?.endTime)?.toLocaleString())
+const duration = computed(() => {
+  const start = parseBackendDate(detail.value?.startTime)
+  const end = parseBackendDate(detail.value?.endTime)
+  if (!start || !end) return null
+  const seconds = Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000))
+  return seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min ${seconds % 60} s`
+})
 
 const statusColor = computed(() => {
     switch(props.item?.status) {
@@ -19,7 +41,7 @@ const statusColor = computed(() => {
     }
 })
 
-const logs = computed(() => props.item?.logs ||[])
+const logs = computed(() => detail.value?.logs ?? props.item?.logs ?? [])
 const startDate = computed(() => parseBackendDate(props.item?.executionTime)?.toLocaleString() || '-')
 </script>
 
@@ -56,12 +78,23 @@ const startDate = computed(() => parseBackendDate(props.item?.executionTime)?.to
             <div class="flex items-center gap-3">
                 <div class="p-2 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full"><CalendarClock :size="18"/></div>
                 <div>
-                    <div class="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">Task Type</div>
-                    <div class="text-sm font-medium dark:text-gray-200">{{ item.taskName }}</div>
+                    <div class="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold">{{ endDate ? 'Finished' : 'Task Type' }}</div>
+                    <div class="text-sm font-medium dark:text-gray-200">
+                        <template v-if="endDate">{{ endDate }}<span v-if="duration" class="text-gray-400 font-normal"> · {{ duration }}</span></template>
+                        <template v-else>{{ item.taskName }}</template>
+                    </div>
                 </div>
             </div>
         </div>
-        
+
+        <div v-if="result" class="mt-2 flex gap-2 items-start text-xs p-2 rounded border"
+            :class="item.status === EJobStatus.FAILED
+                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900 text-red-700 dark:text-red-400'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'">
+            <ClipboardList :size="14" class="shrink-0 mt-0.5" />
+            <div><strong>Result:</strong> {{ result }}</div>
+        </div>
+
         <div v-if="item.status === EJobStatus.FAILED" class="mt-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded p-2 flex gap-2 text-xs text-red-700 dark:text-red-400">
             <AlertOctagon :size="16" />
             <div>
@@ -72,7 +105,7 @@ const startDate = computed(() => parseBackendDate(props.item?.executionTime)?.to
 
     <!-- Logs Console -->
     <div class="flex-1 p-4 bg-gray-50 dark:bg-[#1e1e1e] overflow-auto font-mono text-xs transition-colors border-t border-gray-200 dark:border-gray-800">
-        <div v-if="logs.length === 0" class="text-gray-400 italic select-none">No logs available.</div>
+        <div v-if="logs.length === 0" class="text-gray-400 italic select-none">{{ detailLoading ? 'Loading logs…' : 'No logs available.' }}</div>
         <div v-for="(log, i) in logs" :key="i" class="mb-1 border-b border-gray-200 dark:border-gray-800/50 pb-0.5 last:border-0 flex gap-3">
             <span class="text-gray-400 dark:text-gray-500 shrink-0 select-none">[{{ parseBackendDate(log.timestamp)?.toLocaleTimeString() || '--:--:--' }}]</span>
             <span :class="{

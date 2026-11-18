@@ -33,6 +33,9 @@ export const queryKeys = {
     users: ['users'] as const,
     attributes: ['attribute-types'] as const,
     jobs: (status: EJobStatusType | 'ALL') => ['jobs', status] as const,
+    // status is part of the key: the detail reloads when the job finishes
+    job: (id: string, status?: string) => ['jobs', 'detail', id, status] as const,
+    storeCheck: ['admin', 'store-check'] as const,
   },
   
   // System

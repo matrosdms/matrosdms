@@ -215,11 +215,31 @@ Access via sidebar → Settings icon
 
 ### System Jobs
 
-|         Job         |                 Description                 |
-|---------------------|---------------------------------------------|
-| **Integrity Check** | Verify file hashes and database consistency |
-| **Reindex Search**  | Rebuild full-text search index              |
-| **Export Archive**  | Create backup ZIP of all documents          |
+Open **Run System Task**, select a job and press **Start**. Selecting alone starts nothing, and a job
+that is already queued or running is not started a second time. Select a job in the list to see its
+result and log.
+
+|         Job         |                                     Description                                     |
+|---------------------|-------------------------------------------------------------------------------------|
+| **Integrity Check** | Every document has its file and the file is unchanged; every file belongs to a document |
+| **Reindex Search**  | Rebuild full-text search index                                                      |
+| **Export Archive**  | Create backup ZIP of all documents                                                  |
+
+### Document store check
+
+After every start MatrosDMS compares the document store with the database. If they disagree,
+administrators see a yellow note below the header:
+
+- **Documents in the store have no database entry**: the database is older than the documents. It
+  fell back to an older state, or an older backup was restored. The documents themselves are fine; what
+  is missing is their entry (title, context, categories). The Integrity Check lists them with their
+  dates. To file them again they have to be decrypted into the inbox; MatrosDMS has no button for that
+  yet.
+- **Documents in the database have no file**: the store folder is not available (a cloud drive not
+  mounted?) or files were removed.
+- **Files belong to no document**: something was copied into the store folder by hand.
+
+Running the Integrity Check again updates the note.
 
 ---
 
@@ -249,7 +269,8 @@ account under **My Profile**. Setup and details: [google-sync.md](google-sync.md
 
 ### Data Integrity
 
-1. **Run Integrity Check** periodically to verify file consistency
+1. **Run Integrity Check** periodically to verify file consistency; after restoring a backup it lists
+   the documents added since, which need filing again
 2. **Use Archives** for obsolete contexts (instead of deleting)
 3. **Regular backups** via Export Archive job
 
@@ -317,6 +338,8 @@ MatrosDMS writes a database snapshot at every start and every night to
 3. Unzip the backup into `<data dir>/workspace/db`. It contains one file, `matros.mv.db`.
 4. Start MatrosDMS. It records a new save point and runs as before. The documents themselves live
    in the repository and are not part of the database backup, so nothing else needs restoring.
+   Documents added after the backup are still in the store but have no entry any more: the yellow
+   note says how many, and the Integrity Check lists them (see [Document store check](#document-store-check)).
 
 ### Working on a copy (developers)
 

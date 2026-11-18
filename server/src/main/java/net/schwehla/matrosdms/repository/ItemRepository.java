@@ -112,4 +112,7 @@ public interface ItemRepository extends JpaRepository<DBItem, Long> {
 	Optional<String> findDuplicateUuid(@Param("hash") String hash);
 
 	long countByInfoContext_UuidAndDateArchivedIsNull(String uuid);
+
+	@Query("SELECT i.uuid FROM DBItem i")
+	List<String> findAllUuids();
 }

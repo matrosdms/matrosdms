@@ -13,6 +13,13 @@ export const AdminService = {
     return (data as any)?.content || []
   },
 
+  /** Last comparison of the document store with the database (admins only) */
+  async getStoreCheck(): Promise<components['schemas']['StoreCheckResponse']> {
+    const { data, error } = await client.GET("/api/admin/store-check", {})
+    if (error) throw new Error(getErrorMessage(error))
+    return data as components['schemas']['StoreCheckResponse']
+  },
+
   async startJob(type: 'INTEGRITY_CHECK' | 'EXPORT_ARCHIVE' | 'REINDEX_SEARCH', config?: string) {
     const { data, error } = await client.POST("/api/admin/jobs/{type}", {
         params: { path: { type }, query: { config } },

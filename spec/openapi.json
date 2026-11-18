@@ -6334,6 +6334,88 @@
         }
       }
     },
+    "/api/jobs/{id}": {
+      "get": {
+        "tags": [
+          "job-controller"
+        ],
+        "summary": "One job with its result and log lines",
+        "operationId": "getJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MAdminJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/items/{uuid}/thumbnail": {
       "get": {
         "tags": [
@@ -7666,6 +7748,77 @@
         }
       }
     },
+    "/api/admin/store-check": {
+      "get": {
+        "tags": [
+          "admin-controller"
+        ],
+        "summary": "Last comparison of the document store with the database",
+        "operationId": "storeCheck",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/actions/item/{itemUuid}": {
       "get": {
         "tags": [
@@ -8559,14 +8712,14 @@
                 "empty": {
                   "type": "boolean"
                 },
-                "allTransitiveChildren": {
+                "selfAndTransitiveParents": {
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/MCategory"
                   },
                   "uniqueItems": true
                 },
-                "selfAndTransitiveParents": {
+                "allTransitiveChildren": {
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/MCategory"
@@ -8678,14 +8831,14 @@
               "empty": {
                 "type": "boolean"
               },
-              "allTransitiveChildren": {
+              "selfAndTransitiveParents": {
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/MCategory"
                 },
                 "uniqueItems": true
               },
-              "selfAndTransitiveParents": {
+              "allTransitiveChildren": {
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/MCategory"
@@ -9374,13 +9527,13 @@
       "PageMSearchResult": {
         "type": "object",
         "properties": {
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
-          },
           "totalElements": {
             "type": "integer",
             "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
           },
           "size": {
             "type": "integer",
@@ -9396,10 +9549,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "last": {
+          "first": {
             "type": "boolean"
           },
-          "first": {
+          "last": {
             "type": "boolean"
           },
           "numberOfElements": {
@@ -9435,10 +9588,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "unpaged": {
+          "paged": {
             "type": "boolean"
           },
-          "paged": {
+          "unpaged": {
             "type": "boolean"
           }
         }
@@ -9449,10 +9602,10 @@
           "empty": {
             "type": "boolean"
           },
-          "unsorted": {
+          "sorted": {
             "type": "boolean"
           },
-          "sorted": {
+          "unsorted": {
             "type": "boolean"
           }
         }
@@ -10029,13 +10182,13 @@
       "PageJobMessage": {
         "type": "object",
         "properties": {
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
-          },
           "totalElements": {
             "type": "integer",
             "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
           },
           "size": {
             "type": "integer",
@@ -10051,10 +10204,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "last": {
+          "first": {
             "type": "boolean"
           },
-          "first": {
+          "last": {
             "type": "boolean"
           },
           "numberOfElements": {
@@ -10072,16 +10225,66 @@
           }
         }
       },
+      "MAdminJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "type": {
+            "$ref": "#/components/schemas/EJobType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EJobStatus"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "configuration": {
+            "type": "string"
+          },
+          "progressInfo": {
+            "type": "string"
+          },
+          "logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MAdminJobLog"
+            }
+          }
+        }
+      },
+      "MAdminJobLog": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "PageMItem": {
         "type": "object",
         "properties": {
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
-          },
           "totalElements": {
             "type": "integer",
             "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
           },
           "size": {
             "type": "integer",
@@ -10097,10 +10300,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "last": {
+          "first": {
             "type": "boolean"
           },
-          "first": {
+          "last": {
             "type": "boolean"
           },
           "numberOfElements": {
@@ -10161,16 +10364,58 @@
           "ERROR"
         ]
       },
+      "StoreCheckResponse": {
+        "type": "object",
+        "description": "Last comparison of the document store with the database (after start, and by the Integrity Check)",
+        "properties": {
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "databaseItems": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Documents in the database"
+          },
+          "storeDocuments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Documents in the document store"
+          },
+          "unknownInStore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Documents in the store the database does not know"
+          },
+          "missingInStore": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Documents in the database without a file in the store"
+          },
+          "strayFiles": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Files in the store that belong to no document"
+          },
+          "warnings": {
+            "type": "array",
+            "description": "What to tell the administrator; empty when store and database match",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "PageMAction": {
         "type": "object",
         "properties": {
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
-          },
           "totalElements": {
             "type": "integer",
             "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
           },
           "size": {
             "type": "integer",
@@ -10186,10 +10431,10 @@
             "type": "integer",
             "format": "int32"
           },
-          "last": {
+          "first": {
             "type": "boolean"
           },
-          "first": {
+          "last": {
             "type": "boolean"
           },
           "numberOfElements": {

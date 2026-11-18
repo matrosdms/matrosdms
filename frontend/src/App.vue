@@ -7,6 +7,7 @@ import ToastProvider from '@/components/ui/ToastProvider.vue'
 import ContextFilterBar from '@/components/widgets/ContextFilterBar.vue'
 import GlobalSearch from '@/components/widgets/GlobalSearch.vue'
 import UserMenu from '@/components/widgets/UserMenu.vue'
+import StoreCheckBanner from '@/components/widgets/StoreCheckBanner.vue'
 import { Loader2, Bell } from 'lucide-vue-next'
 import { computed, ref, onMounted, defineAsyncComponent } from 'vue'
 import { useIsFetching, useIsMutating, useQuery } from '@tanstack/vue-query'
@@ -196,6 +197,8 @@ const handleGlobalDrop = async (event: DragEvent) => {
           </div>
         </div>
       </header>
+
+      <StoreCheckBanner />
 
       <div class="flex flex-1 overflow-hidden">
         <ActivityBar @fold-sidebar="handleFoldSidebar" @save-layout="handleSaveLayout" @reset-layout="handleResetLayout" @switch-view="handleViewSwitch" />

@@ -8,6 +8,7 @@
 package net.schwehla.matrosdms.config;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ import net.schwehla.matrosdms.messagebus.VUEMessageBus;
 import net.schwehla.matrosdms.repository.AdminJobRepository;
 import net.schwehla.matrosdms.service.SearchService;
 import net.schwehla.matrosdms.service.domain.AdminService;
+import net.schwehla.matrosdms.service.management.StoreConsistencyService;
 import net.schwehla.matrosdms.service.message.IntegrityReport;
 
 @Configuration
@@ -81,21 +83,36 @@ public class DbSchedulerConfig {
 
 						IntegrityReport report = adminService.runIntegrityCheck();
 
-						String result = String.format("Checked %d items. Missing: %d, Corrupt: %d, Orphaned Index: %d",
+						String result = String.format(
+								"Checked %d items. Missing: %d, Corrupt: %d, Unknown in store: %d, Stray files: %d,"
+										+ " Orphaned Index: %d",
 								report.getTotalDbItems(), report.getMissingCount(), report.getCorruptCount(),
+								report.getUnknownInStore().size(), report.getStrayFiles().size(),
 								report.getOrphanedIndexCount());
 
-						// 1. Log details to Database (for UI History)
+						// 1. Log details to Database (for UI History). Always at least the counts, so a
+						// clean run shows its result too instead of an empty log.
+						job.addLog("INFO", String.format("%d documents in the database, %d in the document store.",
+								report.getTotalDbItems(), report.getStoreDocuments()));
 						for (IntegrityReport.MissingItem item : report.getMissingItems()) {
 							job.addLog("ERROR", "Missing: " + item.name + " (" + item.uuid + ")");
 						}
 						for (IntegrityReport.CorruptItem item : report.getCorruptItems()) {
 							job.addLog("ERROR", "Corrupt: " + item.name + " (" + item.uuid + ")");
 						}
+						for (StoreConsistencyService.UnknownDocument doc : report.getUnknownInStore()) {
+							job.addLog("WARN", "In the store, not in the database: " + doc.id() + " "
+									+ doc.files() + ", changed " + LocalDateTime.ofInstant(doc.lastModified(),
+											ZoneId.systemDefault()).withNano(0));
+						}
+						for (String file : report.getStrayFiles()) {
+							job.addLog("WARN", "Stray file in the document store: " + file);
+						}
 						for (IntegrityReport.OrphanedIndexItem item : report.getOrphanedIndexItems()) {
 							job.addLog("WARN",
 									"Orphaned Index (not in DB): " + item.uuid + " — run Reindex Search to fix");
 						}
+						job.addLog("INFO", report.hasProblems() ? result : "No problems found. " + result);
 
 						// 2. Mark Complete
 						completeJobLog(jobRepo, job, result);
