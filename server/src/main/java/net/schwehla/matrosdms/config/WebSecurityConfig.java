@@ -20,7 +20,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -57,6 +59,10 @@ public class WebSecurityConfig {
 				.csrf(AbstractHttpConfigurer::disable)
 				.sessionManagement(
 						session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				// A missing or expired token is 401, not Spring's default 403: the frontend renews
+				// the token on 401 only. With 403 an expired session (a laptop back from standby)
+				// left every request failing until the user logged out by hand.
+				.exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
 				.authorizeHttpRequests(auth -> {
 					// FIX: Allow Async/Error dispatches
 					auth.dispatcherTypeMatchers(
@@ -94,6 +100,16 @@ public class WebSecurityConfig {
 										"/auth/login",
 										"/auth/status",
 										"/auth/register")
+								.permitAll()
+
+								// --- RENEW AND END A SESSION ---
+								// Called exactly when the access token has expired, so they cannot
+								// require one; the refresh token in the body is the credential.
+								.requestMatchers(
+										"/api/auth/refresh",
+										"/api/auth/logout",
+										"/auth/refresh",
+										"/auth/logout")
 								.permitAll()
 
 								// --- GOOGLE OAUTH CALLBACK ---

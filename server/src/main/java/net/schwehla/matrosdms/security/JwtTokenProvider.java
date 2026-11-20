@@ -69,6 +69,9 @@ public class JwtTokenProvider {
 		try {
 			Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(authToken);
 			return true;
+		} catch (ExpiredJwtException ex) {
+			// everyday: the browser renews it on the 401 that follows
+			logger.debug("JWT expired: " + ex.getMessage());
 		} catch (Exception ex) {
 			logger.error("JWT validation error: " + ex.getMessage());
 		}
