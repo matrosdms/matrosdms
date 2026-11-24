@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { formatDate } from '@/lib/utils'
 import { Layers, X, Trash2, Maximize2, Minimize2, GripHorizontal, CheckSquare, Square, Folder } from 'lucide-vue-next'
 import { useDmsStore } from '@/stores/dms'
 import { useDragDrop } from '@/composables/useDragDrop'
@@ -212,7 +213,7 @@ watch(() => dms.itemStack?.length, () => {
                     <div class="flex-1 min-w-0 flex flex-col gap-0.5">
                         <div class="font-medium text-xs text-gray-800 dark:text-gray-200 truncate">{{ item.name }}</div>
                         <div class="text-[10px] text-gray-400 dark:text-gray-500 flex items-center justify-between">
-                            <span>{{ new Date(item.issueDate || '').toLocaleDateString() }}</span>
+                            <span>{{ formatDate(item.issueDate) }}</span>
                             <span v-if="item.context?.name" class="flex items-center gap-1 opacity-75 truncate max-w-[120px]">
                                 <Folder :size="10" /> {{ item.context.name }}
                             </span>

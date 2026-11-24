@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { formatDate } from '@/lib/utils'
 import { PanelBottomClose, PanelBottomOpen, Layers, Trash2, Bug, Info, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-vue-next'
 import { useUIStore } from '@/stores/ui'
 import { useDmsStore } from '@/stores/dms'
@@ -79,7 +80,7 @@ const onDragStartStackItem = (event: DragEvent, item: any) => startDrag(event, '
               >
                  <div class="font-medium text-xs text-gray-800 dark:text-gray-200 truncate mb-1">{{ item.name }}</div>
                  <div class="flex justify-between items-center">
-                    <span class="text-[10px] text-gray-400 dark:text-gray-500">{{ new Date(item.issueDate || '').toLocaleDateString() }}</span>
+                    <span class="text-[10px] text-gray-400 dark:text-gray-500">{{ formatDate(item.issueDate) }}</span>
                     <button v-if="item.uuid" @click="dms.removeFromStack(item.uuid)" class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity p-1"><Trash2 :size="12"/></button>
                  </div>
               </div>

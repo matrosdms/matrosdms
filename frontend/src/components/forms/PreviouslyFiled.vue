@@ -5,7 +5,7 @@
  * dropdown of the context chip in the add form's header; the form loads the list.
  */
 import { Columns, FileText, Loader2 } from 'lucide-vue-next'
-import { parseBackendDate } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import type { Item } from '@/types/models'
 
 defineProps<{
@@ -21,10 +21,6 @@ const emit = defineEmits<{
   (e: 'compare', item: Item): void
 }>()
 
-const formatDate = (val: unknown) => {
-  const d = parseBackendDate(val)
-  return d ? d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
-}
 const kindOf = (item: Item) => item.kindList?.[0]?.name || ''
 </script>
 

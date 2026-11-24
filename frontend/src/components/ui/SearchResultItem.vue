@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FileText, ArrowRight, Folder, Box } from 'lucide-vue-next'
+import { formatDate } from '@/lib/utils'
 
 const props = withDefaults(defineProps<{
   active?: boolean
@@ -43,7 +44,7 @@ const props = withDefaults(defineProps<{
         
         <!-- Meta Row -->
         <div class="text-[10px] text-muted-foreground flex flex-wrap gap-2 items-center">
-            <span v-if="date" class="font-mono opacity-80">{{ new Date(date).toLocaleDateString() }}</span>
+            <span v-if="date" class="font-mono opacity-80">{{ formatDate(date) }}</span>
             
             <span v-if="context" class="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-900 font-medium max-w-[120px] truncate">
                 <Folder :size="10" /> {{ context }}

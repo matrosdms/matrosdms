@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { CheckCircle2, XCircle, Clock, Play, Timer, CalendarClock, AlertOctagon, ClipboardList } from 'lucide-vue-next'
-import { parseBackendDate } from '@/lib/utils'
+import { parseBackendDate, formatDateTime } from '@/lib/utils'
 import { EJobStatus } from '@/enums'
 import { JobService } from '@/services/JobService'
 import { queryKeys } from '@/composables/queries/queryKeys'
@@ -23,7 +23,7 @@ const { data: detail, isLoading: detailLoading } = useQuery({
 })
 
 const result = computed(() => detail.value?.progressInfo)
-const endDate = computed(() => parseBackendDate(detail.value?.endTime)?.toLocaleString())
+const endDate = computed(() => formatDateTime(detail.value?.endTime, ''))
 const duration = computed(() => {
   const start = parseBackendDate(detail.value?.startTime)
   const end = parseBackendDate(detail.value?.endTime)
@@ -42,7 +42,7 @@ const statusColor = computed(() => {
 })
 
 const logs = computed(() => detail.value?.logs ?? props.item?.logs ?? [])
-const startDate = computed(() => parseBackendDate(props.item?.executionTime)?.toLocaleString() || '-')
+const startDate = computed(() => formatDateTime(props.item?.executionTime))
 </script>
 
 <template>

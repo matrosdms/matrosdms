@@ -27,6 +27,23 @@ export function parseBackendDate(val: any): Date | null {
     } catch (e) { return null }
 }
 
+const DATE_PARTS: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' }
+
+/**
+ * A date the way the browser's locale writes it, but always with a two-digit day and month:
+ * "05.01.2026", never "5.1.2026", so dates line up in tables.
+ */
+export function formatDate(val: any, fallback = '-'): string {
+    const d = parseBackendDate(val)
+    return d ? d.toLocaleDateString(undefined, DATE_PARTS) : fallback
+}
+
+/** Date and time, two-digit throughout: "05.01.2026, 09:04:07". */
+export function formatDateTime(val: any, fallback = '-'): string {
+    const d = parseBackendDate(val)
+    return d ? d.toLocaleString(undefined, { ...DATE_PARTS, hour: '2-digit', minute: '2-digit', second: '2-digit' }) : fallback
+}
+
 export function formatDateForInput(val: any): string {
     const date = parseBackendDate(val)
     if (!date) return ''

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { formatDateTime } from '@/lib/utils'
 import PostalMime from 'postal-mime'
 import { Paperclip, User, Calendar, Download, Mail } from 'lucide-vue-next'
 import { push } from 'notivue'
@@ -116,7 +117,7 @@ watch(() => props.blob, parseEmail, { immediate: true })
                       <div class="w-6 text-gray-400 flex justify-center"><Calendar :size="16"/></div>
                       <span class="font-bold text-gray-700 dark:text-gray-300">Date:</span>
                       <span class="text-gray-600 dark:text-gray-400">
-                          {{ emailData.date ? new Date(emailData.date).toLocaleString() : 'Unknown' }}
+                          {{ formatDateTime(emailData.date, 'Unknown') }}
                       </span>
                   </div>
               </div>

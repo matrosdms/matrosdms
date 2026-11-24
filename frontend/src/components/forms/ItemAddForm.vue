@@ -6,7 +6,7 @@ import ItemFormFields from '@/components/forms/ItemFormFields.vue'
 import PreviouslyFiled from '@/components/forms/PreviouslyFiled.vue'
 import { ItemService } from '@/services/ItemService'
 import type { Item } from '@/types/models'
-import { parseBackendDate } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import DocumentPreview from '@/components/ui/DocumentPreview.vue'
 import { useDmsStore } from '@/stores/dms'
@@ -51,8 +51,8 @@ const showOld = computed(() => !!compareItem.value && (compareMode.value === 'si
 const compareLabel = computed(() => {
     const item = compareItem.value
     if (!item) return ''
-    const d = parseBackendDate(item.issueDate)
-    return d ? `${item.name} · ${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : item.name
+    const date = formatDate(item.issueDate, '')
+    return date ? `${item.name} · ${date}` : item.name
 })
 
 // The target context's latest documents: the context chip opens them as a list, its count shows

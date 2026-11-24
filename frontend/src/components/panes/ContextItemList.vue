@@ -17,7 +17,7 @@ import { useContextQueries } from '@/composables/queries/useContextQueries'
 import { useAdminQueries } from '@/composables/queries/useAdminQueries'
 import { useDragDrop } from '@/composables/useDragDrop'
 import { ItemService } from '@/services/ItemService'
-import { parseBackendDate } from '@/lib/utils'
+import { parseBackendDate, formatDate } from '@/lib/utils'
 import ModalDialog from '@/components/ui/ModalDialog.vue'
 import { AlertTriangle, Archive, Folder, Loader2, PlusCircle, Pencil, Trash2, Box, Calendar, Tag, Activity, CheckSquare, FolderOpen, Eye, List, FileText, ArrowLeft, Maximize2, Minimize2, Sidebar, GitCommit, RotateCcw, ChevronUp, ChevronDown, ListFilter, Check } from 'lucide-vue-next'
 import AppPopover from '@/components/ui/AppPopover.vue'
@@ -192,7 +192,7 @@ const createNameCell = (info: any) => {
 }
 
 const columns: ColumnDef<any>[] =[
-  { accessorKey: 'issueDate', header: () => createHeaderIcon(Calendar, 'Date'), size: 120, cell: (info) => h('span', { class: 'text-xs text-muted-foreground font-mono' }, parseBackendDate(info.getValue())?.toLocaleDateString() || '-') },
+  { accessorKey: 'issueDate', header: () => createHeaderIcon(Calendar, 'Date'), size: 120, cell: (info) => h('span', { class: 'text-xs text-muted-foreground font-mono' }, formatDate(info.getValue())) },
   { accessorKey: 'kindList', header: () => createHeaderIcon(Tag, 'Type'), size: 150, cell: (info) => h('span', { class: 'text-xs truncate' }, (info.getValue() as any[])?.[0]?.name || '-') },
   { accessorKey: 'name', header: () => createHeaderIcon(FileText, 'Name'), size: 300, cell: createNameCell },
   { 

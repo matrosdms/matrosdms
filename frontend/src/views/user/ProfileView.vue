@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 import { usePreferencesStore } from '@/stores/preferences'
 import { client } from '@/api/client'
-import { sha256, parseBackendDate } from '@/lib/utils'
+import { sha256, formatDateTime } from '@/lib/utils'
 import { push } from 'notivue'
 import { ArrowLeft, User, Moon, Sun, Bell, Shield, LogOut, Key, Eye, EyeOff, ListChecks, CalendarDays, RefreshCw, Unlink, Link2, AlertTriangle } from 'lucide-vue-next'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -95,7 +95,7 @@ const disconnectGoogle = async () => {
   }
 }
 
-const formatTime = (val: any) => parseBackendDate(val)?.toLocaleString() ?? ''
+const formatTime = (val: any) => formatDateTime(val, '')
 
 onMounted(() => {
   // Back from Google's consent screen: ?view=profile&google=connected|error&reason=...

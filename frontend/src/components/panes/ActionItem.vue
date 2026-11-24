@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { CheckCircle2, Circle, Clock, User, FileText, Folder, ExternalLink } from 'lucide-vue-next'
-import { parseBackendDate } from '@/lib/utils'
+import { parseBackendDate, formatDate } from '@/lib/utils'
 import { EActionPriority } from '@/enums'
 import { useMatrosData } from '@/composables/useMatrosData'
 import { ItemService } from '@/services/ItemService'
@@ -22,7 +22,7 @@ const isOverdue = computed(() => props.action.dueDate && new Date(props.action.d
 
 const formattedDate = computed(() => {
     const d = parseBackendDate(props.action.dueDate)
-    return d ? d.toLocaleDateString() : ''
+    return formatDate(d, '')
 })
 
 const hasExternal = computed(() => !!props.action.externalActionTracker && props.action.externalActionTracker !== 'NONE')

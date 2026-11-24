@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, watch, nextTick } from 'vue'
 import { Calendar, FileText, ArrowDown, Tag, GripVertical, Box, Hash } from 'lucide-vue-next'
-import { parseBackendDate } from '@/lib/utils'
+import { parseBackendDate, formatDate } from '@/lib/utils'
 import { useDmsStore } from '@/stores/dms'
 import { useDragDrop } from '@/composables/useDragDrop'
 import { useAdminQueries } from '@/composables/queries/useAdminQueries'
@@ -130,7 +130,7 @@ watch(() => dms.selectedItem?.uuid, (newId) => {
                     <GripVertical :size="12" class="text-gray-300 dark:text-gray-600 cursor-grab active:cursor-grabbing" />
                     <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700 px-1.5 py-0.5 rounded">
                         <Calendar :size="10" />
-                        {{ item._dateObj ? item._dateObj.toLocaleDateString() : 'No Date' }}
+                        {{ formatDate(item._dateObj, 'No Date') }}
                     </span>
                 </div>
                 
