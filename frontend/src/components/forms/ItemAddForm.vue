@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useQuery } from '@tanstack/vue-query'
+import { onClickOutside } from '@vueuse/core'
 import ItemFormFields from '@/components/forms/ItemFormFields.vue'
 import PreviouslyFiled from '@/components/forms/PreviouslyFiled.vue'
+import { ItemService } from '@/services/ItemService'
 import type { Item } from '@/types/models'
 import { parseBackendDate } from '@/lib/utils'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -10,7 +13,7 @@ import { useDmsStore } from '@/stores/dms'
 import { useWorkflowStore } from '@/stores/workflow'
 import { useItemForm } from '@/composables/useItemForm'
 import { useHotkeys } from '@/composables/useHotkeys'
-import { Sparkles, FileText, Eye, Columns, Folder, Bug, Wand2, Code, X, Link, Hash } from 'lucide-vue-next'
+import { Sparkles, FileText, Eye, Columns, Folder, Bug, Wand2, Code, X, Link, Hash, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { push } from 'notivue'
 
 const dms = useDmsStore()
@@ -52,13 +55,50 @@ const compareLabel = computed(() => {
     return d ? `${item.name} · ${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : item.name
 })
 
+// The target context's latest documents: the context chip opens them as a list, its count shows
+// there are some, and ◀ ▶ step through them while comparing
+const LATEST = 6
+const { data: latestItems, isLoading: latestLoading, isError: latestError } = useQuery({
+    queryKey: computed(() => ['context-latest', targetContextUuid.value, LATEST]),
+    queryFn: () => ItemService.getLatestInContext(targetContextUuid.value as string, LATEST),
+    enabled: computed(() => !!targetContextUuid.value),
+    staleTime: 30_000,
+})
+
+const rootRef = ref<HTMLElement | null>(null)
+const chipRef = ref<HTMLElement | null>(null)
+const listRef = ref<HTMLElement | null>(null)
+const listOpen = ref(false)
+const listLeft = ref(16)
+const toggleList = () => {
+    if (!listOpen.value && chipRef.value && rootRef.value) {
+        listLeft.value = Math.max(8, chipRef.value.getBoundingClientRect().left - rootRef.value.getBoundingClientRect().left)
+    }
+    listOpen.value = !listOpen.value
+}
+onClickOutside(listRef, () => { listOpen.value = false }, { ignore: [chipRef] })
+
 const toggleCompare = (item: Item) => {
     compareItem.value = compareItem.value?.uuid === item.uuid ? null : item
     flipShows.value = 'old'
+    listOpen.value = false
     if (compareItem.value) activeTab.value = 'split'
 }
+
+// ◀ older, ▶ newer: the list is newest first
+const compareIndex = computed(() => latestItems.value?.findIndex(i => i.uuid === compareItem.value?.uuid) ?? -1)
+const canStep = (direction: 1 | -1) => {
+    const next = compareIndex.value + direction
+    return compareIndex.value >= 0 && next >= 0 && next < (latestItems.value?.length ?? 0)
+}
+const step = (direction: 1 | -1) => {
+    if (!canStep(direction)) return
+    compareItem.value = latestItems.value![compareIndex.value + direction]
+    flipShows.value = 'old'
+}
+
 // another document or another context: the comparison no longer applies
-watch(() => file.value?.sha256, () => { compareItem.value = null })
+watch(() => file.value?.sha256, () => { compareItem.value = null; listOpen.value = false })
 watch(targetContextUuid, () => { compareItem.value = null })
 
 const handleReApply = () => {
@@ -88,13 +128,14 @@ useHotkeys(['s', 'S'], () => {
 }, { ctrl: true, prevent: true })
 
 useHotkeys('Escape', () => {
+    if (listOpen.value) { listOpen.value = false; return }
     if (compareItem.value) { compareItem.value = null; return }
     if (!isLoading.value) dms.cancelCreation()
 })
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-background overflow-hidden transition-colors">
+  <div ref="rootRef" class="h-full flex flex-col bg-background overflow-hidden transition-colors relative">
       <!-- HEADER -->
       <div class="bg-background border-b border-border h-[45px] flex items-center justify-between px-4 shrink-0 shadow-sm">
           <div class="flex items-center gap-3 overflow-hidden">
@@ -110,10 +151,15 @@ useHotkeys('Escape', () => {
                 <span class="truncate">{{ file?.fileInfo?.originalFilename || file?.displayName }}</span>
               </div>
               
-              <div 
-                class="flex items-center gap-1.5 px-2 py-0.5 rounded-full border transition-all duration-200 cursor-default"
-                :class="isDragOver ? 'bg-green-100 border-green-300 text-green-700 scale-105 shadow-md ring-2 ring-green-200' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300'"
-                :title="'Target Context: ' + contextName"
+              <!-- Target context: drop a context here to change it, click to see what was filed there -->
+              <button
+                ref="chipRef"
+                type="button"
+                class="flex items-center gap-1.5 px-2 py-0.5 rounded-full border transition-all duration-200 cursor-pointer"
+                :class="isDragOver ? 'bg-green-100 border-green-300 text-green-700 scale-105 shadow-md ring-2 ring-green-200' : listOpen ? 'bg-blue-100 dark:bg-blue-900/60 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:border-blue-300 dark:hover:border-blue-700'"
+                :title="'Target Context: ' + contextName + ' (click: previously filed documents)'"
+                :aria-expanded="listOpen"
+                @click="toggleList"
                 @dragover.prevent="isDragOver = true"
                 @dragleave="isDragOver = false"
                 @drop="onDropContext"
@@ -121,7 +167,9 @@ useHotkeys('Escape', () => {
                   <Folder v-if="!isDragOver" :size="12" class="shrink-0" />
                   <Link v-else :size="12" class="shrink-0 animate-pulse" />
                   <span class="truncate max-w-[200px] sm:max-w-xs">{{ isDragOver ? 'Drop to Link' : contextName }}</span>
-              </div>
+                  <span v-if="!isDragOver && latestItems?.length" class="font-mono text-[10px] opacity-70 shrink-0">· {{ latestItems.length }}</span>
+                  <ChevronDown v-if="!isDragOver" :size="12" class="shrink-0 transition-transform" :class="{ 'rotate-180': listOpen }" />
+              </button>
 
               <div v-if="aiHighlights.name || aiHighlights.date" class="hidden md:flex bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 px-2 py-0.5 rounded-full text-[10px] text-purple-700 dark:text-purple-300 items-center gap-1 font-bold animate-in fade-in zoom-in-95">
                   <Sparkles :size="12" /> AI Suggested
@@ -158,6 +206,24 @@ useHotkeys('Escape', () => {
           </div>
       </div>
 
+      <!-- Dropdown of the context chip: the context's latest documents -->
+      <div
+        v-if="listOpen"
+        ref="listRef"
+        class="absolute z-30 top-[48px] w-[440px]"
+        :style="{ left: listLeft + 'px', maxWidth: `calc(100% - ${listLeft + 8}px)` }"
+      >
+          <PreviouslyFiled
+            :context-uuid="targetContextUuid"
+            :context-name="contextName"
+            :items="latestItems"
+            :is-loading="latestLoading"
+            :is-error="latestError"
+            :compared-uuid="compareItem?.uuid || null"
+            @compare="toggleCompare"
+          />
+      </div>
+
       <!-- BODY -->
       <div class="flex-1 overflow-hidden relative flex">
           <!-- Main Form Area -->
@@ -175,7 +241,15 @@ useHotkeys('Escape', () => {
                               <button class="px-2 py-0.5 rounded border transition-all truncate min-w-0" :class="flipShows === 'old' ? 'border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' : 'border-border text-muted-foreground'" @click="flipShows = 'old'" :title="compareLabel">{{ compareLabel }}</button>
                           </template>
                           <span v-else class="text-muted-foreground truncate">New · {{ compareLabel }}</span>
-                          <button class="ml-auto p-1 rounded text-muted-foreground hover:text-red-500 shrink-0" @click="compareItem = null" title="Close comparison (Esc)">
+                          <div class="ml-auto flex items-center shrink-0">
+                              <button class="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground" :disabled="!canStep(1)" @click="step(1)" title="Older document">
+                                  <ChevronLeft :size="14" />
+                              </button>
+                              <button class="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground" :disabled="!canStep(-1)" @click="step(-1)" title="Newer document">
+                                  <ChevronRight :size="14" />
+                              </button>
+                          </div>
+                          <button class="p-1 rounded text-muted-foreground hover:text-red-500 shrink-0" @click="compareItem = null" title="Close comparison (Esc)">
                               <X :size="14" />
                           </button>
                       </div>
@@ -199,12 +273,6 @@ useHotkeys('Escape', () => {
                   </div>
                   <div class="h-full bg-background overflow-y-auto custom-scrollbar p-6" :class="compareItem ? 'w-4/12' : 'w-5/12'">
                       <div class="max-w-xl mx-auto space-y-4">
-                      <PreviouslyFiled
-                        :context-uuid="targetContextUuid"
-                        :context-name="contextName"
-                        :compared-uuid="compareItem?.uuid || null"
-                        @compare="toggleCompare"
-                      />
                       <ItemFormFields
                             v-model="form" 
                             :touched="touched" 
@@ -237,13 +305,7 @@ useHotkeys('Escape', () => {
               </div>
 
               <div v-else class="h-full w-full bg-background overflow-y-auto custom-scrollbar p-6">
-                  <div class="max-w-2xl mx-auto space-y-4">
-                      <PreviouslyFiled
-                        :context-uuid="targetContextUuid"
-                        :context-name="contextName"
-                        :compared-uuid="compareItem?.uuid || null"
-                        @compare="toggleCompare"
-                      />
+                  <div class="max-w-2xl mx-auto">
                       <ItemFormFields
                         v-model="form" 
                         :touched="touched" 
