@@ -22,6 +22,7 @@ import net.schwehla.matrosdms.config.model.AppServerSpringConfig.StrategyConfig;
 import net.schwehla.matrosdms.domain.ai.ClassificationCandidates;
 import net.schwehla.matrosdms.domain.ai.ClassificationCandidates.Candidate;
 import net.schwehla.matrosdms.domain.core.EArchiveFilter;
+import net.schwehla.matrosdms.domain.core.ERootCategory;
 import net.schwehla.matrosdms.repository.CategoryRepository;
 import net.schwehla.matrosdms.service.domain.AttributeLookupService;
 import net.schwehla.matrosdms.service.domain.ContextService;
@@ -72,7 +73,7 @@ public class PredictionService {
 
 		// Kinds: only entries under ROOT_KIND (document type classification)
 		List<Candidate> kinds = categoryRepository.findAll().stream()
-				.filter(c -> "ROOT_KIND".equals(categoryLookupService.getRootFor(c.getUuid())))
+				.filter(c -> isDocumentKind(c.getUuid(), categoryLookupService.getRootFor(c.getUuid())))
 				.map(c -> new Candidate(c.getUuid(), c.getName(), c.getDescription()))
 				.collect(Collectors.toList());
 
@@ -83,6 +84,16 @@ public class PredictionService {
 
 	public String resolveAttributeUuid(String attributeName) {
 		return attributeLookupService.getUuid(attributeName);
+	}
+
+	/**
+	 * A kind a document can get: any category below the KIND root, never the root itself. The root
+	 * resolves to itself, and as a candidate named "KIND" with the description "Document Type" it
+	 * won the heuristic's keyword count on any HTML mail ("DOCTYPE") and reached the LLM's list.
+	 */
+	static boolean isDocumentKind(String uuid, String root) {
+		String kindRoot = ERootCategory.KIND.getUuid();
+		return kindRoot.equals(root) && !kindRoot.equals(uuid);
 	}
 
 	private boolean isEnabled(IPredictionStrategy s) {
