@@ -8,6 +8,22 @@ import type { components } from '@/types/schema'
 type UpdateItemPayload = components['schemas']['UpdateItemMessage'];
 type BatchRequest = components['schemas']['BatchRequest'];
 
+/**
+ * The file name of a Content-Disposition header. Names with umlauts come as RFC 5987
+ * `filename*=UTF-8''Bez%C3%BCgemitteilung…`, which wins over the plain `filename="…"`.
+ */
+export function filenameFromDisposition(header: string | null): string | undefined {
+    if (!header) return undefined
+    const extended = /filename\*\s*=\s*([\w-]+)''([^;]+)/i.exec(header)
+    if (extended?.[2]) {
+        try { return decodeURIComponent(extended[2].trim()) } catch { /* fall through to the plain name */ }
+    }
+    const plain = /filename\s*=\s*"([^"]+)"/i.exec(header) || /filename\s*=\s*([^;]+)/i.exec(header)
+    const name = plain?.[1]?.trim()
+    // an RFC 2047 "=?UTF-8?Q?…?=" encoded word is no usable name
+    return name && !name.startsWith('=?') ? name : undefined
+}
+
 const throwWithCode = (error: any) => {
     const msg = getErrorMessage(error)
     const err: any = new Error(msg)
@@ -165,18 +181,20 @@ export const ItemService = {
       return data || "";
   },
 
-  async getDocumentBlob(uuid: string): Promise<{ blob: Blob, type: string }> {
+  async getDocumentBlob(uuid: string): Promise<{ blob: Blob, type: string, filename?: string }> {
       const { data, error, response } = await client.GET("/api/items/{uuid}/content", {
           params: { path: { uuid } },
           parseAs: "blob"
       });
 
       if (error) throwWithCode(error);
-      
+
       const blob = data as Blob;
-      return { 
-          blob, 
-          type: response.headers.get('content-type') || blob.type || 'application/octet-stream' 
+      return {
+          blob,
+          type: response.headers.get('content-type') || blob.type || 'application/octet-stream',
+          // the server names the file after its title, with the extension ("Bezügemitteilung 2026-11.pdf")
+          filename: filenameFromDisposition(response.headers.get('content-disposition'))
       };
   },
 

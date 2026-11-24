@@ -45,6 +45,7 @@ import net.schwehla.matrosdms.service.management.StoreConsistencyService;
 import net.schwehla.matrosdms.service.message.IntegrityReport;
 import net.schwehla.matrosdms.store.FileUtils;
 import net.schwehla.matrosdms.store.IMatrosStore;
+import net.schwehla.matrosdms.util.DocumentFilename;
 
 @Service
 public class AdminService {
@@ -198,14 +199,10 @@ public class AdminService {
 						continue;
 					}
 
-					String fileName;
-					if (item.getFile() != null && item.getFile().getFilename() != null) {
-						fileName = sanitizeFilename(item.getFile().getFilename());
-					} else {
-						String baseName = sanitizeFilename(item.getName());
-						String extension = getExtension(stream.getFilename(), item);
-						fileName = baseName + extension;
-					}
+					// Named by its title, like a download; the manifest keeps the original name
+					String original = item.getFile() != null ? item.getFile().getFilename() : null;
+					String fileName = DocumentFilename.of(item.getName(), original,
+							getExtension(original != null ? original : stream.getFilename(), item));
 
 					Path targetFile = contextDir.resolve(fileName);
 					int counter = 1;

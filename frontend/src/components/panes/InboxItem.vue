@@ -62,7 +62,9 @@ const formattedSize = computed(() => {
   return kb > 1024 ? (kb / 1024).toFixed(2) + ' MB' : kb.toFixed(2) + ' KB'
 })
 
-const displayName = computed(() => props.file.displayName || props.file.emailInfo?.subject || props.file.fileInfo?.originalFilename || 'Unknown')
+// The suggested title once the analysis is done ("Bezügemitteilung 2026-11"), not the name the
+// scanner made up from the first line it read; that one stays under "File" in the info panel.
+const displayName = computed(() => props.file.prediction?.title || props.file.displayName || props.file.emailInfo?.subject || props.file.fileInfo?.originalFilename || 'Unknown')
 const subTitle = computed(() => props.file.emailInfo?.sender ? `From: ${props.file.emailInfo.sender}` : '')
 const isEmail = computed(() => props.file.source === 'EMAIL' || props.file.fileInfo?.extension === '.eml')
 const progressLabel = computed(() => props.file.progressMessage || 'Processing...')

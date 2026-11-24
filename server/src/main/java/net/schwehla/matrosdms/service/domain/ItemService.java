@@ -42,6 +42,7 @@ import net.schwehla.matrosdms.service.mapper.MItemMapper;
 import net.schwehla.matrosdms.service.message.UpdateItemMessage;
 import net.schwehla.matrosdms.store.MatrosObjectStoreService;
 import net.schwehla.matrosdms.store.util.FileExtensionService;
+import net.schwehla.matrosdms.util.DocumentFilename;
 
 @Service
 @Transactional
@@ -111,19 +112,20 @@ public class ItemService {
 
 		MDocumentStream stream = storeService.load(uuid);
 		if (dbItem.getFile() != null) {
-			String filename = dbItem.getFile().getFilename();
+			String original = dbItem.getFile().getFilename();
 			String mimetype = dbItem.getFile().getMimetype();
 
-			// Detect if item is missing extension entirely, add the correct extension based
-			// on mimetype
-			if (filename != null && extensionService.getExtension(filename).isEmpty()) {
+			// An original without an extension gets the one of its mimetype
+			String fallbackExtension = null;
+			if (original == null || extensionService.getExtension(original).isEmpty()) {
 				String ext = extensionService.getExtensionForMimeType(mimetype);
 				if (ext != null && !ext.isEmpty() && !".bin".equals(ext)) {
-					filename += ext;
+					fallbackExtension = ext;
 				}
 			}
 
-			stream.setFilename(filename);
+			// The file goes out under its title, not under the name the scanner or mailer gave it
+			stream.setFilename(DocumentFilename.of(dbItem.getName(), original, fallbackExtension));
 			stream.setContentType(mimetype);
 		}
 		return stream;

@@ -171,7 +171,8 @@ const downloadFile = () => {
   if (!blobUrl.value) return
   const a = document.createElement('a')
   a.href = blobUrl.value
-  a.download = props.fileName || 'document'
+  // the server's name for a filed document: its title with the extension
+  a.download = (data.value as { filename?: string } | null)?.filename || props.fileName || 'document'
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

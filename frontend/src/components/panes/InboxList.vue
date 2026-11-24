@@ -51,7 +51,9 @@ const effectiveFiles = computed(() =>
 const filteredFiles = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
   if (!query) return effectiveFiles.value
-  return effectiveFiles.value.filter(file => (file.emailInfo?.subject || file.fileInfo?.originalFilename || '').toLowerCase().includes(query))
+  // the suggested title the list shows, and the original name
+  return effectiveFiles.value.filter(file => [file.prediction?.title, file.emailInfo?.subject, file.fileInfo?.originalFilename]
+    .filter(Boolean).join(' ').toLowerCase().includes(query))
 })
 
 const processableFiles = computed(() => filteredFiles.value.filter(file => !file.status || !PROCESSABLE_STATUSES.has(file.status)))
