@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import ItemFormFields from '@/components/forms/ItemFormFields.vue'
+import PreviouslyFiled from '@/components/forms/PreviouslyFiled.vue'
+import type { Item } from '@/types/models'
+import { parseBackendDate } from '@/lib/utils'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import DocumentPreview from '@/components/ui/DocumentPreview.vue'
 import { useDmsStore } from '@/stores/dms'
@@ -34,6 +37,30 @@ const onUpdateReminderState = (newState: any) => {
     reminderForm.value = newState.data
 }
 
+const targetContextUuid = computed(() => workflow.targetContextForDrop?.uuid || dms.selectedContext?.uuid || null)
+
+// Comparing the new document with one filed before: side by side, or flipping between the two in one pane
+const compareItem = ref<Item | null>(null)
+const compareMode = ref<'side' | 'flip'>('side')
+const flipShows = ref<'new' | 'old'>('new')
+const showNew = computed(() => !compareItem.value || compareMode.value === 'side' || flipShows.value === 'new')
+const showOld = computed(() => !!compareItem.value && (compareMode.value === 'side' || flipShows.value === 'old'))
+const compareLabel = computed(() => {
+    const item = compareItem.value
+    if (!item) return ''
+    const d = parseBackendDate(item.issueDate)
+    return d ? `${item.name} · ${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : item.name
+})
+
+const toggleCompare = (item: Item) => {
+    compareItem.value = compareItem.value?.uuid === item.uuid ? null : item
+    flipShows.value = 'old'
+    if (compareItem.value) activeTab.value = 'split'
+}
+// another document or another context: the comparison no longer applies
+watch(() => file.value?.sha256, () => { compareItem.value = null })
+watch(targetContextUuid, () => { compareItem.value = null })
+
 const handleReApply = () => {
     if(rawPrediction.value) {
         applyPrediction(rawPrediction.value)
@@ -61,6 +88,7 @@ useHotkeys(['s', 'S'], () => {
 }, { ctrl: true, prevent: true })
 
 useHotkeys('Escape', () => {
+    if (compareItem.value) { compareItem.value = null; return }
     if (!isLoading.value) dms.cancelCreation()
 })
 </script>
@@ -135,16 +163,49 @@ useHotkeys('Escape', () => {
           <!-- Main Form Area -->
           <div class="flex-1 flex flex-col min-w-0 h-full">
               <div v-if="activeTab === 'split'" class="flex h-full w-full">
-                  <div class="w-7/12 h-full bg-muted/10 border-r border-border relative">
-                      <DocumentPreview 
-                        :identifier="file?.sha256 || ''" 
-                        source="inbox" 
-                        :file-name="file?.fileInfo?.originalFilename || form.name"
-                      />
+                  <div class="h-full bg-muted/10 border-r border-border relative flex flex-col" :class="compareItem ? 'w-8/12' : 'w-7/12'">
+                      <!-- Compare bar: how to show the two, which one (flip), close -->
+                      <div v-if="compareItem" class="h-9 shrink-0 flex items-center gap-2 px-2 border-b border-border bg-background text-xs">
+                          <div class="flex bg-muted/50 rounded-md p-0.5 border border-border shrink-0">
+                              <button class="px-2 py-0.5 rounded transition-all" :class="compareMode === 'side' ? 'tab-active' : 'tab-inactive'" @click="compareMode = 'side'" title="Side by side">Side by side</button>
+                              <button class="px-2 py-0.5 rounded transition-all" :class="compareMode === 'flip' ? 'tab-active' : 'tab-inactive'" @click="compareMode = 'flip'" title="One at a time, flip between them">Flip</button>
+                          </div>
+                          <template v-if="compareMode === 'flip'">
+                              <button class="px-2 py-0.5 rounded border transition-all shrink-0" :class="flipShows === 'new' ? 'border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' : 'border-border text-muted-foreground'" @click="flipShows = 'new'">New</button>
+                              <button class="px-2 py-0.5 rounded border transition-all truncate min-w-0" :class="flipShows === 'old' ? 'border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' : 'border-border text-muted-foreground'" @click="flipShows = 'old'" :title="compareLabel">{{ compareLabel }}</button>
+                          </template>
+                          <span v-else class="text-muted-foreground truncate">New · {{ compareLabel }}</span>
+                          <button class="ml-auto p-1 rounded text-muted-foreground hover:text-red-500 shrink-0" @click="compareItem = null" title="Close comparison (Esc)">
+                              <X :size="14" />
+                          </button>
+                      </div>
+                      <div class="flex-1 min-h-0 flex">
+                          <div v-show="showNew" class="h-full min-w-0 relative" :class="compareItem && compareMode === 'side' ? 'w-1/2 border-r border-border' : 'w-full'">
+                              <DocumentPreview
+                                :identifier="file?.sha256 || ''"
+                                source="inbox"
+                                :file-name="file?.fileInfo?.originalFilename || form.name"
+                              />
+                          </div>
+                          <div v-if="compareItem" v-show="showOld" class="h-full min-w-0 relative" :class="compareMode === 'side' ? 'w-1/2' : 'w-full'">
+                              <DocumentPreview
+                                :key="compareItem.uuid"
+                                :identifier="compareItem.uuid"
+                                source="item"
+                                :file-name="compareItem.name"
+                              />
+                          </div>
+                      </div>
                   </div>
-                  <div class="w-5/12 h-full bg-background overflow-y-auto custom-scrollbar p-6">
+                  <div class="h-full bg-background overflow-y-auto custom-scrollbar p-6" :class="compareItem ? 'w-4/12' : 'w-5/12'">
                       <div class="max-w-xl mx-auto space-y-4">
-                      <ItemFormFields 
+                      <PreviouslyFiled
+                        :context-uuid="targetContextUuid"
+                        :context-name="contextName"
+                        :compared-uuid="compareItem?.uuid || null"
+                        @compare="toggleCompare"
+                      />
+                      <ItemFormFields
                             v-model="form" 
                             :touched="touched" 
                             :reminder-state="{ active: hasReminder, data: reminderForm }" 
@@ -176,8 +237,14 @@ useHotkeys('Escape', () => {
               </div>
 
               <div v-else class="h-full w-full bg-background overflow-y-auto custom-scrollbar p-6">
-                  <div class="max-w-2xl mx-auto">
-                      <ItemFormFields 
+                  <div class="max-w-2xl mx-auto space-y-4">
+                      <PreviouslyFiled
+                        :context-uuid="targetContextUuid"
+                        :context-name="contextName"
+                        :compared-uuid="compareItem?.uuid || null"
+                        @compare="toggleCompare"
+                      />
+                      <ItemFormFields
                         v-model="form" 
                         :touched="touched" 
                         :reminder-state="{ active: hasReminder, data: reminderForm }" 

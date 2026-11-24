@@ -87,6 +87,35 @@ export const ItemService = {
       return allItems
   },
 
+  /**
+   * The latest documents of a context by issue date, for comparing a new one with its predecessors.
+   * The database sorts undated documents first in a descending sort, so a few more are fetched and
+   * the undated ones go to the end.
+   */
+  async getLatestInContext(contextId: string, count: number): Promise<Item[]> {
+      const { data, error } = await client.GET("/api/items", {
+          params: {
+              query: {
+                  context: contextId,
+                  archiveState: EArchiveFilter.ACTIVE_ONLY,
+                  page: 0,
+                  size: count * 3,
+                  sort: ['issueDate,desc']
+              } as any
+          }
+      })
+      if (error) throwWithCode(error)
+
+      const items: Item[] = []
+      for (const row of data?.content || []) {
+          const parsed = ItemSchema.safeParse(row)
+          if (parsed.success) items.push(parsed.data as Item)
+      }
+      const dated = items.filter(i => i.issueDate)
+      const undated = items.filter(i => !i.issueDate)
+      return [...dated, ...undated].slice(0, count)
+  },
+
   async getById(uuid: string): Promise<Item> {
     const { data, error } = await client.GET("/api/items/{uuid}", { params: { path: { uuid } } })
     if (error) throwWithCode(error)
