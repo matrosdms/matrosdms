@@ -8,6 +8,8 @@
 package net.schwehla.matrosdms.ai.strategy;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -25,7 +27,8 @@ import net.schwehla.matrosdms.domain.search.MSearchResult;
  * <ol>
  * <li>the subject of an e-mail,</li>
  * <li>the title of a document already filed in the same context that the new one resembles, with
- * the years moved on ("VBL Versicherungsnachweis 2013" becomes "… 2014"): the naming the user
+ * its dates moved on ("VBL Versicherungsnachweis 2013" becomes "… 2014", "Bezügemitteilung 2023-06"
+ * becomes "… 2026-11"): the naming the user
  * follows is learnt from what they file, and every correction they make is the example for the next
  * document,</li>
  * <li>the subject line of a DIN 5008 letter, the line right before the salutation,</li>
@@ -65,6 +68,14 @@ public final class TitleProposer {
 			.compile("^\\s*" + IssueDateFinder.PLACE + "\\s*,?\\s*(?:den\\s+)?" + DATE + "\\s*$");
 	private static final Pattern WORD = Pattern.compile("\\p{L}{3,}");
 	private static final Pattern YEAR = Pattern.compile("(?<!\\d)(19\\d{2}|20\\d{2})(?!\\d)");
+	/**
+	 * A month of a year ("2023-06", "06/2023", "06.2023") that is not part of a full date, or else a
+	 * year: one pattern, so that the year of a month is not moved a second time.
+	 */
+	private static final Pattern MONTH_OR_YEAR = Pattern.compile(
+			"(?<![\\d./-])(?:(?<isoYear>(?:19|20)\\d{2})-(?<isoMonth>0?[1-9]|1[0-2])"
+					+ "|(?<month>0?[1-9]|1[0-2])(?<sep>[./])(?<year>(?:19|20)\\d{2}))(?![./-]?\\d)"
+					+ "|(?<!\\d)(?<bareYear>(?:19|20)\\d{2})(?!\\d)");
 	private static final Pattern FILE_EXTENSION = Pattern.compile("\\.[a-z][a-z0-9]{0,4}$", FLAGS);
 	private static final Pattern SCANNER_NAME = Pattern.compile(
 			"^(?:scan|scanned|img|image|dsc|dscn|pxl|photo|foto|bild|dok|doc|document|dokument|file|datei"
@@ -116,9 +127,10 @@ public final class TitleProposer {
 	}
 
 	/**
-	 * The title of the filed document the new one resembles most, with its years moved on by as many
-	 * years as the new document is younger. Resemblance: how many of the title's words appear in the new
-	 * document's text or file name, and how alike the file names are.
+	 * The title of the filed document the new one resembles most, with its dates moved on by as much
+	 * as the new document is younger: a month ("2023-06") by the months, a year by the years.
+	 * Resemblance: how many of the title's words appear in the new document's text or file name, and
+	 * how alike the file names are.
 	 *
 	 * @param neighbours documents already filed in the context the new one goes to
 	 * @param newDate the new document's issue date, null when unknown
@@ -145,9 +157,13 @@ public final class TitleProposer {
 					return new Scored(n, 0.75 * coverage + 0.25 * fileSimilarity);
 				})
 				.filter(s -> s.score >= 0.5)
-				// best match; on a tie the most recent, it shows the current naming
-				.max(Comparator.comparingDouble(Scored::score).thenComparing(s -> s.doc().getIssueDate(),
-						Comparator.nullsFirst(Comparator.<LocalDate>naturalOrder())));
+				// a title whose date fits its document first (a slip must not become the pattern),
+				// then the best match; on a tie the most recent, it shows the current naming
+				.max(Comparator
+						.comparing((Scored s) -> fitsItsIssueDate(s.doc().getName(), s.doc().getIssueDate()))
+						.thenComparingDouble(Scored::score)
+						.thenComparing(s -> s.doc().getIssueDate(),
+								Comparator.nullsFirst(Comparator.<LocalDate>naturalOrder())));
 		if (best.isEmpty())
 			return Optional.empty();
 
@@ -157,7 +173,7 @@ public final class TitleProposer {
 		if (hasYear && (newDate == null || doc.getIssueDate() == null))
 			return Optional.of(new Proposal(cut(title), 0.35, "title of a similar document"));
 
-		String shifted = hasYear ? shiftYears(title, newDate.getYear() - doc.getIssueDate().getYear()) : title;
+		String shifted = hasYear ? moveOn(title, doc.getIssueDate(), newDate) : title;
 		double confidence = best.get().score >= 0.75 ? 0.70 : 0.55;
 		return Optional.of(new Proposal(cut(shifted), confidence, "follows '" + title + "'"));
 	}
@@ -185,15 +201,73 @@ public final class TitleProposer {
 				: Optional.of(new Proposal(cut(title), 0.30, "type, context and year"));
 	}
 
-	static String shiftYears(String title, int years) {
-		if (years == 0)
+	/**
+	 * Moves the dates of a title on from the issue date of its document to that of the new one. A
+	 * month moves by the months between the two ("Bezügemitteilung 2023-06" of 16 June 2023 becomes
+	 * "… 2026-11" for a document of 17 November 2026), a year alone by the years ("Steuer 2013/2014").
+	 */
+	static String moveOn(String title, LocalDate from, LocalDate to) {
+		long months = ChronoUnit.MONTHS.between(YearMonth.from(from), YearMonth.from(to));
+		int years = to.getYear() - from.getYear();
+		if (months == 0 && years == 0)
 			return title;
-		Matcher m = YEAR.matcher(title);
+		Matcher m = MONTH_OR_YEAR.matcher(title);
 		StringBuilder sb = new StringBuilder();
-		while (m.find())
-			m.appendReplacement(sb, String.valueOf(Integer.parseInt(m.group(1)) + years));
+		while (m.find()) {
+			String replacement;
+			if (m.group("bareYear") != null) {
+				replacement = String.valueOf(Integer.parseInt(m.group("bareYear")) + years);
+			} else {
+				boolean iso = m.group("isoYear") != null;
+				String monthText = iso ? m.group("isoMonth") : m.group("month");
+				YearMonth moved = YearMonth
+						.of(Integer.parseInt(iso ? m.group("isoYear") : m.group("year")), Integer.parseInt(monthText))
+						.plusMonths(months);
+				// as written: "2023-06" stays two-digit, "6/2023" one-digit where it can
+				String month = monthText.length() == 2 ? String.format("%02d", moved.getMonthValue())
+						: String.valueOf(moved.getMonthValue());
+				replacement = iso ? moved.getYear() + "-" + month : month + m.group("sep") + moved.getYear();
+			}
+			m.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+		}
 		m.appendTail(sb);
 		return sb.toString();
+	}
+
+	/** True when the title carries a year: the titles of a series do, "Freistellungsauftrag" does not. */
+	static boolean hasDate(String title) {
+		return title != null && YEAR.matcher(title).find();
+	}
+
+	/** "Bezügemitteilung 2023-06" without its date: "Bezügemitteilung". */
+	static String withoutDates(String title) {
+		return MONTH_OR_YEAR.matcher(title).replaceAll(" ").replaceAll("\\s+", " ").trim();
+	}
+
+	/**
+	 * False for a title whose month or year lies far from its own issue date, like "Bezügemitteilung
+	 * 2025-04" issued on 14 November 2025: a slip that must not become the pattern for the next title.
+	 * A month may be two months off, a year two years ("VBL Versicherungsnachweis 2013" comes in 2014).
+	 */
+	static boolean fitsItsIssueDate(String title, LocalDate issueDate) {
+		if (title == null || issueDate == null)
+			return true;
+		Matcher m = MONTH_OR_YEAR.matcher(title);
+		boolean dated = false;
+		while (m.find()) {
+			dated = true;
+			if (m.group("bareYear") != null) {
+				if (Math.abs(Integer.parseInt(m.group("bareYear")) - issueDate.getYear()) <= 2)
+					return true;
+			} else {
+				boolean iso = m.group("isoYear") != null;
+				YearMonth month = YearMonth.of(Integer.parseInt(iso ? m.group("isoYear") : m.group("year")),
+						Integer.parseInt(iso ? m.group("isoMonth") : m.group("month")));
+				if (Math.abs(ChronoUnit.MONTHS.between(month, YearMonth.from(issueDate))) <= 2)
+					return true;
+			}
+		}
+		return !dated;
 	}
 
 	private static boolean isSubject(String line) {
@@ -213,7 +287,7 @@ public final class TitleProposer {
 		return count >= 2;
 	}
 
-	private static Set<String> tokens(String s) {
+	static Set<String> tokens(String s) {
 		Set<String> out = new HashSet<>();
 		if (s == null)
 			return out;
@@ -223,7 +297,7 @@ public final class TitleProposer {
 		return out;
 	}
 
-	private static Set<String> significant(Set<String> words) {
+	static Set<String> significant(Set<String> words) {
 		return words.stream().filter(w -> !STOPWORDS.contains(w)).collect(Collectors.toSet());
 	}
 
@@ -236,7 +310,7 @@ public final class TitleProposer {
 		return (double) shared / union.size();
 	}
 
-	private static String withoutExtension(String filename) {
+	static String withoutExtension(String filename) {
 		return filename == null ? "" : FILE_EXTENSION.matcher(filename.trim()).replaceFirst("");
 	}
 

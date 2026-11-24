@@ -64,6 +64,35 @@ public class SearchService {
 				.fetchAllHits();
 	}
 
+	/**
+	 * Title, context, types, issue date and file name of every filed document that is not archived,
+	 * straight from the index: what the classifier needs to recognise a series ("Bezügemitteilung
+	 * 2026-05") and where its latest documents went.
+	 */
+	@Transactional(readOnly = true)
+	@SuppressWarnings("unchecked")
+	public List<MSearchResult> allFiledTitles() {
+		SearchSession searchSession = org.hibernate.search.mapper.orm.Search.session(entityManager);
+		return searchSession.search(DBItem.class)
+				.select(f -> f.composite(
+						f.field("uuid", String.class),
+						f.field("name", String.class),
+						f.field("infoContext.name", String.class),
+						f.field("infoContext.uuid", String.class),
+						f.field("kindList.name", String.class).multi(),
+						f.field("issueDate", LocalDate.class),
+						f.field("filename", String.class)))
+				.where(f -> f.bool()
+						.must(f.matchAll())
+						.mustNot(f.match().field("isArchived").matching(true)))
+				.fetchAllHits()
+				.stream()
+				.map(hit -> new MSearchResult((String) hit.get(0), (String) hit.get(1), null, (String) hit.get(2),
+						(String) hit.get(3), null, null, null, (List<String>) hit.get(4), (LocalDate) hit.get(5), null,
+						(String) hit.get(6), 1f, null))
+				.collect(Collectors.toList());
+	}
+
 	@Transactional(readOnly = true)
 	public Page<MSearchResult> search(SearchCriteria rootCriteria, int offset, int limit) {
 		if (rootCriteria == null) {

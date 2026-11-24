@@ -50,4 +50,13 @@ public class ContextHistoryService {
 				.map(String::toLowerCase)
 				.collect(Collectors.toList());
 	}
+
+	/**
+	 * Every filed document's title, context, types and issue date, for recognising series. One index
+	 * query, cached like the file name history, so a bulk ingest does not repeat it per document.
+	 */
+	@Cacheable(value = "filedTitles", key = "'all'")
+	public List<MSearchResult> getFiledTitles() {
+		return searchService.allFiledTitles();
+	}
 }

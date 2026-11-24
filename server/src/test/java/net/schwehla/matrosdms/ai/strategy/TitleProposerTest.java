@@ -108,7 +108,65 @@ class TitleProposerTest {
 
 	@Test
 	void everyYearInATitleMovesOn() {
-		assertThat(TitleProposer.shiftYears("Steuer 2013/2014", 2)).isEqualTo("Steuer 2015/2016");
-		assertThat(TitleProposer.shiftYears("Police 4711", 2)).isEqualTo("Police 4711");
+		LocalDate from = LocalDate.of(2014, 3, 1);
+		LocalDate to = LocalDate.of(2016, 3, 1);
+		assertThat(TitleProposer.moveOn("Steuer 2013/2014", from, to)).isEqualTo("Steuer 2015/2016");
+		assertThat(TitleProposer.moveOn("Police 4711", from, to)).isEqualTo("Police 4711");
+	}
+
+	@Test
+	void aMonthMovesOnByTheMonthsBetweenTheDocuments() {
+		// the pay slip of June 2023 came on 16 June, the new one on 17 November 2026
+		LocalDate from = LocalDate.of(2023, 6, 16);
+		LocalDate to = LocalDate.of(2026, 11, 17);
+		assertThat(TitleProposer.moveOn("Bezügemitteilung 2023-06", from, to)).isEqualTo("Bezügemitteilung 2026-11");
+		assertThat(TitleProposer.moveOn("Abrechnung 06/2023", from, to)).isEqualTo("Abrechnung 11/2026");
+		assertThat(TitleProposer.moveOn("Abrechnung 6.2023", from, to)).isEqualTo("Abrechnung 11.2026");
+		// a month before the issue date stays a month before it, across the turn of the year
+		assertThat(TitleProposer.moveOn("Abrechnung 2023-05", from, LocalDate.of(2027, 1, 10)))
+				.isEqualTo("Abrechnung 2026-12");
+		// a full date is no month: only its year moves
+		assertThat(TitleProposer.moveOn("Bescheid vom 2023-06-16", from, to)).isEqualTo("Bescheid vom 2026-06-16");
+	}
+
+	@Test
+	void theSeriesOfMonthlyPaySlipsGetsTheNewMonth() {
+		MSearchResult june = filed("Bezügemitteilung 2023-06", LocalDate.of(2023, 6, 16),
+				"2023-06-16_für den Zeitraum 01.06. bis 30.06.2023_ Bezügebestandteile Grundentgelt.pdf");
+
+		TitleProposer.Proposal p = TitleProposer.fromSimilarDocument(List.of(june),
+				"Bundesamt für Migration und Flüchtlinge\nBezügemitteilung\nfür den Zeitraum 01.11. bis 30.11.2026",
+				"2026-11-17_Lohnart Grundentgelt Tarif.pdf", LocalDate.of(2026, 11, 17)).orElseThrow();
+
+		assertThat(p.title()).isEqualTo("Bezügemitteilung 2026-11");
+	}
+
+	@Test
+	void aTitleWhoseDateDoesNotFitItsDocumentIsNoPattern() {
+		// "2025-04" issued in November: a slip; the October one is the pattern although older
+		MSearchResult slip = filed("Bezügemitteilung 2025-04", LocalDate.of(2025, 11, 14), "01032026.pdf");
+		MSearchResult october = filed("Bezügemitteilung 2025-10", LocalDate.of(2025, 10, 18), "01032026.pdf");
+
+		TitleProposer.Proposal p = TitleProposer.fromSimilarDocument(List.of(slip, october), "Bezügemitteilung",
+				"scan.pdf", LocalDate.of(2026, 11, 17)).orElseThrow();
+
+		assertThat(p.title()).isEqualTo("Bezügemitteilung 2026-11");
+	}
+
+	@Test
+	void aTitlesDateFitsWhenItIsNearItsIssueDate() {
+		assertThat(TitleProposer.fitsItsIssueDate("Bezügemitteilung 2023-06", LocalDate.of(2023, 6, 16))).isTrue();
+		assertThat(TitleProposer.fitsItsIssueDate("Abrechnung 2023-05", LocalDate.of(2023, 7, 3))).isTrue();
+		assertThat(TitleProposer.fitsItsIssueDate("VBL Versicherungsnachweis 2013", LocalDate.of(2014, 8, 1)))
+				.isTrue();
+		assertThat(TitleProposer.fitsItsIssueDate("Freistellungsauftrag", LocalDate.of(2016, 7, 9))).isTrue();
+		assertThat(TitleProposer.fitsItsIssueDate("Bezügemitteilung 2025-04", LocalDate.of(2025, 11, 14))).isFalse();
+		assertThat(TitleProposer.fitsItsIssueDate("Bezügemitteilung 2022-11", LocalDate.of(2020, 11, 11))).isFalse();
+	}
+
+	@Test
+	void theNameOfASeriesIsItsTitleWithoutTheDate() {
+		assertThat(TitleProposer.withoutDates("Bezügemitteilung 2023-06")).isEqualTo("Bezügemitteilung");
+		assertThat(TitleProposer.withoutDates("VBL Versicherungsnachweis 2013")).isEqualTo("VBL Versicherungsnachweis");
 	}
 }

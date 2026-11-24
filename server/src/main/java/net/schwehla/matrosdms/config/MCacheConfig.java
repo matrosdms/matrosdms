@@ -60,6 +60,10 @@ public class MCacheConfig {
 		manager.registerCustomCache(
 				"contextFilenameHistory",
 				Caffeine.newBuilder().maximumSize(3000).expireAfterWrite(5, TimeUnit.MINUTES).build());
+		// All filed titles, for recognising the series a new document continues
+		manager.registerCustomCache(
+				"filedTitles",
+				Caffeine.newBuilder().maximumSize(1).expireAfterWrite(5, TimeUnit.MINUTES).build());
 
 		manager.setCaffeine(
 				Caffeine.newBuilder().maximumSize(100).expireAfterWrite(10, TimeUnit.MINUTES));

@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.ahocorasick.trie.Emit;
@@ -73,12 +74,27 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 
 		// ── PHASE A: Context detection ──────────────────────────────────────────────
 
-		// A1. Dynamic Filename History Scoring (highest priority)
+		// A0. The series the document continues ("Bezügemitteilung 2026-05" → the November one):
+		// context and type of its latest documents, the user's current way of filing it.
+		Candidate selectedContext = null;
+		Optional<SeriesFinder.Series> series = findSeries(fullText, filename, candidates);
+		if (series.isPresent()) {
+			SeriesFinder.Series s = series.get();
+			selectedContext = candidates.contexts().stream()
+					.filter(c -> c.uuid().equals(s.contextUuid()))
+					.findFirst().orElse(null);
+			if (selectedContext != null) {
+				p.setContext(selectedContext.uuid());
+				p.setSummary("Series '" + s.name() + "': " + s.agreeing() + " of the latest " + s.considered()
+						+ " in '" + selectedContext.name() + "'");
+				fieldConf.put("context", s.confidence());
+			}
+		}
+
+		// A1. Dynamic Filename History Scoring
 		// Scores each context by comparing the incoming filename against filenames
 		// that have already been filed there — no stored patterns needed.
-		Candidate selectedContext = null;
-
-		if (!safeFilename.isBlank()) {
+		if (selectedContext == null && !safeFilename.isBlank()) {
 			Candidate contextByHistory = scoreContextByFilenameHistory(safeFilename, candidates.contexts());
 			if (contextByHistory != null) {
 				selectedContext = contextByHistory;
@@ -128,7 +144,17 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 
 		// ── PHASE B: Kind detection ─────────────────────────────────────────────────
 
-		if (selectedContext != null) {
+		// B0. The type of the series' latest documents
+		if (selectedContext != null && series.isPresent()
+				&& selectedContext.uuid().equals(series.get().contextUuid())) {
+			SeriesFinder.kind(series.get(), candidates.kinds()).ifPresent(k -> {
+				p.setKind(k.uuid());
+				fieldConf.put("kind", 0.85);
+				appendSummary(p, "Type '" + k.name() + "' like the series");
+			});
+		}
+
+		if (selectedContext != null && !fieldConf.containsKey("kind")) {
 			// B1. Majority-vote : last N documents filed into this context → most common
 			// kind
 			boolean kindMatched = proposeBestKindFromContext(selectedContext.uuid(), candidates.kinds(), p);
@@ -180,7 +206,7 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 		if (titleFromFile != null) {
 			fieldConf.put("title", 0.90);
 		} else {
-			proposeTitle(fullText, filename, selectedContext, candidates, p).ifPresent(t -> {
+			proposeTitle(fullText, filename, selectedContext, series, candidates, p).ifPresent(t -> {
 				p.setTitle(t.title());
 				fieldConf.put("title", t.confidence());
 				appendSummary(p, "Title: " + t.evidence());
@@ -206,15 +232,21 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 	 * type, context and year. Without a suggestion the form starts from the file name.
 	 */
 	private Optional<TitleProposer.Proposal> proposeTitle(String fullText, String filename, Candidate context,
-			ClassificationCandidates candidates, Prediction p) {
+			Optional<SeriesFinder.Series> series, ClassificationCandidates candidates, Prediction p) {
 		Optional<TitleProposer.Proposal> similar = Optional.empty();
 		if (context != null) {
 			try {
-				SearchCriteria criteria = new SearchCriteria();
-				criteria.setField(ESearchDimension.CONTEXT);
-				criteria.setOperator(EOperator.EQ);
-				criteria.setValue(context.uuid());
-				List<MSearchResult> neighbours = searchService.search(criteria, 0, TITLE_NEIGHBOURS).getContent();
+				List<MSearchResult> neighbours;
+				if (series.isPresent() && series.get().contextUuid().equals(context.uuid())) {
+					// the series' own documents, not whichever 30 of the context the index returns first
+					neighbours = series.get().members();
+				} else {
+					SearchCriteria criteria = new SearchCriteria();
+					criteria.setField(ESearchDimension.CONTEXT);
+					criteria.setOperator(EOperator.EQ);
+					criteria.setValue(context.uuid());
+					neighbours = searchService.search(criteria, 0, TITLE_NEIGHBOURS).getContent();
+				}
 				similar = TitleProposer.fromSimilarDocument(neighbours, fullText, filename, p.getDocumentDate());
 			} catch (Exception e) {
 				log.warn("Title from similar documents failed: {}", e.getMessage());
@@ -237,6 +269,19 @@ public class HeuristicPredictionStrategy implements IPredictionStrategy {
 			return TitleProposer.composed(kindName, context != null ? context.name() : null, p.getDocumentDate());
 		}
 		return Optional.empty();
+	}
+
+	private Optional<SeriesFinder.Series> findSeries(String fullText, String filename,
+			ClassificationCandidates candidates) {
+		if (contextHistoryService == null || candidates.contexts().isEmpty())
+			return Optional.empty();
+		try {
+			Set<String> contexts = candidates.contexts().stream().map(Candidate::uuid).collect(Collectors.toSet());
+			return SeriesFinder.find(contextHistoryService.getFiledTitles(), fullText, filename, contexts);
+		} catch (Exception e) {
+			log.warn("Series lookup failed: {}", e.getMessage());
+			return Optional.empty();
+		}
 	}
 
 	private static void appendSummary(Prediction p, String text) {

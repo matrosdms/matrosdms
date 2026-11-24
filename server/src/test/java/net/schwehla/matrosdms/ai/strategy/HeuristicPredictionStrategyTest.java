@@ -137,6 +137,37 @@ class HeuristicPredictionStrategyTest {
 	}
 
 	@Test
+	void aPaySlipGoesWhereTheLatestPaySlipsWentWithTheirTypeAndTheNewMonth() {
+		SearchService searchService = Mockito.mock(SearchService.class);
+		ContextHistoryService history = Mockito.mock(ContextHistoryService.class);
+		ReflectionTestUtils.setField(strategy, "searchService", searchService);
+		ReflectionTestUtils.setField(strategy, "contextHistoryService", history);
+		when(history.getFiledTitles()).thenReturn(SeriesFinderTest.archive());
+		// the bank's file names share words with the scanner's name: what used to decide the context
+		when(history.getRecentFilenames(SeriesFinderTest.BANK))
+				.thenReturn(List.of("2023-06-16_grundentgelt tarif bamf-zulage nicht auszahlungsrelevant.pdf"));
+		when(history.getRecentFilenames(SeriesFinderTest.EMPLOYER)).thenReturn(List.of("01032026.pdf"));
+		Candidate bank = new Candidate(SeriesFinderTest.BANK, "Sparkasse Ansbach", "");
+		Candidate employer = new Candidate(SeriesFinderTest.EMPLOYER, "Gehaltsbezug BAMF", "");
+		Candidate info = new Candidate("k-info", "Info", "");
+		Candidate receipt = new Candidate("k-beleg", "Beleg", "");
+		Candidate paySlip = new Candidate("k-gehalt", "Gehaltsbezug", "");
+
+		DigestResultMessage m = new DigestResultMessage();
+		strategy.analyze(SeriesFinderTest.PAY_SLIP_TEXT,
+				"2026-11-17_Lohnart Grundentgelt Tarif BAMF-Zulage Nicht auszahlungsrelevant.pdf",
+				new ClassificationCandidates(List.of(bank, employer), List.of(info, receipt, paySlip)), m);
+
+		assertThat(m.getPrediction().getContext()).isEqualTo(SeriesFinderTest.EMPLOYER);
+		assertThat(m.getPrediction().getKind()).isEqualTo("k-gehalt");
+		assertThat(m.getPrediction().getDocumentDate()).isEqualTo(LocalDate.of(2026, 11, 17));
+		assertThat(m.getPrediction().getTitle()).isEqualTo("Bezügemitteilung 2026-11");
+		assertThat(m.getPrediction().getSummary())
+				.startsWith("Series 'Bezügemitteilung': 5 of the latest 5 in 'Gehaltsbezug BAMF'")
+				.contains("Type 'Gehaltsbezug' like the series");
+	}
+
+	@Test
 	void theSentDateAndSubjectOfAnEmailAreKept() {
 		DigestResultMessage m = new DigestResultMessage();
 		m.getPrediction().setDocumentDate(LocalDate.of(2024, 3, 5));
