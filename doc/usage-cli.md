@@ -160,6 +160,66 @@ matros decrypt /vault/abc123.enc -p "mypassword" -s "mysalt" -o restored.pdf
 matros decrypt /vault/abc123.enc -p "mypassword" -s "mysalt" | evince -
 ```
 
+Every store file, document and text layer (`.txt.enc`) alike, is AES-256-GCM. A wrong password or
+salt gives an error, never garbage.
+
+---
+
+### `rekey`
+
+Gives the document store a new password and salt: every `.enc` file of a repository is decrypted
+with the current key and encrypted again with the new one. Use it to leave the shipped default
+password `CHANGE-THIS-PASSWORD`, which is public and protects nothing.
+
+```
+matros rekey <repository> [--current-default] [--current-salt <salt>]
+                          [--apply --backup-dir <folder>] [--new-salt <salt>]
+```
+
+|  Argument / Option   | Required |                                   Description                                    |
+|----------------------|----------|----------------------------------------------------------------------------------|
+| `<repository>`       | ✔        | Repository folder, the one that contains `documents/`                            |
+| `--current-default`  | —        | The store still uses the shipped default password and salt                       |
+| `--current-salt`     | —        | Current salt, when it is not the default                                         |
+| `--apply`            | —        | Re-encrypt. Without it every file is only checked with the current password      |
+| `--backup-dir`       | with `--apply` | New or empty folder for the old files, outside the repository and outside any cloud folder (they open with the old password) |
+| `--new-salt`         | —        | New salt; default a new random one. Repositories started with the same `MATROS_STORE_SALT` need the same salt |
+
+Passwords are asked for on the console without echo, never taken from the command line. Without a
+console they come from `MATROS_REKEY_CURRENT_PASSWORD` and `MATROS_REKEY_NEW_PASSWORD`. The new
+password needs at least 12 characters.
+
+**How it keeps the documents safe:** nothing in the repository changes until every file has been
+re-encrypted into a staging folder (`.rekey-staging`) and each one has been decrypted again with the
+new key to the same SHA-256. Only then is each original moved to the backup folder (with a manifest
+of the checksums) and its replacement moved into place. If the repository changes meanwhile — is
+MatrosDMS still running? — or a file opens with neither key, it stops and changes nothing. A file
+that already has the new key is skipped, so running it again finishes an interrupted run.
+
+**Procedure** (stop MatrosDMS first):
+
+```bash
+# 1. check: every file must open with the current password
+matros rekey D:/cloud/matrosdms/repository/schwehla-household --current-default
+
+# 2. re-encrypt; prints the new salt
+matros rekey D:/cloud/matrosdms/repository/schwehla-household --current-default \
+      --apply --backup-dir D:/matrosdms/rekey-backup-household
+
+# 3. further repositories started with the same environment variables: same password, same salt
+matros rekey D:/cloud/matrosdms/repository/schwehla-invest --current-default \
+      --apply --backup-dir D:/matrosdms/rekey-backup-invest --new-salt <salt from step 2>
+```
+
+4. Set `MATROS_STORE_PASSWORD` and `MATROS_STORE_SALT` (Windows: user environment variables).
+5. Start MatrosDMS. It refuses to start when the password does not fit the stored files, so a typo
+   cannot lead to documents filed with a wrong key. Run the Integrity Check.
+6. Delete the backup folders and, for a repository in a cloud folder, empty the cloud's trash: the
+   old files open with the old password. Keep the new password and salt in a password manager —
+   without them nobody can open the documents.
+
+Database backups and the change journal in the repository are not encrypted by the store key.
+
 ---
 
 ## Session file

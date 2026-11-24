@@ -87,7 +87,7 @@ Architecture audit + fix rounds of 2026-07-05 (GUI → backend, deep dive into a
 
 ### Open — needs a decision or bigger refactor
 
-1. **Default secrets are production-usable** (JWT HMAC fallback, store password `CHANGE-THIS-PASSWORD` + static salt, DB `admin`/`admin`). *Deliberately NOT failing startup on defaults — that would brick every fresh portable install. Recommended: fail fast when a non-loopback bind/`prod` profile is combined with default secrets.*
+1. **Default secrets are production-usable** (JWT HMAC fallback, store password `CHANGE-THIS-PASSWORD` + static salt, DB `admin`/`admin`). Store part: `matros rekey` moves an existing store to an own password and salt, and the server refuses to start when the configured key opens none of the stored files. DB backups and the change journal in the repository remain unencrypted. *Deliberately NOT failing startup on defaults — that would brick every fresh portable install. Recommended: fail fast when a non-loopback bind/`prod` profile is combined with default secrets.*
 2. `ItemIngestionFacade` `@Transactional` spans hashing + encryption + store I/O; move store writes out (compensation logic already exists at :188-199).
 3. `AdminService` integrity check / export: unbounded `findAll()`, whole-store re-hash/decrypt inside read-only transactions, N+1 on `kindList`/`attributes`. Paginate, drop the wrapping transaction.
 4. `BodyContentHandler(-1)` unbounded extraction buffer in one `TikaService` path.

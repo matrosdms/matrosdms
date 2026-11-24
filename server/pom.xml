@@ -378,6 +378,8 @@
                             <includes>
                                 <include>net/schwehla/matrosdms/plugin/**</include>
                                 <include>net/schwehla/matrosdms/domain/**</include>
+                                <!-- store file format and key derivation, shared with the CLI (matros rekey) -->
+                                <include>net/schwehla/matrosdms/store/encryption/StoreCrypto*</include>
                                 <include>com/fasterxml/jackson/annotation/**</include>
                             </includes>
                         </configuration>

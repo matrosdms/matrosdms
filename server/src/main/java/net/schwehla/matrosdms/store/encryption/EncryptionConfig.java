@@ -7,18 +7,23 @@
  */
 package net.schwehla.matrosdms.store.encryption;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.Security;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Stream;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
-import org.bouncycastle.crypto.generators.Argon2BytesGenerator;
-import org.bouncycastle.crypto.params.Argon2Parameters;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import net.schwehla.matrosdms.config.model.AppServerSpringConfig;
@@ -32,14 +37,12 @@ import net.schwehla.matrosdms.domain.storage.EStorageLocation;
  * Thread-safe and immutable after initialization.
  */
 @Component
+// Created at start-up despite spring.main.lazy-initialization: the key check below must refuse a
+// wrong password before the first document is filed with it, not on the first download.
+@Lazy(false)
 public class EncryptionConfig {
 
 	private static final Logger log = LoggerFactory.getLogger(EncryptionConfig.class);
-
-	private static final int KEY_LENGTH_BYTES = 32; // AES-256
-	private static final int ARGON2_ITERATIONS = 3;
-	private static final int ARGON2_MEMORY_KB = 65536; // 64 MB
-	private static final int ARGON2_PARALLELISM = 1;
 
 	private final AppServerSpringConfig appServerSpringConfig;
 
@@ -101,35 +104,66 @@ public class EncryptionConfig {
 		}
 
 		// Warn about insecure defaults
-		if ("CHANGE-THIS-PASSWORD".equals(password)) {
-			log.warn("⚠️  WARNING: Using default password! Change MATROS_STORE_PASSWORD in production!");
+		if (StoreCrypto.DEFAULT_PASSWORD.equals(password)) {
+			log.warn("⚠️  WARNING: Using default password! Change MATROS_STORE_PASSWORD in production "
+					+ "(re-encrypt the store first: matros rekey)!");
 		}
 
-		if ("MATROS_DMS_SALT".equals(saltString)) {
+		if (StoreCrypto.DEFAULT_SALT.equals(saltString)) {
 			log.warn("⚠️  WARNING: Using default salt! Change MATROS_STORE_SALT in production!");
 		}
 
+		byte[] key;
 		try {
-			byte[] salt = saltString.getBytes(StandardCharsets.UTF_8);
-
-			Argon2Parameters.Builder builder = new Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
-					.withVersion(Argon2Parameters.ARGON2_VERSION_13)
-					.withIterations(ARGON2_ITERATIONS)
-					.withMemoryAsKB(ARGON2_MEMORY_KB)
-					.withParallelism(ARGON2_PARALLELISM)
-					.withSalt(salt);
-
-			Argon2BytesGenerator generator = new Argon2BytesGenerator();
-			generator.init(builder.build());
-
-			this.encryptionKey = new byte[KEY_LENGTH_BYTES];
-			generator.generateBytes(password.toCharArray(), this.encryptionKey);
-
+			key = StoreCrypto.deriveKey(password, saltString);
 			log.debug("Encryption key derived using Argon2id (iterations={}, memory={}KB)",
-					ARGON2_ITERATIONS, ARGON2_MEMORY_KB);
-
+					StoreCrypto.ARGON2_ITERATIONS, StoreCrypto.ARGON2_MEMORY_KB);
 		} catch (Exception e) {
 			throw new IllegalStateException("Failed to derive encryption key", e);
+		}
+
+		// Before anything is written with it: a key that fits none of the stored files is a wrong
+		// password or salt, and documents filed with it could only be read with that wrong key.
+		verifyKeyFitsStore(storeConfig.getPath() == null ? null : Path.of(storeConfig.getPath()), key);
+		this.encryptionKey = key;
+	}
+
+	/** How many of the smallest store files the start-up check tries. */
+	static final int KEY_CHECK_SAMPLES = 3;
+
+	/**
+	 * Refuses to start when the key opens none of a few store files. One damaged file does not stop the
+	 * start, a wrong password or salt does. An empty or missing store (first start) passes.
+	 */
+	static void verifyKeyFitsStore(Path storeDir, byte[] key) {
+		if (storeDir == null || !Files.isDirectory(storeDir))
+			return;
+		List<Path> samples;
+		try (Stream<Path> files = Files.walk(storeDir, 2)) {
+			// shorter than IV + tag is a broken write, not a sample that says anything about the key
+			long minimal = StoreCrypto.IV_LENGTH + StoreCrypto.TAG_LENGTH_BIT / 8;
+			samples = files.filter(p -> p.getFileName().toString().endsWith(".enc") && Files.isRegularFile(p))
+					.filter(p -> sizeOf(p) > minimal)
+					.sorted(Comparator.comparingLong(EncryptionConfig::sizeOf))
+					.limit(KEY_CHECK_SAMPLES)
+					.toList();
+		} catch (IOException | UncheckedIOException e) {
+			log.warn("Could not list {} to check the store key: {}", storeDir, e.getMessage());
+			return;
+		}
+		if (samples.isEmpty() || samples.stream().anyMatch(p -> StoreCrypto.opens(p, key)))
+			return;
+		throw new IllegalStateException("The store password does not fit the documents.\n\n"
+				+ "None of the files checked in " + storeDir + " can be opened with the configured "
+				+ "MATROS_STORE_PASSWORD and MATROS_STORE_SALT. Set the password and salt the documents "
+				+ "were encrypted with (after 'matros rekey': the new ones). MatrosDMS has changed nothing.");
+	}
+
+	private static long sizeOf(Path p) {
+		try {
+			return Files.size(p);
+		} catch (IOException e) {
+			return Long.MAX_VALUE;
 		}
 	}
 

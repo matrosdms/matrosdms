@@ -19,6 +19,7 @@ import picocli.CommandLine.Command;
                 LoginCommand.class,
                 FindDuplicateCommand.class,
                 OfflineDecryptCommand.class,
+                RekeyCommand.class,
                 picocli.CommandLine.HelpCommand.class
         },
         mixinStandardHelpOptions = true)

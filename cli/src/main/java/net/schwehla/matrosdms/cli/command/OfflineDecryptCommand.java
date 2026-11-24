@@ -3,31 +3,23 @@
  */
 package net.schwehla.matrosdms.cli.command;
 
-import java.io.BufferedInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.Security;
+import java.security.GeneralSecurityException;
 import java.util.concurrent.Callable;
 
-import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-
-import org.bouncycastle.crypto.generators.Argon2BytesGenerator;
-import org.bouncycastle.crypto.params.Argon2Parameters;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.stereotype.Component;
 
+import net.schwehla.matrosdms.store.encryption.StoreCrypto;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+/**
+ * Decrypts one store file without a running server. Every store file, document and text layer
+ * alike, is AES-256-GCM (see {@link StoreCrypto}); the file is only written when the tag matched,
+ * so a wrong password or salt yields an error, never garbage.
+ */
 @Component
 @Command(name = "decrypt", description = "Offline recovery tool for encrypted store files")
 public class OfflineDecryptCommand implements Callable<Integer> {
@@ -44,82 +36,29 @@ public class OfflineDecryptCommand implements Callable<Integer> {
     @Option(names = {"-o", "--out"}, description = "Output file (default: stdout)")
     private Path outputFile;
 
-    // Crypto Constants
-    private static final String ALGO_GCM = "AES/GCM/NoPadding";
-    private static final String ALGO_CTR = "AES/CTR/NoPadding";
-    private static final int IV_GCM = 12;
-    private static final int IV_CTR = 16;
-    private static final int TAG_LEN = 128;
-
     @Override
     public Integer call() {
-        Security.addProvider(new BouncyCastleProvider());
-
         if (!Files.exists(inputFile)) {
-            System.err.println("❌ File not found: " + inputFile);
+            System.err.println("[ERROR] File not found: " + inputFile);
             return 1;
         }
-
         try {
-            System.err.println("🔐 Deriving Key...");
-            byte[] key = deriveKey(password, salt);
-
-            // Heuristic: Text layers and Thumbnails used Legacy CTR
-            boolean isLegacy = inputFile.toString().endsWith(".txt.enc") 
-                            || inputFile.toString().contains(".thumb.");
-
-            String algoLabel = isLegacy ? "AES-CTR (Legacy/Text)" : "AES-GCM (Standard)";
-            System.err.println("🔓 Decrypting using " + algoLabel + "...");
-
-            try (InputStream fis = new BufferedInputStream(Files.newInputStream(inputFile))) {
-                
-                Cipher cipher;
-                if (isLegacy) {
-                    byte[] iv = new byte[IV_CTR];
-                    if (fis.read(iv) != IV_CTR) throw new IllegalArgumentException("File too short for IV");
-                    cipher = Cipher.getInstance(ALGO_CTR);
-                    cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"), new IvParameterSpec(iv));
-                } else {
-                    byte[] iv = new byte[IV_GCM];
-                    if (fis.read(iv) != IV_GCM) throw new IllegalArgumentException("File too short for IV");
-                    cipher = Cipher.getInstance(ALGO_GCM);
-                    cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(TAG_LEN, iv));
-                }
-
-                try (CipherInputStream cis = new CipherInputStream(fis, cipher)) {
-                    if (outputFile != null) {
-                        try (OutputStream fos = new FileOutputStream(outputFile.toFile())) {
-                            cis.transferTo(fos);
-                        }
-                        System.err.println("✅ Decrypted content saved to: " + outputFile);
-                    } else {
-                        // Pipe to stdout
-                        cis.transferTo(System.out);
-                    }
-                }
+            System.err.println("Deriving key ...");
+            byte[] plain = StoreCrypto.decrypt(Files.readAllBytes(inputFile), StoreCrypto.deriveKey(password, salt));
+            if (outputFile != null) {
+                Files.write(outputFile, plain);
+                System.err.println("[OK] Decrypted content saved to: " + outputFile);
+            } else {
+                System.out.write(plain);
+                System.out.flush();
             }
             return 0;
-
+        } catch (GeneralSecurityException e) {
+            System.err.println("[ERROR] Cannot decrypt: wrong password or salt, or the file is damaged.");
+            return 1;
         } catch (Exception e) {
-            System.err.println("❌ Decryption Failed: " + e.getMessage());
-            // e.printStackTrace(); // Uncomment for debug
+            System.err.println("[ERROR] Decryption failed: " + e.getMessage());
             return 1;
         }
-    }
-
-    private byte[] deriveKey(String password, String saltStr) {
-        byte[] salt = saltStr.getBytes(StandardCharsets.UTF_8);
-        Argon2Parameters.Builder builder = new Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
-                .withVersion(Argon2Parameters.ARGON2_VERSION_13)
-                .withIterations(3)
-                .withMemoryAsKB(65536)
-                .withParallelism(1)
-                .withSalt(salt);
-
-        Argon2BytesGenerator gen = new Argon2BytesGenerator();
-        gen.init(builder.build());
-        byte[] result = new byte[32];
-        gen.generateBytes(password.toCharArray(), result);
-        return result;
     }
 }
