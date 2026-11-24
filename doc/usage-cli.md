@@ -200,14 +200,14 @@ that already has the new key is skipped, so running it again finishes an interru
 
 ```bash
 # 1. check: every file must open with the current password
-matros rekey D:/cloud/matrosdms/repository/schwehla-household --current-default
+matros rekey D:/matrosdms/repository/household --current-default
 
 # 2. re-encrypt; prints the new salt
-matros rekey D:/cloud/matrosdms/repository/schwehla-household --current-default \
+matros rekey D:/matrosdms/repository/household --current-default \
       --apply --backup-dir D:/matrosdms/rekey-backup-household
 
 # 3. further repositories started with the same environment variables: same password, same salt
-matros rekey D:/cloud/matrosdms/repository/schwehla-invest --current-default \
+matros rekey D:/matrosdms/repository/invest --current-default \
       --apply --backup-dir D:/matrosdms/rekey-backup-invest --new-salt <salt from step 2>
 ```
 
